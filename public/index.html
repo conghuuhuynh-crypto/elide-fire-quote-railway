@@ -151,75 +151,52 @@
     .grand-total span { font-size: 22px; font-weight: 800; color: #c0392b; }
 
     .btn-row { display: flex; gap: 12px; }
-    .btn-submit {
+    .btn-row.has-actions { flex-wrap: wrap; }
+    .btn-base {
       flex: 1;
-      padding: 15px;
-      background: #c0392b;
-      color: white;
-      border: none;
+      min-width: 0;
+      padding: 14px 12px;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       cursor: pointer;
-      transition: background 0.2s;
-      letter-spacing: 0.5px;
+      transition: all 0.2s;
+      text-align: center;
+      white-space: nowrap;
+      letter-spacing: 0.3px;
     }
-    .btn-submit:hover { background: #a93226; }
-    .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-submit {
+      background: #c0392b;
+      color: white;
+      border: 1.5px solid #c0392b;
+    }
+    .btn-submit:extend(.btn-base) {}
+    .btn-submit:hover { background: #a93226; border-color: #a93226; }
+    .btn-submit:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
 
     .btn-reset {
-      padding: 15px 24px;
       background: white;
       color: #888;
       border: 1.5px solid #ddd;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
     }
     .btn-reset:hover { border-color: #c0392b; color: #c0392b; }
 
     .status {
       margin-top: 16px;
-      padding: 12px 16px;
-      border-radius: 6px;
-      font-size: 14px;
-      display: none;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .status.loading { background: #f9f2f2; color: #888; display: flex; }
-    .status.success { background: #f9f2f2; color: #555; display: flex; }
-    .status.error   { background: #fdedec; color: #c0392b; display: flex; }
-    .status .status-text { flex: 1; font-size: 13px; min-width: 0; word-break: break-word; }
-    @media (max-width: 600px) {
-      .status { flex-direction: column; align-items: stretch; gap: 10px; }
-      .status .status-text { text-align: center; }
-      .status .btn-action { width: 100%; padding: 10px; text-align: center; }
-    }
-    .status .btn-action {
-      padding: 6px 16px;
-      border-radius: 6px;
       font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s;
+      display: none;
     }
-    .status .btn-action:hover { opacity: 0.85; }
+    .status.loading { display: block; color: #888; padding: 10px 0 4px; }
+    .status.error   { display: block; color: #c0392b; padding: 10px 0 4px; }
+    .status.success { display: block; }
+    .status .status-text { display: block; color: #555; padding: 10px 0 10px; word-break: break-all; }
+    .status .btn-row-actions { display: flex; gap: 12px; }
     .btn-copy {
       background: white;
       color: #c0392b;
       border: 1.5px solid #c0392b;
     }
     .btn-copy:hover { background: #c0392b; color: white; }
-    .btn-download {
-      background: #c0392b;
-      color: white;
-      border: 1.5px solid #c0392b;
-    }
 
     /* Responsive mobile */
     @media (max-width: 600px) {
@@ -271,6 +248,7 @@
       .subtotal-row, .discount-row, .grand-total { flex-direction: column; align-items: flex-end; gap: 6px; }
       .grand-total span { font-size: 20px; }
       .btn-row { flex-direction: column; }
+      .btn-base { padding: 13px 12px; font-size: 14px; }
     }
 
     /* Suffix đơn vị trong input */
@@ -422,7 +400,7 @@
           <tr>
             <td class="product-name" data-label="Sản phẩm">Lovingcare 0.4kg</td>
             <td data-label="Số lượng">
-              <input type="number" name="so_luong_02" id="qty2" min="0" value="0" oninput="calcTotal()">
+              <input type="number" name="so_luong_02" id="qty2" min="0" value="1" oninput="calcTotal()">
             </td>
             <td data-label="Đơn giá (VNĐ)">
               <input type="text" name="gia_sp_02" id="price2" value="1,950,000" oninput="calcTotal()">
@@ -462,16 +440,13 @@
 
     <!-- Submit + Reset -->
     <div class="card">
-      <div class="btn-row">
-        <button type="button" class="btn-reset" onclick="resetForm()">
-          ↺ Nhập lại
-        </button>
-        <button type="submit" class="btn-submit" id="submitBtn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px; margin-bottom:2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Xuất PDF Báo Giá
-        </button>
+      <div class="btn-row" id="mainBtnRow">
+        <button type="button" class="btn-base btn-reset" onclick="resetForm()">↺ Nhập lại</button>
+        <button type="submit" class="btn-base btn-submit" id="submitBtn">⬇ Xuất PDF Báo Giá</button>
       </div>
       <div class="status" id="status">
         <span class="status-text" id="statusText"></span>
+        <div class="btn-row btn-row-actions" id="actionBtnRow" style="display:none"></div>
       </div>
     </div>
 
@@ -574,6 +549,7 @@
     ['nv_bo_phan_display','nv_email_display','nv_sdt_display'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('nv_select').value = '';
     document.getElementById('status').className = 'status';
+    document.getElementById('actionBtnRow').style.display = 'none';
     calcTotal();
   }
 
@@ -611,7 +587,7 @@
     btn.disabled = true;
     btn.textContent = 'Đang tạo PDF...';
     status.className = 'status loading';
-    status.querySelectorAll('.btn-action').forEach(b => b.remove());
+    document.getElementById('actionBtnRow').style.display = 'none';
     document.getElementById('statusText').textContent = '⏳ Đang khởi tạo...';
 
     try {
@@ -626,35 +602,38 @@
         document.getElementById('statusText').textContent = msg;
       });
 
-      // Hiển thị 2 nút
+      // Hiển thị 2 nút action
       status.className = 'status success';
       document.getElementById('statusText').textContent = '✅ ' + filename;
-      status.querySelectorAll('.btn-action').forEach(b => b.remove());
+
+      const actionRow = document.getElementById('actionBtnRow');
+      actionRow.innerHTML = '';
+      actionRow.style.display = 'flex';
 
       const btnCopy = document.createElement('button');
       btnCopy.type = 'button';
-      btnCopy.className = 'btn-action btn-copy';
+      btnCopy.className = 'btn-base btn-reset btn-copy';
       btnCopy.textContent = '📋 Copy link';
       btnCopy.onclick = () => {
         navigator.clipboard.writeText(url).then(() => {
           btnCopy.textContent = '✓ Đã copy!';
-          setTimeout(() => btnCopy.textContent = '📋 Copy link', 2000);
+          setTimeout(() => { btnCopy.textContent = '📋 Copy link'; }, 2000);
         });
       };
 
       const btnDl = document.createElement('button');
       btnDl.type = 'button';
-      btnDl.className = 'btn-action btn-download';
+      btnDl.className = 'btn-base btn-submit';
       btnDl.textContent = '⬇ Download';
       btnDl.onclick = () => { const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); };
 
-      status.appendChild(btnCopy);
-      status.appendChild(btnDl);
+      actionRow.appendChild(btnCopy);
+      actionRow.appendChild(btnDl);
 
     } catch (err) {
       status.className = 'status error';
       document.getElementById('statusText').textContent = '❌ Lỗi: ' + err.message;
-      status.querySelectorAll('.btn-action').forEach(b => b.remove());
+      document.getElementById('actionBtnRow').style.display = 'none';
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px; margin-bottom:2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Xuất PDF Báo Giá';
