@@ -270,6 +270,37 @@
 <div class="container">
   <form id="quoteForm">
 
+    <!-- Thông tin nhân viên -->
+    <div class="card">
+      <h2>Nhân viên phụ trách</h2>
+      <div class="row">
+        <div class="field">
+          <label>Chọn nhân viên *</label>
+          <select id="nv_select" required>
+            <option value="">-- Đang tải... --</option>
+          </select>
+          <input type="hidden" name="nv_ten" id="nv_ten">
+          <input type="hidden" name="nv_bo_phan" id="nv_bo_phan">
+          <input type="hidden" name="nv_email" id="nv_email">
+          <input type="hidden" name="nv_sdt" id="nv_sdt">
+        </div>
+        <div class="field">
+          <label>Bộ phận</label>
+          <input type="text" id="nv_bo_phan_display" readonly placeholder="Tự động điền">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Email</label>
+          <input type="text" id="nv_email_display" readonly placeholder="Tự động điền">
+        </div>
+        <div class="field">
+          <label>Số điện thoại</label>
+          <input type="text" id="nv_sdt_display" readonly placeholder="Tự động điền">
+        </div>
+      </div>
+    </div>
+
     <!-- Thông tin báo giá -->
     <div class="card">
       <h2>Thông tin báo giá</h2>
@@ -324,37 +355,6 @@
         <div class="field">
           <label>Email *</label>
           <input type="email" name="email_khach_hang" placeholder="email@congty.vn" required>
-        </div>
-      </div>
-    </div>
-
-    <!-- Thông tin nhân viên -->
-    <div class="card">
-      <h2>Nhân viên phụ trách</h2>
-      <div class="row">
-        <div class="field">
-          <label>Chọn nhân viên *</label>
-          <select id="nv_select" required>
-            <option value="">-- Đang tải... --</option>
-          </select>
-          <input type="hidden" name="nv_ten" id="nv_ten">
-          <input type="hidden" name="nv_bo_phan" id="nv_bo_phan">
-          <input type="hidden" name="nv_email" id="nv_email">
-          <input type="hidden" name="nv_sdt" id="nv_sdt">
-        </div>
-        <div class="field">
-          <label>Bộ phận</label>
-          <input type="text" id="nv_bo_phan_display" readonly placeholder="Tự động điền">
-        </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label>Email</label>
-          <input type="text" id="nv_email_display" readonly placeholder="Tự động điền">
-        </div>
-        <div class="field">
-          <label>Số điện thoại</label>
-          <input type="text" id="nv_sdt_display" readonly placeholder="Tự động điền">
         </div>
       </div>
     </div>

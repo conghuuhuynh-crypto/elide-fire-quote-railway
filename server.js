@@ -141,6 +141,11 @@ app.post('/api/generate', (req, res) => {
   const total      = tongTruoCK * (1 - ckTong / 100);
   const fmt        = (n) => n.toLocaleString('vi-VN');
 
+  const discountAmt = tongTruoCK - total;
+  const chietKhauDisplay = ckTong > 0
+    ? `-${ckTong}% (-${fmt(discountAmt)} VNĐ)`
+    : '0';
+
   const data = {
     ten_cong_ty:       b.ten_cong_ty       || '',
     ten_phong_ban:     b.ten_phong_ban     || '',
@@ -157,13 +162,13 @@ app.post('/api/generate', (req, res) => {
     so_luong_02:       String(qty2 || '0'),
     gia_sp_02:         fmt(price2 * (1 - ck2 / 100)),
     thanh_tien_02:     fmt(tt2),
-    chiet_khau_tong:   ckTong > 0 ? `${ckTong}%` : '',
-    tong_truoc_ck:     fmt(tongTruoCK),
+    truoc_chiet_khau:  fmt(tongTruoCK),
+    chiet_khau:        chietKhauDisplay,
     tong_thanh_tien:   fmt(total),
-    nv_bo_phan:        b.nv_bo_phan  || '',
-    nv_ten:            b.nv_ten      || '',
-    nv_email:          b.nv_email    || '',
-    nv_sdt:            b.nv_sdt      || '',
+    bo_phan:           b.nv_bo_phan        || '',
+    ten_nhan_vien:     b.nv_ten            || '',
+    email_nhan_vien:   b.nv_email          || '',
+    sdt_nhan_vien:     b.nv_sdt            || '',
   };
 
   const soSlug  = (b.so_bao_gia || 'bao-gia').replace(/[\/\\:*?"<>|]/g, '-').trim();
@@ -190,41 +195,43 @@ app.post('/api/generate', (req, res) => {
       const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
       const finalName = path.basename(finalPath);
 
-      // Gửi PDF về trình duyệt trước
+      // Lưu vào NocoDB trước khi gửi PDF
+      try {
+        const attachment = await uploadPdfToNocoDB(finalPath, finalName);
+        await saveQuoteToNocoDB({
+          So_bao_gia:       b.so_bao_gia        || '',
+          Ngay_bao_gia:     b.ngay_bao_gia       || '',
+          Phien_ban:        b.phien_ban          || '',
+          Ten_du_an:        b.ten_du_an          || '',
+          Ten_cong_ty:      b.ten_cong_ty        || '',
+          Phong_ban_KH:     b.ten_phong_ban      || '',
+          Nguoi_lien_he:    b.ten_nguoi_lien_he  || '',
+          SDT_khach_hang:   b.sdt_khach_hang     || '',
+          Email_khach_hang: b.email_khach_hang   || '',
+          NV_bo_phan:       b.nv_bo_phan         || '',
+          NV_ten:           b.nv_ten             || '',
+          NV_email:         b.nv_email           || '',
+          NV_sdt:           b.nv_sdt             || '',
+          SL_Techideas:     qty1,
+          DonGia_Techideas: price1,
+          CK_Techideas:     ck1,
+          ThanhTien_Techideas: tt1,
+          SL_Lovingcare:    qty2,
+          DonGia_Lovingcare: price2,
+          CK_Lovingcare:    ck2,
+          ThanhTien_Lovingcare: tt2,
+          CK_Tong_don:      ckTong,
+          Tong_thanh_toan:  total,
+          File_PDF:         attachment ? [attachment] : null,
+        });
+      } catch (e) {
+        console.error('NocoDB save error:', e.message);
+      }
+
+      // Gửi PDF về trình duyệt
       res.setHeader('Content-Disposition', `attachment; filename="${finalName}"`);
       res.setHeader('Content-Type', 'application/pdf');
-      res.sendFile(finalPath, async () => {
-        // Sau đó lưu vào NocoDB (background)
-        try {
-          const attachment = await uploadPdfToNocoDB(finalPath, finalName);
-          await saveQuoteToNocoDB({
-            So_bao_gia:      b.so_bao_gia        || '',
-            Ngay_bao_gia:    b.ngay_bao_gia       || '',
-            Phien_ban:       b.phien_ban          || '',
-            Ten_du_an:       b.ten_du_an          || '',
-            Ten_cong_ty:     b.ten_cong_ty        || '',
-            Phong_ban_KH:    b.ten_phong_ban      || '',
-            Nguoi_lien_he:   b.ten_nguoi_lien_he  || '',
-            SDT_khach_hang:  b.sdt_khach_hang     || '',
-            Email_khach_hang:b.email_khach_hang   || '',
-            NV_bo_phan:      b.nv_bo_phan         || '',
-            NV_ten:          b.nv_ten             || '',
-            NV_email:        b.nv_email           || '',
-            NV_sdt:          b.nv_sdt             || '',
-            SL_Techideas:    qty1,
-            DonGia_Techideas:price1,
-            CK_Techideas:    ck1,
-            ThanhTien_Techideas: tt1,
-            SL_Lovingcare:   qty2,
-            DonGia_Lovingcare:price2,
-            CK_Lovingcare:   ck2,
-            ThanhTien_Lovingcare: tt2,
-            CK_Tong_don:     ckTong,
-            Tong_thanh_toan: total,
-            File_PDF:        attachment ? [attachment] : null,
-          });
-        } catch (_) {}
-      });
+      res.sendFile(finalPath);
     });
   });
 });
