@@ -62,6 +62,22 @@ function escXml(s) {
     .replace(/"/g, '&quot;');
 }
 
+function fixCellLineSpacing(rowXml, tagStr, lineValue) {
+  const ti = rowXml.indexOf(tagStr);
+  if (ti === -1) return rowXml;
+  const tcS = rowXml.lastIndexOf('<w:tc>', ti);
+  const tcE = rowXml.indexOf('</w:tc>', ti) + 7;
+  if (tcS === -1 || tcE === 6) return rowXml;
+  let cell = rowXml.slice(tcS, tcE);
+  const spacing = `<w:spacing w:line="${lineValue}" w:lineRule="auto"/>`;
+  if (cell.includes('<w:spacing ')) {
+    cell = cell.replace(/<w:spacing[^/]*\/>/, spacing);
+  } else if (cell.includes('</w:pPr>')) {
+    cell = cell.replace('</w:pPr>', `${spacing}</w:pPr>`);
+  }
+  return rowXml.slice(0, tcS) + cell + rowXml.slice(tcE);
+}
+
 function fixCellAlign(rowXml, tagStr, align) {
   const ti = rowXml.indexOf(tagStr);
   if (ti === -1) return rowXml;
@@ -92,13 +108,8 @@ function moTaToRuns(text, templateRun) {
   const lines = String(text || '').split('\n');
   return lines.map((line, i) => {
     const rp = i < BOLD_LINES ? boldRPr : normalRPr;
-    // Thêm dòng trống phân cách sau dòng bold cuối
-    const separator = (i === BOLD_LINES - 1 && lines.length > BOLD_LINES)
-      ? `<w:r>${normalRPr}<w:br/></w:r>`
-      : '';
     return `<w:r>${rp}<w:t xml:space="preserve">${escXml(line)}</w:t></w:r>` +
-      (i < lines.length - 1 ? `<w:r>${rp}<w:br/></w:r>` : '') +
-      separator;
+      (i < lines.length - 1 ? `<w:r>${rp}<w:br/></w:r>` : '');
   }).join('');
 }
 
@@ -142,6 +153,7 @@ function renderDocxTemplate(templatePath, data, items) {
       templateRow = fixCellAlign(templateRow, '{d.items[i].mo_ta}',    'left');
       templateRow = fixCellAlign(templateRow, '{d.items[i].don_gia}',  'right');
       templateRow = fixCellAlign(templateRow, '{d.items[i].thanh_tien}', 'right');
+      templateRow = fixCellLineSpacing(templateRow, '{d.items[i].mo_ta}', 300); // ~1.25x spacing
       const moTaPos = templateRow.indexOf('{d.items[i].mo_ta}');
       let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
       if (moTaPos !== -1) {
@@ -200,7 +212,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v16-bold-mota' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v17-line-spacing' }));
 
 // Debug: test adm-zip patch + LibreOffice
 app.get('/api/debug/lo-test', (req, res) => {
