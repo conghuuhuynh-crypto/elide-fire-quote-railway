@@ -128,7 +128,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v6-outdir-quotes' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v7-debug' }));
 
 // API nhân viên
 app.get('/api/employees', (req, res) => {
@@ -297,13 +297,22 @@ async function runJob(jobId, b) {
 
     // tmpDocx đặt trong QUOTES_DIR, --outdir cũng trỏ vào QUOTES_DIR
     const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${tmpDocx}"`;
-    exec(cmd, { timeout: 120000 }, (err2) => {
+    console.log('[LO] cmd:', cmd);
+    exec(cmd, { timeout: 120000 }, (err2, stdout, stderr) => {
+      console.log('[LO] stdout:', stdout);
+      console.log('[LO] stderr:', stderr);
+      console.log('[LO] err2:', err2 ? err2.message : 'null');
       try { fs.unlinkSync(tmpDocx); } catch (_) {}
       if (err2) { job.status = 'error'; job.error = 'LibreOffice: ' + err2.message; return; }
 
       const libreOut = path.join(QUOTES_DIR, `_tmp_${jobId}.pdf`);
       if (!fs.existsSync(libreOut)) {
-        job.status = 'error'; job.error = 'PDF not found after conversion: ' + libreOut; return;
+        // List files in QUOTES_DIR for debugging
+        let files = [];
+        try { files = fs.readdirSync(QUOTES_DIR); } catch(_) {}
+        job.status = 'error';
+        job.error = 'PDF not found. QUOTES_DIR files: [' + files.join(',') + '] stdout=' + stdout + ' stderr=' + stderr;
+        return;
       }
       try { fs.renameSync(libreOut, outPdf); } catch (_) {}
 
