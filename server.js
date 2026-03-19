@@ -132,6 +132,23 @@ app.use('/download', express.static(QUOTES_DIR));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v8-no-carbone' }));
 
+// Debug: test LibreOffice với original template
+app.get('/api/debug/lo-test', (req, res) => {
+  if (!fs.existsSync(QUOTES_DIR)) fs.mkdirSync(QUOTES_DIR, { recursive: true });
+  const testPdf = path.join(QUOTES_DIR, 'lo-test.pdf');
+  const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${TEMPLATE}"`;
+  exec(cmd, { timeout: 60000 }, (err, stdout, stderr) => {
+    res.json({
+      cmd, err: err ? err.message : null, stdout, stderr,
+      templateExists: fs.existsSync(TEMPLATE),
+      templateSize: (() => { try { return fs.statSync(TEMPLATE).size; } catch(_){return 0;} })(),
+      pdfExists: fs.existsSync(testPdf),
+      quotesDir: QUOTES_DIR,
+      quotesDirExists: fs.existsSync(QUOTES_DIR),
+    });
+  });
+});
+
 // API nhân viên
 app.get('/api/employees', (req, res) => {
   const options = {
