@@ -128,7 +128,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'adm-zip-v3' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v5-outdir-fix' }));
 
 // API nhân viên
 app.get('/api/employees', (req, res) => {
