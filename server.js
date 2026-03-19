@@ -117,7 +117,9 @@ function renderDocxTemplate(templatePath, data, items) {
     xml = xml.split(`{d.${key}}`).join(escXml(String(val)));
   }
 
-  zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
+  // deleteFile + addFile thay vì updateFile (tránh corrupt zip)
+  zip.deleteFile('word/document.xml');
+  zip.addFile('word/document.xml', Buffer.from(xml, 'utf8'));
   zip.writeZip(tmpDocx);
 
   return tmpDocx;
@@ -130,7 +132,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v8-no-carbone' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v9-delete-add' }));
 
 // Debug: test adm-zip patch + LibreOffice
 app.get('/api/debug/lo-test', (req, res) => {
