@@ -124,7 +124,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'adm-zip-v3' }));
 
 // API nhân viên
 app.get('/api/employees', (req, res) => {
@@ -330,7 +330,10 @@ app.post('/api/generate', (req, res) => {
   const jobId = crypto.randomBytes(6).toString('hex');
   jobs[jobId] = { status: 'processing' };
   setTimeout(() => { delete jobs[jobId]; }, 3600000);
-  setImmediate(() => runJob(jobId, req.body));
+  setImmediate(() => runJob(jobId, req.body).catch(e => {
+    if (jobs[jobId]) { jobs[jobId].status = 'error'; jobs[jobId].error = 'Unhandled: ' + e.message; }
+    console.error('[runJob crash]', e.message);
+  }));
   res.json({ jobId });
 });
 
