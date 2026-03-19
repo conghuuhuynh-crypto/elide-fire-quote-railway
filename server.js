@@ -16,6 +16,21 @@ const crypto   = require('crypto');
 const app  = express();
 const PORT = process.env.PORT || 3333;
 
+// Python script để patch docx zip (viết 1 lần khi server start)
+const PY_PATCH_SCRIPT = path.join(os.tmpdir(), 'patch_docx_elide.py');
+fs.writeFileSync(PY_PATCH_SCRIPT, `import sys,zipfile
+src,dst,xp=sys.argv[1],sys.argv[2],sys.argv[3]
+xml=open(xp,'rb').read()
+entries={}
+with zipfile.ZipFile(src,'r') as z:
+    for info in z.infolist():
+        entries[info.filename]=(info,z.read(info.filename))
+with zipfile.ZipFile(dst,'w',zipfile.ZIP_DEFLATED) as zout:
+    for name,(info,data) in entries.items():
+        if name=='word/document.xml': zout.writestr(name,xml)
+        else: zout.writestr(info,data)
+`, 'utf8');
+
 // Prevent crash on unhandled errors
 process.on('uncaughtException',  e => console.error('[uncaughtException]',  e.message));
 process.on('unhandledRejection', e => console.error('[unhandledRejection]', e));
@@ -117,23 +132,11 @@ function renderDocxTemplate(templatePath, data, items) {
     xml = xml.split(`{d.${key}}`).join(escXml(String(val)));
   }
 
-  // Dùng Python3 để update zip — đảm bảo ZIP format chuẩn
+  // Dùng Python3 script để update zip — đảm bảo ZIP format chuẩn
   const xmlTmp = tmpDocx + '.xml';
   fs.writeFileSync(xmlTmp, xml, 'utf8');
-  const pyScript = [
-    'import sys,zipfile,os',
-    'src,dst,xp=sys.argv[1],sys.argv[2],sys.argv[3]',
-    'xml=open(xp,"rb").read()',
-    'entries={}',
-    'with zipfile.ZipFile(src,"r") as z:',
-    '    [entries.__setitem__(i.filename,(i,z.read(i.filename))) for i in z.infolist()]',
-    'with zipfile.ZipFile(dst,"w",zipfile.ZIP_DEFLATED) as zout:',
-    '    for name,(info,data) in entries.items():',
-    '        if name=="word/document.xml": zout.writestr(name,xml)',
-    '        else: zout.writestr(info,data)',
-  ].join('\n');
   try {
-    execSync(`python3 -c "${pyScript.replace(/"/g, '\\"').replace(/\n/g, '; ')}" "${TEMPLATE}" "${tmpDocx}" "${xmlTmp}"`, { timeout: 15000 });
+    execSync(`python3 "${PY_PATCH_SCRIPT}" "${TEMPLATE}" "${tmpDocx}" "${xmlTmp}"`, { timeout: 15000 });
   } finally {
     try { fs.unlinkSync(xmlTmp); } catch(_) {}
   }
@@ -148,7 +151,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v10-python-zip' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v11-python-file' }));
 
 // Debug: test adm-zip patch + LibreOffice
 app.get('/api/debug/lo-test', (req, res) => {
