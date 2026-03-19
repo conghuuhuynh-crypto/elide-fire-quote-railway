@@ -3,12 +3,11 @@
  * Carbone open-source + LibreOffice → PDF không watermark
  */
 
-const express  = require('express');
+const express = require('express');
 const carbone  = require('carbone');
 const path     = require('path');
 const fs       = require('fs');
 const https    = require('https');
-const FormData = require('form-data');
 const { exec } = require('child_process');
 const os       = require('os');
 
@@ -41,6 +40,9 @@ app.get('/', (req, res) => {
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// Serve PDF đã xuất (để NocoDB lưu link)
+app.use('/download', express.static(QUOTES_DIR));
+
 // API lấy danh sách nhân viên từ NocoDB
 app.get('/api/employees', (req, res) => {
   const options = {
@@ -62,45 +64,6 @@ app.get('/api/employees', (req, res) => {
   }).on('error', () => res.json([]));
 });
 
-// Helper: upload PDF lên NocoDB storage
-function uploadPdfToNocoDB(pdfPath, filename) {
-  return new Promise((resolve) => {
-    try {
-      const form = new FormData();
-      form.append('file', fs.createReadStream(pdfPath), { filename, contentType: 'application/pdf' });
-
-      const options = {
-        hostname: NOCODB_HOST,
-        path: '/api/v1/storage/upload?path=noco/' + NOCODB_BASE + '/Bao_gia/File_PDF',
-        method: 'POST',
-        headers: {
-          ...form.getHeaders(),
-          'xc-token': NOCODB_TOKEN,
-        }
-      };
-      const req = https.request(options, r => {
-        let d = '';
-        r.on('data', c => d += c);
-        r.on('end', () => {
-          try {
-            const parsed = JSON.parse(d);
-            // NocoDB trả về array hoặc object
-            const attachment = Array.isArray(parsed) ? parsed[0] : parsed;
-            resolve(attachment && attachment.url ? attachment : null);
-          } catch (e) {
-            console.error('PDF upload parse error:', d.substring(0, 200));
-            resolve(null);
-          }
-        });
-      });
-      req.on('error', e => { console.error('PDF upload request error:', e.message); resolve(null); });
-      form.pipe(req);
-    } catch (e) {
-      console.error('PDF upload error:', e.message);
-      resolve(null);
-    }
-  });
-}
 
 // Helper: lưu record vào NocoDB Bao_gia, trả về Id
 function saveQuoteToNocoDB(record) {
@@ -133,26 +96,6 @@ function saveQuoteToNocoDB(record) {
   });
 }
 
-// Helper: cập nhật File_PDF cho record đã lưu
-function updateQuoteFile(id, attachment) {
-  return new Promise((resolve) => {
-    const body = Buffer.from(JSON.stringify({ File_PDF: [attachment] }));
-    const options = {
-      hostname: NOCODB_HOST,
-      path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}/${id}`,
-      method: 'PATCH',
-      headers: {
-        'xc-token': NOCODB_TOKEN,
-        'Content-Type': 'application/json',
-        'Content-Length': body.length
-      }
-    };
-    const req = https.request(options, r => { r.resume(); r.on('end', resolve); });
-    req.on('error', () => resolve());
-    req.write(body);
-    req.end();
-  });
-}
 
 // API xuất PDF
 app.post('/api/generate', (req, res) => {
@@ -223,6 +166,12 @@ app.post('/api/generate', (req, res) => {
       const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
       const finalName = path.basename(finalPath);
 
+      // Tạo URL download PDF
+      const appUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+        : 'https://elide-fire-quote-railway-production.up.railway.app';
+      const pdfUrl = `${appUrl}/download/${finalName}`;
+
       // Bước 1: Lưu data vào NocoDB (không chờ PDF upload)
       const record = {
         So_bao_gia:       b.so_bao_gia        || '',
@@ -248,6 +197,7 @@ app.post('/api/generate', (req, res) => {
         ThanhTien_Lovingcare: tt2,
         CK_Tong_don:      ckTong,
         Tong_thanh_toan:  total,
+        PDF_URL:          pdfUrl,
       };
 
       let savedId = null;
@@ -258,13 +208,6 @@ app.post('/api/generate', (req, res) => {
         console.error('❌ NocoDB save error:', e.message);
       }
 
-      // Bước 2: Upload PDF và cập nhật record (không block gửi PDF)
-      if (savedId) {
-        uploadPdfToNocoDB(finalPath, finalName).then(attachment => {
-          if (!attachment) return;
-          return updateQuoteFile(savedId, attachment);
-        }).catch(e => console.error('PDF upload error:', e.message));
-      }
 
       // Gửi PDF về trình duyệt
       res.setHeader('Content-Disposition', `attachment; filename="${finalName}"`);
