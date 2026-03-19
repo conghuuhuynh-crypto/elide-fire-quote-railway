@@ -62,14 +62,14 @@ function escXml(s) {
     .replace(/"/g, '&quot;');
 }
 
-function fixCellLineSpacing(rowXml, tagStr, lineValue) {
+function fixCellLineSpacing(rowXml, tagStr, lineValue, before = 0, after = 0) {
   const ti = rowXml.indexOf(tagStr);
   if (ti === -1) return rowXml;
   const tcS = rowXml.lastIndexOf('<w:tc>', ti);
   const tcE = rowXml.indexOf('</w:tc>', ti) + 7;
   if (tcS === -1 || tcE === 6) return rowXml;
   let cell = rowXml.slice(tcS, tcE);
-  const spacing = `<w:spacing w:line="${lineValue}" w:lineRule="auto"/>`;
+  const spacing = `<w:spacing w:before="${before}" w:after="${after}" w:line="${lineValue}" w:lineRule="auto"/>`;
   if (cell.includes('<w:spacing ')) {
     cell = cell.replace(/<w:spacing[^/]*\/>/, spacing);
   } else if (cell.includes('</w:pPr>')) {
@@ -153,7 +153,7 @@ function renderDocxTemplate(templatePath, data, items) {
       templateRow = fixCellAlign(templateRow, '{d.items[i].mo_ta}',    'left');
       templateRow = fixCellAlign(templateRow, '{d.items[i].don_gia}',  'right');
       templateRow = fixCellAlign(templateRow, '{d.items[i].thanh_tien}', 'right');
-      templateRow = fixCellLineSpacing(templateRow, '{d.items[i].mo_ta}', 300); // ~1.25x spacing
+      templateRow = fixCellLineSpacing(templateRow, '{d.items[i].mo_ta}', 300, 80, 80); // 1.25x + 4pt top/bottom
       const moTaPos = templateRow.indexOf('{d.items[i].mo_ta}');
       let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
       if (moTaPos !== -1) {
@@ -212,7 +212,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v17-line-spacing' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v18-para-spacing' }));
 
 // Debug: test adm-zip patch + LibreOffice
 app.get('/api/debug/lo-test', (req, res) => {
