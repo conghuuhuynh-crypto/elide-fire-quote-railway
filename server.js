@@ -85,29 +85,35 @@ async function expandTemplateItems(templatePath, items) {
   const templateRow = xml.slice(rowStart, rowEnd);
   console.log('expandTemplateItems: templateRow length =', templateRow.length);
 
-  // Tìm run chứa mo_ta để xử lý newlines riêng
-  const moTaRunRegex = /<w:r\b[^>]*>(?:(?!<\/w:r>)[\s\S])*?\{d\.items\[i\]\.mo_ta\}(?:(?!<\/w:r>)[\s\S])*?<\/w:r>/;
+  // Tìm run chứa mo_ta bằng string search (không dùng regex phức tạp)
+  const moTaTag = '{d.items[i].mo_ta}';
+  const moTaPos = templateRow.indexOf(moTaTag);
+  let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
+  if (moTaPos !== -1) {
+    moTaRunStart = templateRow.lastIndexOf('<w:r', moTaPos);
+    moTaRunEnd   = templateRow.indexOf('</w:r>', moTaPos) + 6;
+    moTaRun      = templateRow.slice(moTaRunStart, moTaRunEnd);
+  }
 
   const expandedRows = items.map(item => {
     let row = templateRow;
-    // Xử lý mo_ta (có thể có \n)
-    const moTaMatch = row.match(moTaRunRegex);
-    if (moTaMatch) {
-      row = row.replace(moTaRunRegex, moTaToRuns(item.mo_ta, moTaMatch[0]));
+    // Xử lý mo_ta với newlines
+    if (moTaRunStart !== -1) {
+      row = row.slice(0, moTaRunStart) + moTaToRuns(item.mo_ta, moTaRun) + row.slice(moTaRunEnd);
     } else {
-      row = row.replace(/\{d\.items\[i\]\.mo_ta\}/g, escXml(item.mo_ta));
+      row = row.replace('{d.items[i].mo_ta}', escXml(item.mo_ta));
     }
     // Thay thế các field còn lại
-    row = row.replace(/\{d\.items\[i\]\.stt\}/g,        escXml(item.stt));
-    row = row.replace(/\{d\.items\[i\]\.so_luong\}/g,   escXml(item.so_luong));
-    row = row.replace(/\{d\.items\[i\]\.don_gia\}/g,    escXml(item.don_gia));
-    row = row.replace(/\{d\.items\[i\]\.thanh_tien\}/g, escXml(item.thanh_tien));
+    row = row.replace('{d.items[i].stt}',        escXml(item.stt));
+    row = row.replace('{d.items[i].so_luong}',   escXml(item.so_luong));
+    row = row.replace('{d.items[i].don_gia}',    escXml(item.don_gia));
+    row = row.replace('{d.items[i].thanh_tien}', escXml(item.thanh_tien));
     return row;
   }).join('');
 
   xml = xml.slice(0, rowStart) + expandedRows + xml.slice(rowEnd);
   zip.file('word/document.xml', xml);
-  return await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  return await zip.generateAsync({ type: 'nodebuffer' });
 }
 
 app.use(express.json());
