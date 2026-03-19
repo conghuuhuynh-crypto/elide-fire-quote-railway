@@ -17,6 +17,10 @@ const crypto   = require('crypto');
 const app  = express();
 const PORT = process.env.PORT || 3333;
 
+// Prevent crash on unhandled errors
+process.on('uncaughtException',   e => console.error('[uncaughtException]',   e.message));
+process.on('unhandledRejection',  e => console.error('[unhandledRejection]',  e));
+
 const TEMPLATE   = path.join(__dirname, 'templates', 'quote-template.docx');
 const QUOTES_DIR = path.join(__dirname, 'outputs', 'quotes');
 const SOFFICE    = process.platform === 'win32'
@@ -279,20 +283,22 @@ async function runJob(jobId, b) {
     return;
   }
 
-  carbone.render(patchedTemplatePath, data, {}, async (err, result) => {
+  carbone.render(patchedTemplatePath, data, {}, (err, result) => {
     // Dọn tmp file sau khi Carbone đọc xong
     if (patchedTemplatePath !== TEMPLATE) {
       try { fs.unlinkSync(patchedTemplatePath); } catch (_) {}
     }
 
-    if (err) { job.status = 'error'; job.error = err.message; return; }
+    if (err) { job.status = 'error'; job.error = 'Carbone: ' + err.message; return; }
 
-    fs.writeFileSync(tmpDocx, result);
+    try { fs.writeFileSync(tmpDocx, result); } catch (e) {
+      job.status = 'error'; job.error = 'Write docx: ' + e.message; return;
+    }
 
     const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${tmpDocx}"`;
-    exec(cmd, { timeout: 120000 }, async (err2) => {
+    exec(cmd, { timeout: 120000 }, (err2) => {
       try { fs.unlinkSync(tmpDocx); } catch (_) {}
-      if (err2) { job.status = 'error'; job.error = err2.message; return; }
+      if (err2) { job.status = 'error'; job.error = 'LibreOffice: ' + err2.message; return; }
 
       const tmpBasename = path.basename(tmpDocx, '.docx') + '.pdf';
       const libreOut    = path.join(QUOTES_DIR, tmpBasename);
@@ -315,12 +321,11 @@ async function runJob(jobId, b) {
         NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
         Items_JSON: JSON.stringify(validItems), CK_Tong_don: ckTong, Tong_thanh_toan: total,
       };
-      try {
-        const att = await uploadPdfToNocoDB(finalPath, finalName);
-        if (att) record.File_PDF = [att];
-        await saveQuoteToNocoDB(record);
-        console.log('✅ NocoDB saved');
-      } catch (e) { console.error('NocoDB error:', e.message); }
+      Promise.resolve()
+        .then(() => uploadPdfToNocoDB(finalPath, finalName))
+        .then(att => { if (att) record.File_PDF = [att]; return saveQuoteToNocoDB(record); })
+        .then(() => console.log('✅ NocoDB saved'))
+        .catch(e => console.error('NocoDB error:', e.message));
     });
   });
 }
