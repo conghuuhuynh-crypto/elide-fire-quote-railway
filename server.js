@@ -200,12 +200,12 @@ app.post('/api/generate', (req, res) => {
       const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
       const finalName = path.basename(finalPath);
 
-      // Bước 1: Upload PDF lên NocoDB storage
-      const attachment = await uploadPdfToNocoDB(finalPath, finalName);
-      if (attachment) console.log('✅ PDF uploaded to NocoDB');
-      else console.error('❌ PDF upload failed, saving record without file');
+      // Trả URL về ngay lập tức
+      const appUrl = 'https://elide-fire-quote-railway-production.up.railway.app';
+      const downloadUrl = `${appUrl}/download/${finalName}`;
+      res.json({ url: downloadUrl, filename: finalName });
 
-      // Bước 2: Lưu data + file vào NocoDB
+      // Lưu NocoDB chạy nền (không block response)
       const record = {
         So_bao_gia:       b.so_bao_gia        || '',
         Ngay_bao_gia:     b.ngay_bao_gia       || '',
@@ -230,22 +230,18 @@ app.post('/api/generate', (req, res) => {
         ThanhTien_Lovingcare: tt2,
         CK_Tong_don:      ckTong,
         Tong_thanh_toan:  total,
-        File_PDF:         attachment ? [attachment] : null,
       };
 
-      let savedId = null;
-      try {
-        savedId = await saveQuoteToNocoDB(record);
-        console.log('✅ NocoDB saved, Id:', savedId);
-      } catch (e) {
-        console.error('❌ NocoDB save error:', e.message);
-      }
-
-
-      // Trả về URL thay vì stream file
-      const appUrl = 'https://elide-fire-quote-railway-production.up.railway.app';
-      const downloadUrl = `${appUrl}/download/${finalName}`;
-      res.json({ url: downloadUrl, filename: finalName });
+      (async () => {
+        try {
+          const attachment = await uploadPdfToNocoDB(finalPath, finalName);
+          if (attachment) record.File_PDF = [attachment];
+          const savedId = await saveQuoteToNocoDB(record);
+          console.log('✅ NocoDB saved, Id:', savedId);
+        } catch (e) {
+          console.error('❌ NocoDB error:', e.message);
+        }
+      })();
     });
   });
 });
