@@ -78,6 +78,7 @@
       padding: 10px 12px;
       text-align: left;
       border-bottom: 2px solid #eee;
+      white-space: nowrap;
     }
     .product-table td { padding: 8px 10px; vertical-align: middle; }
     .product-table tr:not(:last-child) td { border-bottom: 1px solid #f0f0f0; }
@@ -424,8 +425,12 @@
     <!-- Actions -->
     <div class="card">
       <div class="btn-row">
-        <button type="button" class="btn-base btn-copy" id="btnCopyLink" onclick="handleCopy()">📋 Copy link</button>
-        <button type="button" class="btn-base btn-submit" id="btnDownload" onclick="handleDownload()">⬇ Download báo giá PDF</button>
+        <button type="button" class="btn-base btn-copy" id="btnCopyLink" onclick="handleCopy()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Copy link
+        </button>
+        <button type="button" class="btn-base btn-submit" id="btnDownload" onclick="handleDownload()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Download báo giá PDF
+        </button>
       </div>
       <div id="statusMsg" style="display:none; font-size:13px; margin-top:12px; color:#888;"></div>
     </div>
@@ -613,13 +618,22 @@
     el.style.display = msg ? 'block' : 'none';
   }
 
+  const SVG_LINK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+  const SVG_DOWNLOAD = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>`;
+  const SVG_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><polyline points="20 6 9 17 4 12"/></svg>`;
+
   function setBtnsLoading(loading, msg) {
     const c = document.getElementById('btnCopyLink');
     const d = document.getElementById('btnDownload');
     c.disabled = loading;
     d.disabled = loading;
-    if (loading) { d.textContent = msg || '⏳ Đang tạo PDF...'; c.textContent = '⏳ Đang tạo...'; }
-    else { d.textContent = '⬇ Download báo giá PDF'; c.textContent = pdfUrl ? '✓ Đã copy link' : '📋 Copy link'; }
+    if (loading) {
+      d.innerHTML = SVG_DOWNLOAD + (msg || '⏳ Đang tạo PDF...');
+      c.innerHTML = SVG_LINK + '⏳ Đang tạo...';
+    } else {
+      d.innerHTML = SVG_DOWNLOAD + 'Download báo giá PDF';
+      c.innerHTML = SVG_LINK + 'Copy link';
+    }
   }
 
   function buildItems() {
@@ -687,9 +701,9 @@
     if (!result) return;
     navigator.clipboard.writeText(result.url).then(() => {
       const btn = document.getElementById('btnCopyLink');
-      btn.textContent = '✓ Đã copy link';
+      btn.innerHTML = SVG_CHECK + 'Đã copy link';
       btn.disabled = true;
-      setTimeout(() => { btn.textContent = '📋 Copy link'; btn.disabled = false; }, 3000);
+      setTimeout(() => { btn.innerHTML = SVG_LINK + 'Copy link'; btn.disabled = false; }, 3000);
     });
   }
 
