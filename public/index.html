@@ -54,11 +54,16 @@
       font-size: 14px;
       color: #222;
       transition: border-color 0.2s;
+      background: white;
     }
     .field input:focus, .field select:focus {
       outline: none;
       border-color: #c0392b;
       box-shadow: 0 0 0 3px rgba(192,57,43,0.08);
+    }
+    .field input[readonly] {
+      background: #f9f9f9;
+      color: #888;
     }
 
     .product-table { width: 100%; border-collapse: collapse; }
@@ -93,20 +98,61 @@
       white-space: nowrap;
     }
 
-    .grand-total {
+    .subtotal-row {
       display: flex;
       justify-content: flex-end;
       align-items: center;
       gap: 16px;
       margin-top: 16px;
-      padding-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
+    .subtotal-row label { font-size: 13px; color: #777; }
+    .subtotal-row span { font-size: 16px; font-weight: 600; color: #444; min-width: 140px; text-align: right; }
+
+    .discount-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .discount-row label { font-size: 13px; font-weight: 600; color: #555; }
+    .discount-row .input-wrap { position: relative; width: 120px; }
+    .discount-row .input-wrap input {
+      width: 100%;
+      padding: 8px 32px 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      text-align: right;
+    }
+    .discount-row .input-wrap input:focus { outline: none; border-color: #c0392b; }
+    .discount-row .suffix {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: #aaa;
+      pointer-events: none;
+    }
+
+    .grand-total {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 16px;
+      margin-top: 12px;
+      padding-top: 12px;
       border-top: 2px solid #eee;
     }
     .grand-total label { font-size: 14px; font-weight: 700; color: #555; }
     .grand-total span { font-size: 22px; font-weight: 800; color: #c0392b; }
 
+    .btn-row { display: flex; gap: 12px; }
     .btn-submit {
-      width: 100%;
+      flex: 1;
       padding: 15px;
       background: #c0392b;
       color: white;
@@ -120,6 +166,19 @@
     }
     .btn-submit:hover { background: #a93226; }
     .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
+
+    .btn-reset {
+      padding: 15px 24px;
+      background: white;
+      color: #888;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-reset:hover { border-color: #c0392b; color: #c0392b; }
 
     .status {
       margin-top: 16px;
@@ -179,8 +238,9 @@
         font-size: 18px;
         text-align: left;
       }
-      .grand-total { flex-direction: column; align-items: flex-end; gap: 6px; }
+      .subtotal-row, .discount-row, .grand-total { flex-direction: column; align-items: flex-end; gap: 6px; }
       .grand-total span { font-size: 20px; }
+      .btn-row { flex-direction: column; }
     }
 
     /* Suffix đơn vị trong input */
@@ -224,7 +284,13 @@
         </div>
         <div class="field">
           <label>Phiên bản *</label>
-          <input type="text" name="phien_ban" value="Phát hành lần đầu" placeholder="Phát hành lần đầu" required>
+          <select name="phien_ban" required>
+            <option value="Phát hành lần đầu">Phát hành lần đầu</option>
+            <option value="Phát hành lần thứ hai">Phát hành lần thứ hai</option>
+            <option value="Phát hành lần thứ ba">Phát hành lần thứ ba</option>
+            <option value="Phát hành lần thứ tư">Phát hành lần thứ tư</option>
+            <option value="Phát hành lần thứ năm">Phát hành lần thứ năm</option>
+          </select>
         </div>
       </div>
       <div class="field">
@@ -258,6 +324,37 @@
         <div class="field">
           <label>Email *</label>
           <input type="email" name="email_khach_hang" placeholder="email@congty.vn" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thông tin nhân viên -->
+    <div class="card">
+      <h2>Nhân viên phụ trách</h2>
+      <div class="row">
+        <div class="field">
+          <label>Chọn nhân viên *</label>
+          <select id="nv_select" required>
+            <option value="">-- Đang tải... --</option>
+          </select>
+          <input type="hidden" name="nv_ten" id="nv_ten">
+          <input type="hidden" name="nv_bo_phan" id="nv_bo_phan">
+          <input type="hidden" name="nv_email" id="nv_email">
+          <input type="hidden" name="nv_sdt" id="nv_sdt">
+        </div>
+        <div class="field">
+          <label>Bộ phận</label>
+          <input type="text" id="nv_bo_phan_display" readonly placeholder="Tự động điền">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Email</label>
+          <input type="text" id="nv_email_display" readonly placeholder="Tự động điền">
+        </div>
+        <div class="field">
+          <label>Số điện thoại</label>
+          <input type="text" id="nv_sdt_display" readonly placeholder="Tự động điền">
         </div>
       </div>
     </div>
@@ -311,17 +408,38 @@
         </tbody>
       </table>
 
+      <!-- Tổng trước chiết khấu -->
+      <div class="subtotal-row">
+        <label>Tổng trước chiết khấu:</label>
+        <span id="subtotal_display">2,500,000 VNĐ</span>
+      </div>
+
+      <!-- Chiết khấu tổng đơn -->
+      <div class="discount-row">
+        <label>Chiết khấu tổng đơn:</label>
+        <div class="input-wrap">
+          <input type="number" name="chiet_khau_tong" id="ck_tong" min="0" max="100" value="0" oninput="calcTotal()">
+          <span class="suffix">%</span>
+        </div>
+      </div>
+
+      <!-- Tổng thanh toán -->
       <div class="grand-total">
-        <label>TỔNG CỘNG:</label>
+        <label>TỔNG THANH TOÁN:</label>
         <span id="grand_total">2,500,000 VNĐ</span>
       </div>
     </div>
 
-    <!-- Submit -->
+    <!-- Submit + Reset -->
     <div class="card">
-      <button type="submit" class="btn-submit" id="submitBtn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px; margin-bottom:2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Xuất PDF Báo Giá
-      </button>
+      <div class="btn-row">
+        <button type="button" class="btn-reset" onclick="resetForm()">
+          ↺ Nhập lại
+        </button>
+        <button type="submit" class="btn-submit" id="submitBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px; margin-bottom:2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Xuất PDF Báo Giá
+        </button>
+      </div>
       <div class="status" id="status"></div>
     </div>
 
@@ -329,16 +447,55 @@
 </div>
 
 <script>
-  // Điền ngày hôm nay
+  // ---- Khởi tạo ----
   const today = new Date();
   document.getElementById('ngay_bao_gia').value =
     today.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-  // Số báo giá mặc định
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const year  = today.getFullYear();
   document.getElementById('so_bao_gia').value = `EF-${year}-${month}-001`;
 
+  // ---- Load danh sách nhân viên ----
+  let employeeList = [];
+  async function loadEmployees() {
+    try {
+      const res = await fetch('/api/employees');
+      employeeList = await res.json();
+      const sel = document.getElementById('nv_select');
+      sel.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
+      employeeList.forEach(nv => {
+        if (!nv.Ten_nhan_vien) return;
+        const opt = document.createElement('option');
+        opt.value = nv.Id;
+        opt.textContent = `${nv.Ten_nhan_vien} — ${nv.Bo_phan || ''}`;
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      document.getElementById('nv_select').innerHTML = '<option value="">-- Không tải được --</option>';
+    }
+  }
+  loadEmployees();
+
+  // ---- Chọn nhân viên → tự điền thông tin ----
+  document.getElementById('nv_select').addEventListener('change', function() {
+    const id = parseInt(this.value);
+    const nv = employeeList.find(e => e.Id === id);
+    if (nv) {
+      document.getElementById('nv_ten').value          = nv.Ten_nhan_vien || '';
+      document.getElementById('nv_bo_phan').value      = nv.Bo_phan       || '';
+      document.getElementById('nv_email').value        = nv.Email         || '';
+      document.getElementById('nv_sdt').value          = nv.So_dien_thoai || '';
+      document.getElementById('nv_bo_phan_display').value = nv.Bo_phan       || '';
+      document.getElementById('nv_email_display').value   = nv.Email         || '';
+      document.getElementById('nv_sdt_display').value     = nv.So_dien_thoai || '';
+    } else {
+      ['nv_ten','nv_bo_phan','nv_email','nv_sdt'].forEach(id => document.getElementById(id).value = '');
+      ['nv_bo_phan_display','nv_email_display','nv_sdt_display'].forEach(id => document.getElementById(id).value = '');
+    }
+  });
+
+  // ---- Tính toán ----
   function parseNum(str) {
     return parseFloat((str || '').replace(/[^0-9.]/g, '')) || 0;
   }
@@ -349,26 +506,56 @@
   }
 
   function calcTotal() {
-    const qty1  = parseFloat(document.getElementById('qty1').value)  || 0;
-    const qty2  = parseFloat(document.getElementById('qty2').value)  || 0;
+    const qty1  = parseFloat(document.getElementById('qty1').value)   || 0;
+    const qty2  = parseFloat(document.getElementById('qty2').value)   || 0;
     const p1    = parseNum(document.getElementById('price1').value);
     const p2    = parseNum(document.getElementById('price2').value);
-    const ck1   = parseFloat(document.getElementById('ck1').value)   || 0;
-    const ck2   = parseFloat(document.getElementById('ck2').value)   || 0;
+    const ck1   = parseFloat(document.getElementById('ck1').value)    || 0;
+    const ck2   = parseFloat(document.getElementById('ck2').value)    || 0;
+    const ckTong = parseFloat(document.getElementById('ck_tong').value) || 0;
 
-    const tt1   = qty1 * p1 * (1 - ck1 / 100);
-    const tt2   = qty2 * p2 * (1 - ck2 / 100);
+    const tt1      = qty1 * p1 * (1 - ck1 / 100);
+    const tt2      = qty2 * p2 * (1 - ck2 / 100);
+    const subtotal = tt1 + tt2;
+    const total    = subtotal * (1 - ckTong / 100);
 
-    document.getElementById('tt1').textContent = fmtVND(tt1);
-    document.getElementById('tt2').textContent = fmtVND(tt2);
-    document.getElementById('grand_total').textContent = fmtVND(tt1 + tt2) + ' VNĐ';
+    document.getElementById('tt1').textContent          = fmtVND(tt1);
+    document.getElementById('tt2').textContent          = fmtVND(tt2);
+    document.getElementById('subtotal_display').textContent = fmtVND(subtotal) + ' VNĐ';
+    document.getElementById('grand_total').textContent  = fmtVND(total) + ' VNĐ';
   }
 
   calcTotal();
 
-  // Submit
+  // ---- Reset form ----
+  function resetForm() {
+    if (!confirm('Xóa hết thông tin đã nhập?')) return;
+    document.getElementById('quoteForm').reset();
+    // Khôi phục giá trị mặc định
+    const t = new Date();
+    document.getElementById('ngay_bao_gia').value =
+      t.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const m = String(t.getMonth() + 1).padStart(2, '0');
+    document.getElementById('so_bao_gia').value = `EF-${t.getFullYear()}-${m}-001`;
+    // Xóa thông tin nhân viên
+    ['nv_ten','nv_bo_phan','nv_email','nv_sdt'].forEach(id => document.getElementById(id).value = '');
+    ['nv_bo_phan_display','nv_email_display','nv_sdt_display'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('nv_select').value = '';
+    document.getElementById('status').className = 'status';
+    calcTotal();
+  }
+
+  // ---- Submit xuất PDF ----
   document.getElementById('quoteForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    // Kiểm tra nhân viên đã chọn
+    if (!document.getElementById('nv_ten').value) {
+      document.getElementById('status').className = 'status error';
+      document.getElementById('status').textContent = '❌ Vui lòng chọn nhân viên phụ trách.';
+      return;
+    }
+
     const btn    = document.getElementById('submitBtn');
     const status = document.getElementById('status');
     btn.disabled = true;
@@ -392,13 +579,13 @@
       a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
       status.className = 'status success';
-      status.textContent = '✅ PDF đã tải xuống: ' + filename;
+      status.textContent = '✅ PDF đã tải xuống: ' + filename + ' — Đã lưu vào hệ thống.';
     } catch (err) {
       status.className = 'status error';
       status.textContent = '❌ Lỗi: ' + err.message;
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Xuất PDF Báo Giá';
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px; margin-bottom:2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Xuất PDF Báo Giá';
     }
   });
 </script>
