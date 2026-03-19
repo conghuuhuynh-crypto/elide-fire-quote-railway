@@ -5,7 +5,6 @@
 
 const express  = require('express');
 const carbone  = require('carbone');
-const JSZip    = require('jszip');
 const path     = require('path');
 const fs       = require('fs');
 const https    = require('https');
@@ -31,10 +30,11 @@ const TABLE_NV     = 'mbxi5rjran05biu';   // Nhan_vien
 const TABLE_BG     = 'mnfhtr9jysetk07';   // Bao_gia
 const TABLE_SP     = 'm1isvr6ljrp2klj';   // San_pham
 
-// Job queue — lưu trạng thái từng job trong bộ nhớ
+// Job queue
 const jobs = {};
 
-// Helper: escape XML đặc biệt
+// ---- Helpers ----
+
 function escXml(s) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -43,7 +43,6 @@ function escXml(s) {
     .replace(/"/g, '&quot;');
 }
 
-// Helper: convert text có \n thành Word runs với <w:br/>
 function moTaToRuns(text, templateRun) {
   const rPrMatch = templateRun.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
   const rPr = rPrMatch ? rPrMatch[0] : '';
@@ -54,72 +53,79 @@ function moTaToRuns(text, templateRun) {
   ).join('');
 }
 
-// Pre-process template: thay thế items[i] rows bằng actual rows
+function execCmd(cmd) {
+  return new Promise((resolve, reject) => {
+    exec(cmd, { timeout: 30000 }, (err, stdout, stderr) => {
+      if (err) reject(new Error(stderr || err.message));
+      else resolve(stdout);
+    });
+  });
+}
+
+// Pre-process template: expand items[] rows dùng unzip/zip
 async function expandTemplateItems(templatePath, items) {
-  const templateBuf = fs.readFileSync(templatePath);
-  if (!items || items.length === 0) return templateBuf;
+  if (!items || items.length === 0) return templatePath;
 
-  console.log('expandTemplateItems: buf size =', templateBuf.length, 'items =', items.length);
-  const zip = await JSZip.loadAsync(templateBuf);
-  console.log('expandTemplateItems: zip loaded OK');
-  const docEntry = zip.file('word/document.xml');
-  if (!docEntry) {
-    console.error('word/document.xml not found in template zip. Files:', Object.keys(zip.files).join(', '));
-    return templateBuf;
-  }
-  let xml = await docEntry.async('string');
-  console.log('expandTemplateItems: xml length =', xml.length);
+  const tmpDir  = path.join(os.tmpdir(), `tmpl_${crypto.randomBytes(4).toString('hex')}`);
+  const tmpDocx = path.join(tmpDir, 'template.docx');
 
-  // Tìm dòng template chứa {d.items[i]...}
-  let searchPos = 0, rowStart = -1, rowEnd = -1;
-  while (true) {
-    const s = xml.indexOf('<w:tr ', searchPos);
-    if (s === -1) break;
-    const e = xml.indexOf('</w:tr>', s) + 7;
-    if (xml.slice(s, e).includes('d.items[i]')) { rowStart = s; rowEnd = e; break; }
-    searchPos = e;
-  }
-  console.log('expandTemplateItems: rowStart =', rowStart);
-  if (rowStart === -1) return templateBuf; // không tìm thấy → trả template gốc
+  try {
+    fs.mkdirSync(path.join(tmpDir, 'word'), { recursive: true });
+    fs.copyFileSync(templatePath, tmpDocx);
 
-  const templateRow = xml.slice(rowStart, rowEnd);
-  console.log('expandTemplateItems: templateRow length =', templateRow.length);
+    // Extract document.xml
+    await execCmd(`unzip -o "${tmpDocx}" word/document.xml -d "${tmpDir}"`);
 
-  // Tìm run chứa mo_ta bằng string search (không dùng regex phức tạp)
-  const moTaTag = '{d.items[i].mo_ta}';
-  const moTaPos = templateRow.indexOf(moTaTag);
-  let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
-  if (moTaPos !== -1) {
-    moTaRunStart = templateRow.lastIndexOf('<w:r', moTaPos);
-    moTaRunEnd   = templateRow.indexOf('</w:r>', moTaPos) + 6;
-    moTaRun      = templateRow.slice(moTaRunStart, moTaRunEnd);
-  }
+    const xmlPath = path.join(tmpDir, 'word', 'document.xml');
+    let xml = fs.readFileSync(xmlPath, 'utf8');
 
-  console.log('expandTemplateItems: moTaRunStart =', moTaRunStart, 'moTaRunEnd =', moTaRunEnd);
-  console.log('expandTemplateItems: starting map...');
-  const expandedRows = items.map(item => {
-    let row = templateRow;
-    // Xử lý mo_ta với newlines
-    if (moTaRunStart !== -1) {
-      row = row.slice(0, moTaRunStart) + moTaToRuns(item.mo_ta, moTaRun) + row.slice(moTaRunEnd);
-    } else {
-      row = row.replace('{d.items[i].mo_ta}', escXml(item.mo_ta));
+    // Tìm dòng template chứa {d.items[i]...}
+    let searchPos = 0, rowStart = -1, rowEnd = -1;
+    while (true) {
+      const s = xml.indexOf('<w:tr ', searchPos);
+      if (s === -1) break;
+      const e = xml.indexOf('</w:tr>', s) + 7;
+      if (xml.slice(s, e).includes('d.items[i]')) { rowStart = s; rowEnd = e; break; }
+      searchPos = e;
     }
-    // Thay thế các field còn lại
-    row = row.replace('{d.items[i].stt}',        escXml(item.stt));
-    row = row.replace('{d.items[i].so_luong}',   escXml(item.so_luong));
-    row = row.replace('{d.items[i].don_gia}',    escXml(item.don_gia));
-    row = row.replace('{d.items[i].thanh_tien}', escXml(item.thanh_tien));
-    return row;
-  }).join('');
+    if (rowStart === -1) return templatePath;
 
-  console.log('expandTemplateItems: map done, expandedRows length =', expandedRows.length);
-  xml = xml.slice(0, rowStart) + expandedRows + xml.slice(rowEnd);
-  zip.file('word/document.xml', xml);
-  console.log('expandTemplateItems: calling generateAsync...');
-  const result = await zip.generateAsync({ type: 'nodebuffer' });
-  console.log('expandTemplateItems: generateAsync done, size =', result.length);
-  return result;
+    const templateRow = xml.slice(rowStart, rowEnd);
+
+    // Tìm run chứa mo_ta
+    const moTaPos = templateRow.indexOf('{d.items[i].mo_ta}');
+    let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
+    if (moTaPos !== -1) {
+      moTaRunStart = templateRow.lastIndexOf('<w:r', moTaPos);
+      moTaRunEnd   = templateRow.indexOf('</w:r>', moTaPos) + 6;
+      moTaRun      = templateRow.slice(moTaRunStart, moTaRunEnd);
+    }
+
+    const expandedRows = items.map(item => {
+      let row = templateRow;
+      if (moTaRunStart !== -1) {
+        row = row.slice(0, moTaRunStart) + moTaToRuns(item.mo_ta, moTaRun) + row.slice(moTaRunEnd);
+      } else {
+        row = row.replace('{d.items[i].mo_ta}', escXml(item.mo_ta));
+      }
+      row = row.replace('{d.items[i].stt}',        escXml(item.stt));
+      row = row.replace('{d.items[i].so_luong}',   escXml(item.so_luong));
+      row = row.replace('{d.items[i].don_gia}',    escXml(item.don_gia));
+      row = row.replace('{d.items[i].thanh_tien}', escXml(item.thanh_tien));
+      return row;
+    }).join('');
+
+    xml = xml.slice(0, rowStart) + expandedRows + xml.slice(rowEnd);
+    fs.writeFileSync(xmlPath, xml, 'utf8');
+
+    // Update docx
+    await execCmd(`cd "${tmpDir}" && zip "${tmpDocx}" word/document.xml`);
+
+    return tmpDocx; // trả về đường dẫn file đã patch
+  } catch (e) {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
+    throw e;
+  }
 }
 
 app.use(express.json());
@@ -128,15 +134,10 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
-// Serve form
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Health check
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// API lấy danh sách nhân viên
+// API nhân viên
 app.get('/api/employees', (req, res) => {
   const options = {
     hostname: NOCODB_HOST,
@@ -146,14 +147,11 @@ app.get('/api/employees', (req, res) => {
   https.get(options, r => {
     let d = '';
     r.on('data', c => d += c);
-    r.on('end', () => {
-      try { res.json(JSON.parse(d).list || []); }
-      catch (e) { res.json([]); }
-    });
+    r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch (e) { res.json([]); } });
   }).on('error', () => res.json([]));
 });
 
-// API lấy danh sách sản phẩm
+// API sản phẩm
 app.get('/api/products', (req, res) => {
   const options = {
     hostname: NOCODB_HOST,
@@ -163,21 +161,18 @@ app.get('/api/products', (req, res) => {
   https.get(options, r => {
     let d = '';
     r.on('data', c => d += c);
-    r.on('end', () => {
-      try { res.json(JSON.parse(d).list || []); }
-      catch (e) { res.json([]); }
-    });
+    r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch (e) { res.json([]); } });
   }).on('error', () => res.json([]));
 });
 
-// API kiểm tra trạng thái job
+// API job status
 app.get('/api/job/:id', (req, res) => {
   const job = jobs[req.params.id];
   if (!job) return res.status(404).json({ status: 'not_found' });
   res.json(job);
 });
 
-// Helper: upload PDF lên NocoDB storage
+// Helper: upload PDF
 function uploadPdfToNocoDB(pdfPath, filename) {
   return new Promise((resolve) => {
     try {
@@ -206,7 +201,7 @@ function uploadPdfToNocoDB(pdfPath, filename) {
   });
 }
 
-// Helper: lưu record vào NocoDB Bao_gia
+// Helper: lưu NocoDB
 function saveQuoteToNocoDB(record) {
   return new Promise((resolve, reject) => {
     const body = Buffer.from(JSON.stringify(record));
@@ -220,11 +215,8 @@ function saveQuoteToNocoDB(record) {
       let d = '';
       r.on('data', c => d += c);
       r.on('end', () => {
-        try {
-          const res = JSON.parse(d);
-          if (res.Id) resolve(res.Id);
-          else reject(new Error('No Id: ' + d));
-        } catch (e) { reject(e); }
+        try { const res = JSON.parse(d); if (res.Id) resolve(res.Id); else reject(new Error('No Id: ' + d)); }
+        catch (e) { reject(e); }
       });
     });
     req.on('error', reject);
@@ -233,23 +225,16 @@ function saveQuoteToNocoDB(record) {
   });
 }
 
-// Worker: chạy nền — tạo PDF + lưu NocoDB
-function runJob(jobId, b) {
+// Worker
+async function runJob(jobId, b) {
   const job = jobs[jobId];
   const fmt = (n) => n.toLocaleString('vi-VN');
 
-  // Parse items array (từ JSON body)
   let rawItems = [];
-  if (Array.isArray(b.items)) {
-    rawItems = b.items;
-  } else if (typeof b.items === 'string') {
-    try { rawItems = JSON.parse(b.items); } catch (_) {}
-  }
+  if (Array.isArray(b.items)) rawItems = b.items;
+  else if (typeof b.items === 'string') { try { rawItems = JSON.parse(b.items); } catch (_) {} }
 
-  // Chỉ lấy items có số lượng > 0
   const validItems = rawItems.filter(it => parseFloat(it.so_luong) > 0);
-
-  // Tính thành tiền từng dòng + tổng
   const ckTong = parseFloat(b.chiet_khau_tong) || 0;
   let tongTruoCK = 0;
 
@@ -284,7 +269,6 @@ function runJob(jobId, b) {
     ten_nhan_vien:     b.nv_ten            || '',
     email_nhan_vien:   b.nv_email          || '',
     sdt_nhan_vien:     b.nv_sdt            || '',
-    items:             carboneItems,
     truoc_chiet_khau:  fmt(tongTruoCK),
     chiet_khau:        ckTong > 0 ? `${ckTong}%` : '0',
     tong_thanh_tien:   fmt(total),
@@ -296,13 +280,28 @@ function runJob(jobId, b) {
 
   if (!fs.existsSync(QUOTES_DIR)) fs.mkdirSync(QUOTES_DIR, { recursive: true });
 
-  // Pre-process: expand items rows trực tiếp trong XML (Carbone array không hỗ trợ Word table reliably)
-  expandTemplateItems(TEMPLATE, carboneItems).then(templateBuf => {
-    // Xóa items khỏi data để Carbone không cần xử lý
-    const carboneData = { ...data };
-    delete carboneData.items;
+  let patchedTemplatePath = TEMPLATE;
+  let patchedTmpDir = null;
 
-    carbone.render(templateBuf, carboneData, {}, (err, result) => {
+  try {
+    // Expand items rows trong template
+    const expanded = await expandTemplateItems(TEMPLATE, carboneItems);
+    if (expanded !== TEMPLATE) {
+      patchedTemplatePath = expanded;
+      patchedTmpDir = path.dirname(expanded);
+    }
+  } catch (e) {
+    job.status = 'error';
+    job.error  = 'Template expand error: ' + e.message;
+    return;
+  }
+
+  carbone.render(patchedTemplatePath, data, {}, async (err, result) => {
+    // Dọn tmp dir sau khi Carbone đọc xong
+    if (patchedTmpDir) {
+      try { fs.rmSync(patchedTmpDir, { recursive: true, force: true }); } catch (_) {}
+    }
+
     if (err) { job.status = 'error'; job.error = err.message; return; }
 
     fs.writeFileSync(tmpDocx, result);
@@ -310,7 +309,6 @@ function runJob(jobId, b) {
     const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${tmpDocx}"`;
     exec(cmd, { timeout: 120000 }, async (err2) => {
       try { fs.unlinkSync(tmpDocx); } catch (_) {}
-
       if (err2) { job.status = 'error'; job.error = err2.message; return; }
 
       const tmpBasename = path.basename(tmpDocx, '.docx') + '.pdf';
@@ -321,29 +319,18 @@ function runJob(jobId, b) {
       const finalName = path.basename(finalPath);
       const appUrl    = 'https://elide-fire-quote-railway-production.up.railway.app';
 
-      // Job done
       job.status   = 'done';
       job.url      = `${appUrl}/download/${finalName}`;
       job.filename = finalName;
 
-      // Lưu NocoDB nền
       const record = {
-        So_bao_gia:       b.so_bao_gia        || '',
-        Ngay_bao_gia:     b.ngay_bao_gia      || '',
-        Phien_ban:        b.phien_ban          || '',
-        Ten_du_an:        b.ten_du_an          || '',
-        Ten_cong_ty:      b.ten_cong_ty        || '',
-        Phong_ban_KH:     b.ten_phong_ban      || '',
-        Nguoi_lien_he:    b.ten_nguoi_lien_he  || '',
-        SDT_khach_hang:   b.sdt_khach_hang     || '',
-        Email_khach_hang: b.email_khach_hang   || '',
-        NV_bo_phan:       b.nv_bo_phan         || '',
-        NV_ten:           b.nv_ten             || '',
-        NV_email:         b.nv_email           || '',
-        NV_sdt:           b.nv_sdt             || '',
-        Items_JSON:       JSON.stringify(validItems),
-        CK_Tong_don:      ckTong,
-        Tong_thanh_toan:  total,
+        So_bao_gia: b.so_bao_gia || '', Ngay_bao_gia: b.ngay_bao_gia || '',
+        Phien_ban: b.phien_ban || '', Ten_du_an: b.ten_du_an || '',
+        Ten_cong_ty: b.ten_cong_ty || '', Phong_ban_KH: b.ten_phong_ban || '',
+        Nguoi_lien_he: b.ten_nguoi_lien_he || '', SDT_khach_hang: b.sdt_khach_hang || '',
+        Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
+        NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
+        Items_JSON: JSON.stringify(validItems), CK_Tong_don: ckTong, Tong_thanh_toan: total,
       };
       try {
         const att = await uploadPdfToNocoDB(finalPath, finalName);
@@ -353,20 +340,14 @@ function runJob(jobId, b) {
       } catch (e) { console.error('NocoDB error:', e.message); }
     });
   });
-  }).catch(e => { job.status = 'error'; job.error = 'Template error: ' + e.message; });
 }
 
-// API xuất PDF — trả jobId ngay lập tức
+// API generate
 app.post('/api/generate', (req, res) => {
   const jobId = crypto.randomBytes(6).toString('hex');
   jobs[jobId] = { status: 'processing' };
-
-  // Dọn job cũ sau 1 giờ
   setTimeout(() => { delete jobs[jobId]; }, 3600000);
-
-  // Chạy nền
   setImmediate(() => runJob(jobId, req.body));
-
   res.json({ jobId });
 });
 
