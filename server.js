@@ -268,10 +268,10 @@ async function runJob(jobId, b) {
   };
 
   const soSlug  = (b.so_bao_gia || 'bao-gia').replace(/[\/\\:*?"<>|]/g, '-').trim();
-  const tmpDocx = path.join(os.tmpdir(), `${soSlug}-${jobId}.docx`);
-  const outPdf  = path.join(QUOTES_DIR, `${soSlug}.pdf`);
-
   if (!fs.existsSync(QUOTES_DIR)) fs.mkdirSync(QUOTES_DIR, { recursive: true });
+  // Đặt tmpDocx trong QUOTES_DIR để LibreOffice output đúng chỗ (không dùng --outdir)
+  const tmpDocx = path.join(QUOTES_DIR, `_tmp_${jobId}.docx`);
+  const outPdf  = path.join(QUOTES_DIR, `${soSlug}.pdf`);
 
   let patchedTemplatePath = TEMPLATE;
 
@@ -295,13 +295,16 @@ async function runJob(jobId, b) {
       job.status = 'error'; job.error = 'Write docx: ' + e.message; return;
     }
 
-    const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${tmpDocx}"`;
+    // LibreOffice output cùng thư mục với input (không dùng --outdir)
+    const cmd = `${SOFFICE} --headless --convert-to pdf "${tmpDocx}"`;
     exec(cmd, { timeout: 120000 }, (err2) => {
       try { fs.unlinkSync(tmpDocx); } catch (_) {}
       if (err2) { job.status = 'error'; job.error = 'LibreOffice: ' + err2.message; return; }
 
-      const tmpBasename = path.basename(tmpDocx, '.docx') + '.pdf';
-      const libreOut    = path.join(QUOTES_DIR, tmpBasename);
+      const libreOut = path.join(QUOTES_DIR, `_tmp_${jobId}.pdf`);
+      if (!fs.existsSync(libreOut)) {
+        job.status = 'error'; job.error = 'PDF not found after conversion: ' + libreOut; return;
+      }
       try { fs.renameSync(libreOut, outPdf); } catch (_) {}
 
       const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
