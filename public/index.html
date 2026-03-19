@@ -564,6 +564,24 @@
     calcTotal();
   }
 
+  // ---- Poll job status ----
+  async function pollJob(jobId, onProgress) {
+    const maxWait = 180000; // 3 phút tối đa
+    const interval = 3000;
+    const start = Date.now();
+    let dots = 0;
+    while (Date.now() - start < maxWait) {
+      await new Promise(r => setTimeout(r, interval));
+      dots = (dots % 3) + 1;
+      onProgress('⏳ Đang tạo PDF' + '.'.repeat(dots));
+      const r = await fetch('/api/job/' + jobId);
+      const job = await r.json();
+      if (job.status === 'done') return { url: job.url, filename: job.filename };
+      if (job.status === 'error') throw new Error(job.error || 'Lỗi không xác định');
+    }
+    throw new Error('Quá thời gian chờ, vui lòng thử lại');
+  }
+
   // ---- Submit xuất PDF ----
   document.getElementById('quoteForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -585,21 +603,20 @@
     try {
       const formData = new FormData(e.target);
       const body     = new URLSearchParams(formData);
-      const res      = await fetch('/api/generate', { method: 'POST', body });
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg);
-      }
-      const { url, filename } = await res.json();
+      const r1       = await fetch('/api/generate', { method: 'POST', body });
+      if (!r1.ok) throw new Error(await r1.text());
+      const { jobId } = await r1.json();
 
-      // Hiển thị status với 2 nút
+      // Poll cho đến khi xong
+      const { url, filename } = await pollJob(jobId, (msg) => {
+        document.getElementById('statusText').textContent = msg;
+      });
+
+      // Hiển thị 2 nút
       status.className = 'status success';
-      document.getElementById('statusText').textContent = '✅ Báo giá đã tạo: ' + filename;
-
-      // Xóa nút cũ nếu có
+      document.getElementById('statusText').textContent = '✅ ' + filename;
       status.querySelectorAll('.btn-action').forEach(b => b.remove());
 
-      // Nút Copy link
       const btnCopy = document.createElement('button');
       btnCopy.className = 'btn-action btn-copy';
       btnCopy.textContent = '📋 Copy link';
@@ -610,14 +627,10 @@
         });
       };
 
-      // Nút Download
       const btnDl = document.createElement('button');
       btnDl.className = 'btn-action btn-download';
       btnDl.textContent = '⬇ Download';
-      btnDl.onclick = () => {
-        const a = document.createElement('a');
-        a.href = url; a.download = filename; a.click();
-      };
+      btnDl.onclick = () => { const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); };
 
       status.appendChild(btnCopy);
       status.appendChild(btnDl);

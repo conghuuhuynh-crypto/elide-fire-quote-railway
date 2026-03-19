@@ -11,6 +11,7 @@ const https    = require('https');
 const FormData = require('form-data');
 const { exec } = require('child_process');
 const os       = require('os');
+const crypto   = require('crypto');
 
 const app  = express();
 const PORT = process.env.PORT || 3333;
@@ -28,10 +29,14 @@ const NOCODB_BASE  = 'p49wwa1uzmjtv1e';
 const TABLE_NV     = 'mbxi5rjran05biu';   // Nhan_vien
 const TABLE_BG     = 'mnfhtr9jysetk07';   // Bao_gia
 
+// Job queue — lưu trạng thái từng job trong bộ nhớ
+const jobs = {};
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
+app.use('/download', express.static(QUOTES_DIR));
 
 // Serve form
 app.get('/', (req, res) => {
@@ -41,11 +46,7 @@ app.get('/', (req, res) => {
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Serve PDF
-app.use('/download', express.static(QUOTES_DIR));
-
-
-// API lấy danh sách nhân viên từ NocoDB
+// API lấy danh sách nhân viên
 app.get('/api/employees', (req, res) => {
   const options = {
     hostname: NOCODB_HOST,
@@ -56,16 +57,18 @@ app.get('/api/employees', (req, res) => {
     let d = '';
     r.on('data', c => d += c);
     r.on('end', () => {
-      try {
-        const data = JSON.parse(d);
-        res.json(data.list || []);
-      } catch (e) {
-        res.json([]);
-      }
+      try { res.json(JSON.parse(d).list || []); }
+      catch (e) { res.json([]); }
     });
   }).on('error', () => res.json([]));
 });
 
+// API kiểm tra trạng thái job
+app.get('/api/job/:id', (req, res) => {
+  const job = jobs[req.params.id];
+  if (!job) return res.status(404).json({ status: 'not_found' });
+  res.json(job);
+});
 
 // Helper: upload PDF lên NocoDB storage
 function uploadPdfToNocoDB(pdfPath, filename) {
@@ -92,14 +95,11 @@ function uploadPdfToNocoDB(pdfPath, filename) {
       });
       req.on('error', () => resolve(null));
       form.pipe(req);
-    } catch (e) {
-      console.error('PDF upload error:', e.message);
-      resolve(null);
-    }
+    } catch (e) { resolve(null); }
   });
 }
 
-// Helper: lưu record vào NocoDB Bao_gia, trả về Id
+// Helper: lưu record vào NocoDB Bao_gia
 function saveQuoteToNocoDB(record) {
   return new Promise((resolve, reject) => {
     const body = Buffer.from(JSON.stringify(record));
@@ -107,11 +107,7 @@ function saveQuoteToNocoDB(record) {
       hostname: NOCODB_HOST,
       path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}`,
       method: 'POST',
-      headers: {
-        'xc-token': NOCODB_TOKEN,
-        'Content-Type': 'application/json',
-        'Content-Length': body.length
-      }
+      headers: { 'xc-token': NOCODB_TOKEN, 'Content-Type': 'application/json', 'Content-Length': body.length }
     };
     const req = https.request(options, r => {
       let d = '';
@@ -120,7 +116,7 @@ function saveQuoteToNocoDB(record) {
         try {
           const res = JSON.parse(d);
           if (res.Id) resolve(res.Id);
-          else reject(new Error('No Id in response: ' + d));
+          else reject(new Error('No Id: ' + d));
         } catch (e) { reject(e); }
       });
     });
@@ -130,10 +126,9 @@ function saveQuoteToNocoDB(record) {
   });
 }
 
-
-// API xuất PDF
-app.post('/api/generate', (req, res) => {
-  const b = req.body;
+// Worker: chạy nền — tạo PDF + lưu NocoDB
+function runJob(jobId, b) {
+  const job = jobs[jobId];
 
   const qty1   = parseFloat(b.so_luong_01) || 0;
   const price1 = parseFloat((b.gia_sp_01 || '').replace(/[^0-9]/g, '')) || 0;
@@ -148,8 +143,6 @@ app.post('/api/generate', (req, res) => {
   const tongTruoCK = tt1 + tt2;
   const total      = tongTruoCK * (1 - ckTong / 100);
   const fmt        = (n) => n.toLocaleString('vi-VN');
-
-  const chietKhauDisplay = ckTong > 0 ? `${ckTong}%` : '0';
 
   const data = {
     ten_cong_ty:       b.ten_cong_ty       || '',
@@ -168,30 +161,30 @@ app.post('/api/generate', (req, res) => {
     gia_sp_02:         fmt(price2 * (1 - ck2 / 100)),
     thanh_tien_02:     fmt(tt2),
     truoc_chiet_khau:  fmt(tongTruoCK),
-    chiet_khau:        chietKhauDisplay,
+    chiet_khau:        ckTong > 0 ? `${ckTong}%` : '0',
     tong_thanh_tien:   fmt(total),
-    bo_phan:           b.nv_bo_phan        || '',
-    ten_nhan_vien:     b.nv_ten            || '',
-    email_nhan_vien:   b.nv_email          || '',
-    sdt_nhan_vien:     b.nv_sdt            || '',
+    bo_phan:           b.nv_bo_phan || '',
+    ten_nhan_vien:     b.nv_ten     || '',
+    email_nhan_vien:   b.nv_email   || '',
+    sdt_nhan_vien:     b.nv_sdt     || '',
   };
 
   const soSlug  = (b.so_bao_gia || 'bao-gia').replace(/[\/\\:*?"<>|]/g, '-').trim();
-  const tmpDocx = path.join(os.tmpdir(), `${soSlug}.docx`);
+  const tmpDocx = path.join(os.tmpdir(), `${soSlug}-${jobId}.docx`);
   const outPdf  = path.join(QUOTES_DIR, `${soSlug}.pdf`);
 
   if (!fs.existsSync(QUOTES_DIR)) fs.mkdirSync(QUOTES_DIR, { recursive: true });
 
   carbone.render(TEMPLATE, data, {}, (err, result) => {
-    if (err) return res.status(500).send('Lỗi render: ' + err.message);
+    if (err) { job.status = 'error'; job.error = err.message; return; }
 
     fs.writeFileSync(tmpDocx, result);
 
     const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${tmpDocx}"`;
-    exec(cmd, { timeout: 60000 }, async (err2) => {
+    exec(cmd, { timeout: 120000 }, async (err2) => {
       try { fs.unlinkSync(tmpDocx); } catch (_) {}
 
-      if (err2) return res.status(500).send('Lỗi convert PDF: ' + err2.message);
+      if (err2) { job.status = 'error'; job.error = err2.message; return; }
 
       const tmpBasename = path.basename(tmpDocx, '.docx') + '.pdf';
       const libreOut    = path.join(QUOTES_DIR, tmpBasename);
@@ -199,51 +192,47 @@ app.post('/api/generate', (req, res) => {
 
       const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
       const finalName = path.basename(finalPath);
+      const appUrl    = 'https://elide-fire-quote-railway-production.up.railway.app';
 
-      // Trả URL về ngay lập tức
-      const appUrl = 'https://elide-fire-quote-railway-production.up.railway.app';
-      const downloadUrl = `${appUrl}/download/${finalName}`;
-      res.json({ url: downloadUrl, filename: finalName });
+      // Job done — cập nhật trạng thái
+      job.status   = 'done';
+      job.url      = `${appUrl}/download/${finalName}`;
+      job.filename = finalName;
 
-      // Lưu NocoDB chạy nền (không block response)
+      // Lưu NocoDB nền
       const record = {
-        So_bao_gia:       b.so_bao_gia        || '',
-        Ngay_bao_gia:     b.ngay_bao_gia       || '',
-        Phien_ban:        b.phien_ban          || '',
-        Ten_du_an:        b.ten_du_an          || '',
-        Ten_cong_ty:      b.ten_cong_ty        || '',
-        Phong_ban_KH:     b.ten_phong_ban      || '',
-        Nguoi_lien_he:    b.ten_nguoi_lien_he  || '',
-        SDT_khach_hang:   b.sdt_khach_hang     || '',
-        Email_khach_hang: b.email_khach_hang   || '',
-        NV_bo_phan:       b.nv_bo_phan         || '',
-        NV_ten:           b.nv_ten             || '',
-        NV_email:         b.nv_email           || '',
-        NV_sdt:           b.nv_sdt             || '',
-        SL_Techideas:     qty1,
-        DonGia_Techideas: price1,
-        CK_Techideas:     ck1,
-        ThanhTien_Techideas: tt1,
-        SL_Lovingcare:    qty2,
-        DonGia_Lovingcare: price2,
-        CK_Lovingcare:    ck2,
-        ThanhTien_Lovingcare: tt2,
-        CK_Tong_don:      ckTong,
-        Tong_thanh_toan:  total,
+        So_bao_gia: b.so_bao_gia || '', Ngay_bao_gia: b.ngay_bao_gia || '',
+        Phien_ban: b.phien_ban || '', Ten_du_an: b.ten_du_an || '',
+        Ten_cong_ty: b.ten_cong_ty || '', Phong_ban_KH: b.ten_phong_ban || '',
+        Nguoi_lien_he: b.ten_nguoi_lien_he || '', SDT_khach_hang: b.sdt_khach_hang || '',
+        Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
+        NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
+        SL_Techideas: qty1, DonGia_Techideas: price1, CK_Techideas: ck1, ThanhTien_Techideas: tt1,
+        SL_Lovingcare: qty2, DonGia_Lovingcare: price2, CK_Lovingcare: ck2, ThanhTien_Lovingcare: tt2,
+        CK_Tong_don: ckTong, Tong_thanh_toan: total,
       };
-
-      (async () => {
-        try {
-          const attachment = await uploadPdfToNocoDB(finalPath, finalName);
-          if (attachment) record.File_PDF = [attachment];
-          const savedId = await saveQuoteToNocoDB(record);
-          console.log('✅ NocoDB saved, Id:', savedId);
-        } catch (e) {
-          console.error('❌ NocoDB error:', e.message);
-        }
-      })();
+      try {
+        const att = await uploadPdfToNocoDB(finalPath, finalName);
+        if (att) record.File_PDF = [att];
+        await saveQuoteToNocoDB(record);
+        console.log('✅ NocoDB saved');
+      } catch (e) { console.error('NocoDB error:', e.message); }
     });
   });
+}
+
+// API xuất PDF — trả jobId ngay lập tức
+app.post('/api/generate', (req, res) => {
+  const jobId = crypto.randomBytes(6).toString('hex');
+  jobs[jobId] = { status: 'processing' };
+
+  // Dọn job cũ sau 1 giờ
+  setTimeout(() => { delete jobs[jobId]; }, 3600000);
+
+  // Chạy nền
+  setImmediate(() => runJob(jobId, req.body));
+
+  res.json({ jobId });
 });
 
 app.listen(PORT, () => {
