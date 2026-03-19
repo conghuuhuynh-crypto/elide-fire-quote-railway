@@ -128,7 +128,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v5-outdir-fix' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v6-outdir-quotes' }));
 
 // API nhân viên
 app.get('/api/employees', (req, res) => {
@@ -295,8 +295,8 @@ async function runJob(jobId, b) {
       job.status = 'error'; job.error = 'Write docx: ' + e.message; return;
     }
 
-    // LibreOffice output cùng thư mục với input (không dùng --outdir)
-    const cmd = `${SOFFICE} --headless --convert-to pdf "${tmpDocx}"`;
+    // tmpDocx đặt trong QUOTES_DIR, --outdir cũng trỏ vào QUOTES_DIR
+    const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${tmpDocx}"`;
     exec(cmd, { timeout: 120000 }, (err2) => {
       try { fs.unlinkSync(tmpDocx); } catch (_) {}
       if (err2) { job.status = 'error'; job.error = 'LibreOffice: ' + err2.message; return; }
