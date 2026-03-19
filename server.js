@@ -3,11 +3,12 @@
  * Carbone open-source + LibreOffice → PDF không watermark
  */
 
-const express = require('express');
+const express  = require('express');
 const carbone  = require('carbone');
 const path     = require('path');
 const fs       = require('fs');
 const https    = require('https');
+const FormData = require('form-data');
 const { exec } = require('child_process');
 const os       = require('os');
 
@@ -65,34 +66,37 @@ app.get('/api/employees', (req, res) => {
 function uploadPdfToNocoDB(pdfPath, filename) {
   return new Promise((resolve) => {
     try {
-      const fileData = fs.readFileSync(pdfPath);
-      const boundary = 'FormBoundary' + Date.now();
-      const body = Buffer.concat([
-        Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/pdf\r\n\r\n`),
-        fileData,
-        Buffer.from(`\r\n--${boundary}--\r\n`)
-      ]);
+      const form = new FormData();
+      form.append('file', fs.createReadStream(pdfPath), { filename, contentType: 'application/pdf' });
+
       const options = {
         hostname: NOCODB_HOST,
-        path: '/api/v1/storage/upload',
+        path: '/api/v1/storage/upload?path=noco/' + NOCODB_BASE + '/Bao_gia/File_PDF',
         method: 'POST',
         headers: {
+          ...form.getHeaders(),
           'xc-token': NOCODB_TOKEN,
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
-          'Content-Length': body.length
         }
       };
       const req = https.request(options, r => {
         let d = '';
         r.on('data', c => d += c);
         r.on('end', () => {
-          try { resolve(JSON.parse(d)); } catch (e) { resolve(null); }
+          try {
+            const parsed = JSON.parse(d);
+            // NocoDB trả về array hoặc object
+            const attachment = Array.isArray(parsed) ? parsed[0] : parsed;
+            resolve(attachment && attachment.url ? attachment : null);
+          } catch (e) {
+            console.error('PDF upload parse error:', d.substring(0, 200));
+            resolve(null);
+          }
         });
       });
-      req.on('error', () => resolve(null));
-      req.write(body);
-      req.end();
+      req.on('error', e => { console.error('PDF upload request error:', e.message); resolve(null); });
+      form.pipe(req);
     } catch (e) {
+      console.error('PDF upload error:', e.message);
       resolve(null);
     }
   });
