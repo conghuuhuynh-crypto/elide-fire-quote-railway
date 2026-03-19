@@ -62,6 +62,21 @@ function escXml(s) {
     .replace(/"/g, '&quot;');
 }
 
+function fixCellAlign(rowXml, tagStr, align) {
+  const ti = rowXml.indexOf(tagStr);
+  if (ti === -1) return rowXml;
+  const tcS = rowXml.lastIndexOf('<w:tc>', ti);
+  const tcE = rowXml.indexOf('</w:tc>', ti) + 7;
+  if (tcS === -1 || tcE === 6) return rowXml;
+  let cell = rowXml.slice(tcS, tcE);
+  if (cell.includes('<w:jc ')) {
+    cell = cell.replace(/<w:jc w:val="[^"]*"\/>/, `<w:jc w:val="${align}"/>`);
+  } else if (cell.includes('</w:pPr>')) {
+    cell = cell.replace('</w:pPr>', `<w:jc w:val="${align}"/></w:pPr>`);
+  }
+  return rowXml.slice(0, tcS) + cell + rowXml.slice(tcE);
+}
+
 function moTaToRuns(text, templateRun) {
   const rPrMatch = templateRun.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
   const rPr = rPrMatch ? rPrMatch[0] : '';
@@ -88,6 +103,13 @@ function renderDocxTemplate(templatePath, data, items) {
 
   let xml = xmlEntry.getData().toString('utf8');
 
+  // 0. De-splice: gộp {d.xxx} bị Word cắt ra nhiều <w:r> runs
+  xml = xml.replace(/\{d\.((?:[^<}]|<[^>]+>)*?)\}/g, (match, inner) => {
+    const varName = inner.replace(/<[^>]+>/g, '');
+    if (inner !== varName) return `{d.${varName}}`;
+    return match;
+  });
+
   // 1. Expand items rows
   if (items && items.length > 0) {
     let searchPos = 0, rowStart = -1, rowEnd = -1;
@@ -100,7 +122,11 @@ function renderDocxTemplate(templatePath, data, items) {
     }
 
     if (rowStart !== -1) {
-      const templateRow = xml.slice(rowStart, rowEnd);
+      let templateRow = xml.slice(rowStart, rowEnd);
+      // Fix alignment trước khi detect positions
+      templateRow = fixCellAlign(templateRow, '{d.items[i].mo_ta}',    'left');
+      templateRow = fixCellAlign(templateRow, '{d.items[i].don_gia}',  'right');
+      templateRow = fixCellAlign(templateRow, '{d.items[i].thanh_tien}', 'right');
       const moTaPos = templateRow.indexOf('{d.items[i].mo_ta}');
       let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
       if (moTaPos !== -1) {
@@ -159,7 +185,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v12-fix-wrun' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v13-all-fixes' }));
 
 // Debug: test adm-zip patch + LibreOffice
 app.get('/api/debug/lo-test', (req, res) => {
@@ -375,6 +401,10 @@ async function runJob(jobId, b) {
       Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
       NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
       Items_JSON: JSON.stringify(validItems), CK_Tong_don: ckTong, Tong_thanh_toan: total,
+      So_luong: validItems.reduce((sum, it) => sum + (parseFloat(it.so_luong) || 0), 0),
+      Don_gia: parseFloat((validItems[0] || {}).don_gia) || 0,
+      Thanh_tien: total,
+      Chiet_khau: ckTong,
     };
     Promise.resolve()
       .then(() => uploadPdfToNocoDB(finalPath, finalName))
