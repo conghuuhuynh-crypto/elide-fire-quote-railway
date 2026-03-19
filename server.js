@@ -1,10 +1,9 @@
 /**
  * server.js — Elide Fire Quote Server (Railway deployment)
- * Carbone open-source + LibreOffice → PDF không watermark
+ * adm-zip render XML + LibreOffice → PDF (không Carbone, không watermark)
  */
 
 const express  = require('express');
-const carbone  = require('carbone');
 const AdmZip   = require('adm-zip');
 const path     = require('path');
 const fs       = require('fs');
@@ -18,8 +17,8 @@ const app  = express();
 const PORT = process.env.PORT || 3333;
 
 // Prevent crash on unhandled errors
-process.on('uncaughtException',   e => console.error('[uncaughtException]',   e.message));
-process.on('unhandledRejection',  e => console.error('[unhandledRejection]',  e));
+process.on('uncaughtException',  e => console.error('[uncaughtException]',  e.message));
+process.on('unhandledRejection', e => console.error('[unhandledRejection]', e));
 
 const TEMPLATE   = path.join(__dirname, 'templates', 'quote-template.docx');
 const QUOTES_DIR = path.join(__dirname, 'outputs', 'quotes');
@@ -58,22 +57,24 @@ function moTaToRuns(text, templateRun) {
   ).join('');
 }
 
-// Pre-process template: expand items[] rows dùng adm-zip (pure JS)
-function expandTemplateItems(templatePath, items) {
-  if (!items || items.length === 0) return templatePath;
+/**
+ * Render toàn bộ template bằng adm-zip (không Carbone):
+ * - Expand items[] rows
+ * - Thay thế tất cả {d.xxx} fields
+ * Returns path to rendered docx (tmp file)
+ */
+function renderDocxTemplate(templatePath, data, items) {
+  const tmpDocx = path.join(os.tmpdir(), `render_${crypto.randomBytes(4).toString('hex')}.docx`);
+  fs.copyFileSync(templatePath, tmpDocx);
 
-  const tmpDocx = path.join(os.tmpdir(), `tmpl_${crypto.randomBytes(4).toString('hex')}.docx`);
+  const zip = new AdmZip(tmpDocx);
+  const xmlEntry = zip.getEntry('word/document.xml');
+  if (!xmlEntry) return tmpDocx; // fallback: trả về bản copy gốc
 
-  try {
-    fs.copyFileSync(templatePath, tmpDocx);
+  let xml = xmlEntry.getData().toString('utf8');
 
-    const zip = new AdmZip(tmpDocx);
-    const xmlEntry = zip.getEntry('word/document.xml');
-    if (!xmlEntry) { fs.unlinkSync(tmpDocx); return templatePath; }
-
-    let xml = xmlEntry.getData().toString('utf8');
-
-    // Tìm dòng template chứa {d.items[i]...}
+  // 1. Expand items rows
+  if (items && items.length > 0) {
     let searchPos = 0, rowStart = -1, rowEnd = -1;
     while (true) {
       const s = xml.indexOf('<w:tr ', searchPos);
@@ -82,43 +83,44 @@ function expandTemplateItems(templatePath, items) {
       if (xml.slice(s, e).includes('d.items[i]')) { rowStart = s; rowEnd = e; break; }
       searchPos = e;
     }
-    if (rowStart === -1) { fs.unlinkSync(tmpDocx); return templatePath; }
 
-    const templateRow = xml.slice(rowStart, rowEnd);
-
-    // Tìm run chứa mo_ta để xử lý xuống dòng
-    const moTaPos = templateRow.indexOf('{d.items[i].mo_ta}');
-    let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
-    if (moTaPos !== -1) {
-      moTaRunStart = templateRow.lastIndexOf('<w:r', moTaPos);
-      moTaRunEnd   = templateRow.indexOf('</w:r>', moTaPos) + 6;
-      moTaRun      = templateRow.slice(moTaRunStart, moTaRunEnd);
-    }
-
-    const expandedRows = items.map(item => {
-      let row = templateRow;
-      if (moTaRunStart !== -1) {
-        row = row.slice(0, moTaRunStart) + moTaToRuns(item.mo_ta, moTaRun) + row.slice(moTaRunEnd);
-      } else {
-        row = row.replace('{d.items[i].mo_ta}', escXml(item.mo_ta));
+    if (rowStart !== -1) {
+      const templateRow = xml.slice(rowStart, rowEnd);
+      const moTaPos = templateRow.indexOf('{d.items[i].mo_ta}');
+      let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
+      if (moTaPos !== -1) {
+        moTaRunStart = templateRow.lastIndexOf('<w:r', moTaPos);
+        moTaRunEnd   = templateRow.indexOf('</w:r>', moTaPos) + 6;
+        moTaRun      = templateRow.slice(moTaRunStart, moTaRunEnd);
       }
-      row = row.replace('{d.items[i].stt}',        escXml(item.stt));
-      row = row.replace('{d.items[i].so_luong}',   escXml(item.so_luong));
-      row = row.replace('{d.items[i].don_gia}',    escXml(item.don_gia));
-      row = row.replace('{d.items[i].thanh_tien}', escXml(item.thanh_tien));
-      return row;
-    }).join('');
 
-    xml = xml.slice(0, rowStart) + expandedRows + xml.slice(rowEnd);
+      const expandedRows = items.map(item => {
+        let row = templateRow;
+        if (moTaRunStart !== -1) {
+          row = row.slice(0, moTaRunStart) + moTaToRuns(item.mo_ta, moTaRun) + row.slice(moTaRunEnd);
+        } else {
+          row = row.replace('{d.items[i].mo_ta}', escXml(item.mo_ta));
+        }
+        row = row.replace('{d.items[i].stt}',        escXml(item.stt));
+        row = row.replace('{d.items[i].so_luong}',   escXml(item.so_luong));
+        row = row.replace('{d.items[i].don_gia}',    escXml(item.don_gia));
+        row = row.replace('{d.items[i].thanh_tien}', escXml(item.thanh_tien));
+        return row;
+      }).join('');
 
-    zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
-    zip.writeZip(tmpDocx);
-
-    return tmpDocx;
-  } catch (e) {
-    try { fs.unlinkSync(tmpDocx); } catch (_) {}
-    throw e;
+      xml = xml.slice(0, rowStart) + expandedRows + xml.slice(rowEnd);
+    }
   }
+
+  // 2. Thay thế tất cả {d.xxx} fields
+  for (const [key, val] of Object.entries(data)) {
+    xml = xml.split(`{d.${key}}`).join(escXml(String(val)));
+  }
+
+  zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
+  zip.writeZip(tmpDocx);
+
+  return tmpDocx;
 }
 
 app.use(express.json());
@@ -128,7 +130,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v7-debug' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v8-no-carbone' }));
 
 // API nhân viên
 app.get('/api/employees', (req, res) => {
@@ -231,7 +233,7 @@ async function runJob(jobId, b) {
   const ckTong = parseFloat(b.chiet_khau_tong) || 0;
   let tongTruoCK = 0;
 
-  const carboneItems = validItems.map((it, idx) => {
+  const items = validItems.map((it, idx) => {
     const qty   = parseFloat(it.so_luong) || 0;
     const price = parseFloat(it.don_gia)  || 0;
     const ck    = parseFloat(it.chiet_khau) || 0;
@@ -267,78 +269,63 @@ async function runJob(jobId, b) {
     tong_thanh_tien:   fmt(total),
   };
 
-  const soSlug  = (b.so_bao_gia || 'bao-gia').replace(/[\/\\:*?"<>|]/g, '-').trim();
+  const soSlug = (b.so_bao_gia || 'bao-gia').replace(/[\/\\:*?"<>|]/g, '-').trim();
   if (!fs.existsSync(QUOTES_DIR)) fs.mkdirSync(QUOTES_DIR, { recursive: true });
-  // Đặt tmpDocx trong QUOTES_DIR để LibreOffice output đúng chỗ (không dùng --outdir)
-  const tmpDocx = path.join(QUOTES_DIR, `_tmp_${jobId}.docx`);
-  const outPdf  = path.join(QUOTES_DIR, `${soSlug}.pdf`);
+  const outPdf = path.join(QUOTES_DIR, `${soSlug}.pdf`);
 
-  let patchedTemplatePath = TEMPLATE;
-
+  // Render docx với adm-zip (không Carbone)
+  let renderedDocx;
   try {
-    patchedTemplatePath = expandTemplateItems(TEMPLATE, carboneItems);
+    renderedDocx = renderDocxTemplate(TEMPLATE, data, items);
   } catch (e) {
-    job.status = 'error';
-    job.error  = 'Template expand error: ' + e.message;
-    return;
+    job.status = 'error'; job.error = 'Render error: ' + e.message; return;
   }
 
-  carbone.render(patchedTemplatePath, data, {}, (err, result) => {
-    // Dọn tmp file sau khi Carbone đọc xong
-    if (patchedTemplatePath !== TEMPLATE) {
-      try { fs.unlinkSync(patchedTemplatePath); } catch (_) {}
+  // Copy rendered docx vào QUOTES_DIR để LibreOffice output đúng chỗ
+  const tmpDocx = path.join(QUOTES_DIR, `_tmp_${jobId}.docx`);
+  try { fs.copyFileSync(renderedDocx, tmpDocx); } catch (e) {
+    job.status = 'error'; job.error = 'Copy docx error: ' + e.message; return;
+  }
+  try { fs.unlinkSync(renderedDocx); } catch (_) {}
+
+  const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${tmpDocx}"`;
+  console.log('[LO] cmd:', cmd);
+  exec(cmd, { timeout: 120000 }, (err2, stdout, stderr) => {
+    try { fs.unlinkSync(tmpDocx); } catch (_) {}
+    if (err2) { job.status = 'error'; job.error = 'LibreOffice: ' + err2.message + ' stderr:' + stderr; return; }
+
+    const libreOut = path.join(QUOTES_DIR, `_tmp_${jobId}.pdf`);
+    if (!fs.existsSync(libreOut)) {
+      const files = (() => { try { return fs.readdirSync(QUOTES_DIR); } catch(_) { return []; } })();
+      job.status = 'error';
+      job.error = 'PDF not found. Files:[' + files.join(',') + '] stderr:' + stderr;
+      return;
     }
+    try { fs.renameSync(libreOut, outPdf); } catch (_) {}
 
-    if (err) { job.status = 'error'; job.error = 'Carbone: ' + err.message; return; }
+    const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
+    const finalName = path.basename(finalPath);
+    const appUrl    = 'https://elide-fire-quote-railway-production.up.railway.app';
 
-    try { fs.writeFileSync(tmpDocx, result); } catch (e) {
-      job.status = 'error'; job.error = 'Write docx: ' + e.message; return;
-    }
+    job.status   = 'done';
+    job.url      = `${appUrl}/download/${finalName}`;
+    job.filename = finalName;
+    console.log('✅ PDF ready:', finalName);
 
-    // tmpDocx đặt trong QUOTES_DIR, --outdir cũng trỏ vào QUOTES_DIR
-    const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${tmpDocx}"`;
-    console.log('[LO] cmd:', cmd);
-    exec(cmd, { timeout: 120000 }, (err2, stdout, stderr) => {
-      console.log('[LO] stdout:', stdout);
-      console.log('[LO] stderr:', stderr);
-      console.log('[LO] err2:', err2 ? err2.message : 'null');
-      try { fs.unlinkSync(tmpDocx); } catch (_) {}
-      if (err2) { job.status = 'error'; job.error = 'LibreOffice: ' + err2.message; return; }
-
-      const libreOut = path.join(QUOTES_DIR, `_tmp_${jobId}.pdf`);
-      if (!fs.existsSync(libreOut)) {
-        // List files in QUOTES_DIR for debugging
-        let files = [];
-        try { files = fs.readdirSync(QUOTES_DIR); } catch(_) {}
-        job.status = 'error';
-        job.error = 'PDF not found. QUOTES_DIR files: [' + files.join(',') + '] stdout=' + stdout + ' stderr=' + stderr;
-        return;
-      }
-      try { fs.renameSync(libreOut, outPdf); } catch (_) {}
-
-      const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
-      const finalName = path.basename(finalPath);
-      const appUrl    = 'https://elide-fire-quote-railway-production.up.railway.app';
-
-      job.status   = 'done';
-      job.url      = `${appUrl}/download/${finalName}`;
-      job.filename = finalName;
-
-      const record = {
-        So_bao_gia: b.so_bao_gia || '', Ngay_bao_gia: b.ngay_bao_gia || '',
-        Phien_ban: b.phien_ban || '', Ten_du_an: b.ten_du_an || '',
-        Ten_cong_ty: b.ten_cong_ty || '', Phong_ban_KH: b.ten_phong_ban || '',
-        Nguoi_lien_he: b.ten_nguoi_lien_he || '', SDT_khach_hang: b.sdt_khach_hang || '',
-        Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
-        NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
-        Items_JSON: JSON.stringify(validItems), CK_Tong_don: ckTong, Tong_thanh_toan: total,
-      };
-      Promise.resolve()
-        .then(() => uploadPdfToNocoDB(finalPath, finalName))
-        .then(att => { if (att) record.File_PDF = [att]; return saveQuoteToNocoDB(record); })
-        .then(() => console.log('✅ NocoDB saved'))
-        .catch(e => console.error('NocoDB error:', e.message));
-    });
+    const record = {
+      So_bao_gia: b.so_bao_gia || '', Ngay_bao_gia: b.ngay_bao_gia || '',
+      Phien_ban: b.phien_ban || '', Ten_du_an: b.ten_du_an || '',
+      Ten_cong_ty: b.ten_cong_ty || '', Phong_ban_KH: b.ten_phong_ban || '',
+      Nguoi_lien_he: b.ten_nguoi_lien_he || '', SDT_khach_hang: b.sdt_khach_hang || '',
+      Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
+      NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
+      Items_JSON: JSON.stringify(validItems), CK_Tong_don: ckTong, Tong_thanh_toan: total,
+    };
+    Promise.resolve()
+      .then(() => uploadPdfToNocoDB(finalPath, finalName))
+      .then(att => { if (att) record.File_PDF = [att]; return saveQuoteToNocoDB(record); })
+      .then(() => console.log('✅ NocoDB saved'))
+      .catch(e => console.error('NocoDB error:', e.message));
   });
 }
 
