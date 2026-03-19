@@ -41,6 +41,9 @@ app.get('/', (req, res) => {
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// Serve PDF
+app.use('/download', express.static(QUOTES_DIR));
+
 
 // API lấy danh sách nhân viên từ NocoDB
 app.get('/api/employees', (req, res) => {
@@ -239,10 +242,10 @@ app.post('/api/generate', (req, res) => {
       }
 
 
-      // Gửi PDF về trình duyệt
-      res.setHeader('Content-Disposition', `attachment; filename="${finalName}"`);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.sendFile(finalPath);
+      // Trả về URL thay vì stream file
+      const appUrl = 'https://elide-fire-quote-railway-production.up.railway.app';
+      const downloadUrl = `${appUrl}/download/${finalName}`;
+      res.json({ url: downloadUrl, filename: finalName });
     });
   });
 });

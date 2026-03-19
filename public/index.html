@@ -186,10 +186,27 @@
       border-radius: 6px;
       font-size: 14px;
       display: none;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
     }
-    .status.loading { background: #eaf4fb; color: #2980b9; display: block; }
-    .status.success { background: #eafaf1; color: #1e8449; display: block; }
-    .status.error   { background: #fdedec; color: #c0392b; display: block; }
+    .status.loading { background: #eaf4fb; color: #2980b9; display: flex; }
+    .status.success { background: #eafaf1; color: #1e8449; display: flex; }
+    .status.error   { background: #fdedec; color: #c0392b; display: flex; }
+    .status .status-text { flex: 1; }
+    .status .btn-action {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      white-space: nowrap;
+      transition: opacity 0.2s;
+    }
+    .status .btn-action:hover { opacity: 0.85; }
+    .btn-copy { background: #1e8449; color: white; }
+    .btn-download { background: #2980b9; color: white; }
 
     /* Responsive mobile */
     @media (max-width: 600px) {
@@ -440,7 +457,9 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px; margin-bottom:2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Xuất PDF Báo Giá
         </button>
       </div>
-      <div class="status" id="status"></div>
+      <div class="status" id="status">
+        <span class="status-text" id="statusText"></span>
+      </div>
     </div>
 
   </form>
@@ -571,18 +590,42 @@
         const msg = await res.text();
         throw new Error(msg);
       }
-      const blob     = await res.blob();
-      const filename = (res.headers.get('Content-Disposition') || '')
-        .match(/filename="?([^"]+)"?/)?.[1] || 'bao-gia.pdf';
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement('a');
-      a.href = url; a.download = filename; a.click();
-      URL.revokeObjectURL(url);
+      const { url, filename } = await res.json();
+
+      // Hiển thị status với 2 nút
       status.className = 'status success';
-      status.textContent = '✅ PDF đã tải xuống: ' + filename + ' — Đã lưu vào hệ thống.';
+      document.getElementById('statusText').textContent = '✅ Báo giá đã tạo: ' + filename;
+
+      // Xóa nút cũ nếu có
+      status.querySelectorAll('.btn-action').forEach(b => b.remove());
+
+      // Nút Copy link
+      const btnCopy = document.createElement('button');
+      btnCopy.className = 'btn-action btn-copy';
+      btnCopy.textContent = '📋 Copy link';
+      btnCopy.onclick = () => {
+        navigator.clipboard.writeText(url).then(() => {
+          btnCopy.textContent = '✓ Đã copy!';
+          setTimeout(() => btnCopy.textContent = '📋 Copy link', 2000);
+        });
+      };
+
+      // Nút Download
+      const btnDl = document.createElement('button');
+      btnDl.className = 'btn-action btn-download';
+      btnDl.textContent = '⬇ Download';
+      btnDl.onclick = () => {
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+      };
+
+      status.appendChild(btnCopy);
+      status.appendChild(btnDl);
+
     } catch (err) {
       status.className = 'status error';
-      status.textContent = '❌ Lỗi: ' + err.message;
+      document.getElementById('statusText').textContent = '❌ Lỗi: ' + err.message;
+      status.querySelectorAll('.btn-action').forEach(b => b.remove());
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px; margin-bottom:2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Xuất PDF Báo Giá';
