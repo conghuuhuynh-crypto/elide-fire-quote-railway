@@ -104,9 +104,17 @@ function renderDocxTemplate(templatePath, data, items) {
       const moTaPos = templateRow.indexOf('{d.items[i].mo_ta}');
       let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
       if (moTaPos !== -1) {
-        moTaRunStart = templateRow.lastIndexOf('<w:r', moTaPos);
-        moTaRunEnd   = templateRow.indexOf('</w:r>', moTaPos) + 6;
-        moTaRun      = templateRow.slice(moTaRunStart, moTaRunEnd);
+        // Tìm <w:r> hoặc <w:r (có attribute) — không tìm <w:rPr> hay <w:rStyle>
+        let sp = moTaPos;
+        while (sp >= 0) {
+          const idx = templateRow.lastIndexOf('<w:r', sp);
+          if (idx === -1) break;
+          const ch = templateRow[idx + 4]; // char sau <w:r
+          if (ch === '>' || ch === ' ') { moTaRunStart = idx; break; }
+          sp = idx - 1;
+        }
+        moTaRunEnd = templateRow.indexOf('</w:r>', moTaPos) + 6;
+        moTaRun    = moTaRunStart !== -1 ? templateRow.slice(moTaRunStart, moTaRunEnd) : '';
       }
 
       const expandedRows = items.map(item => {
@@ -151,7 +159,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v11-python-file' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v12-fix-wrun' }));
 
 // Debug: test adm-zip patch + LibreOffice
 app.get('/api/debug/lo-test', (req, res) => {
