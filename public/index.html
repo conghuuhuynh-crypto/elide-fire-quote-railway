@@ -619,6 +619,7 @@
       status.querySelectorAll('.btn-action').forEach(b => b.remove());
 
       const btnCopy = document.createElement('button');
+      btnCopy.type = 'button';
       btnCopy.className = 'btn-action btn-copy';
       btnCopy.textContent = '📋 Copy link';
       btnCopy.onclick = () => {
@@ -629,6 +630,7 @@
       };
 
       const btnDl = document.createElement('button');
+      btnDl.type = 'button';
       btnDl.className = 'btn-action btn-download';
       btnDl.textContent = '⬇ Download';
       btnDl.onclick = () => { const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); };
