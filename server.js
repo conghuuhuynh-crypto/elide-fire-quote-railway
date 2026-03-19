@@ -98,9 +98,9 @@ function uploadPdfToNocoDB(pdfPath, filename) {
   });
 }
 
-// Helper: lưu record vào NocoDB Bao_gia
+// Helper: lưu record vào NocoDB Bao_gia, trả về Id
 function saveQuoteToNocoDB(record) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const body = Buffer.from(JSON.stringify(record));
     const options = {
       hostname: NOCODB_HOST,
@@ -115,8 +115,35 @@ function saveQuoteToNocoDB(record) {
     const req = https.request(options, r => {
       let d = '';
       r.on('data', c => d += c);
-      r.on('end', () => resolve());
+      r.on('end', () => {
+        try {
+          const res = JSON.parse(d);
+          if (res.Id) resolve(res.Id);
+          else reject(new Error('No Id in response: ' + d));
+        } catch (e) { reject(e); }
+      });
     });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// Helper: cập nhật File_PDF cho record đã lưu
+function updateQuoteFile(id, attachment) {
+  return new Promise((resolve) => {
+    const body = Buffer.from(JSON.stringify({ File_PDF: [attachment] }));
+    const options = {
+      hostname: NOCODB_HOST,
+      path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}/${id}`,
+      method: 'PATCH',
+      headers: {
+        'xc-token': NOCODB_TOKEN,
+        'Content-Type': 'application/json',
+        'Content-Length': body.length
+      }
+    };
+    const req = https.request(options, r => { r.resume(); r.on('end', resolve); });
     req.on('error', () => resolve());
     req.write(body);
     req.end();
@@ -141,10 +168,7 @@ app.post('/api/generate', (req, res) => {
   const total      = tongTruoCK * (1 - ckTong / 100);
   const fmt        = (n) => n.toLocaleString('vi-VN');
 
-  const discountAmt = tongTruoCK - total;
-  const chietKhauDisplay = ckTong > 0
-    ? `-${ckTong}% (-${fmt(discountAmt)} VNĐ)`
-    : '0';
+  const chietKhauDisplay = ckTong > 0 ? `${ckTong}%` : '0';
 
   const data = {
     ten_cong_ty:       b.ten_cong_ty       || '',
@@ -195,37 +219,47 @@ app.post('/api/generate', (req, res) => {
       const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
       const finalName = path.basename(finalPath);
 
-      // Lưu vào NocoDB trước khi gửi PDF
+      // Bước 1: Lưu data vào NocoDB (không chờ PDF upload)
+      const record = {
+        So_bao_gia:       b.so_bao_gia        || '',
+        Ngay_bao_gia:     b.ngay_bao_gia       || '',
+        Phien_ban:        b.phien_ban          || '',
+        Ten_du_an:        b.ten_du_an          || '',
+        Ten_cong_ty:      b.ten_cong_ty        || '',
+        Phong_ban_KH:     b.ten_phong_ban      || '',
+        Nguoi_lien_he:    b.ten_nguoi_lien_he  || '',
+        SDT_khach_hang:   b.sdt_khach_hang     || '',
+        Email_khach_hang: b.email_khach_hang   || '',
+        NV_bo_phan:       b.nv_bo_phan         || '',
+        NV_ten:           b.nv_ten             || '',
+        NV_email:         b.nv_email           || '',
+        NV_sdt:           b.nv_sdt             || '',
+        SL_Techideas:     qty1,
+        DonGia_Techideas: price1,
+        CK_Techideas:     ck1,
+        ThanhTien_Techideas: tt1,
+        SL_Lovingcare:    qty2,
+        DonGia_Lovingcare: price2,
+        CK_Lovingcare:    ck2,
+        ThanhTien_Lovingcare: tt2,
+        CK_Tong_don:      ckTong,
+        Tong_thanh_toan:  total,
+      };
+
+      let savedId = null;
       try {
-        const attachment = await uploadPdfToNocoDB(finalPath, finalName);
-        await saveQuoteToNocoDB({
-          So_bao_gia:       b.so_bao_gia        || '',
-          Ngay_bao_gia:     b.ngay_bao_gia       || '',
-          Phien_ban:        b.phien_ban          || '',
-          Ten_du_an:        b.ten_du_an          || '',
-          Ten_cong_ty:      b.ten_cong_ty        || '',
-          Phong_ban_KH:     b.ten_phong_ban      || '',
-          Nguoi_lien_he:    b.ten_nguoi_lien_he  || '',
-          SDT_khach_hang:   b.sdt_khach_hang     || '',
-          Email_khach_hang: b.email_khach_hang   || '',
-          NV_bo_phan:       b.nv_bo_phan         || '',
-          NV_ten:           b.nv_ten             || '',
-          NV_email:         b.nv_email           || '',
-          NV_sdt:           b.nv_sdt             || '',
-          SL_Techideas:     qty1,
-          DonGia_Techideas: price1,
-          CK_Techideas:     ck1,
-          ThanhTien_Techideas: tt1,
-          SL_Lovingcare:    qty2,
-          DonGia_Lovingcare: price2,
-          CK_Lovingcare:    ck2,
-          ThanhTien_Lovingcare: tt2,
-          CK_Tong_don:      ckTong,
-          Tong_thanh_toan:  total,
-          File_PDF:         attachment ? [attachment] : null,
-        });
+        savedId = await saveQuoteToNocoDB(record);
+        console.log('✅ NocoDB saved, Id:', savedId);
       } catch (e) {
-        console.error('NocoDB save error:', e.message);
+        console.error('❌ NocoDB save error:', e.message);
+      }
+
+      // Bước 2: Upload PDF và cập nhật record (không block gửi PDF)
+      if (savedId) {
+        uploadPdfToNocoDB(finalPath, finalName).then(attachment => {
+          if (!attachment) return;
+          return updateQuoteFile(savedId, attachment);
+        }).catch(e => console.error('PDF upload error:', e.message));
       }
 
       // Gửi PDF về trình duyệt
