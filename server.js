@@ -5,6 +5,7 @@
 
 const express  = require('express');
 const carbone  = require('carbone');
+const AdmZip   = require('adm-zip');
 const path     = require('path');
 const fs       = require('fs');
 const https    = require('https');
@@ -53,31 +54,20 @@ function moTaToRuns(text, templateRun) {
   ).join('');
 }
 
-function execCmd(cmd) {
-  return new Promise((resolve, reject) => {
-    exec(cmd, { timeout: 30000 }, (err, stdout, stderr) => {
-      if (err) reject(new Error(stderr || err.message));
-      else resolve(stdout);
-    });
-  });
-}
-
-// Pre-process template: expand items[] rows dùng unzip/zip
-async function expandTemplateItems(templatePath, items) {
+// Pre-process template: expand items[] rows dùng adm-zip (pure JS)
+function expandTemplateItems(templatePath, items) {
   if (!items || items.length === 0) return templatePath;
 
-  const tmpDir  = path.join(os.tmpdir(), `tmpl_${crypto.randomBytes(4).toString('hex')}`);
-  const tmpDocx = path.join(tmpDir, 'template.docx');
+  const tmpDocx = path.join(os.tmpdir(), `tmpl_${crypto.randomBytes(4).toString('hex')}.docx`);
 
   try {
-    fs.mkdirSync(path.join(tmpDir, 'word'), { recursive: true });
     fs.copyFileSync(templatePath, tmpDocx);
 
-    // Extract document.xml
-    await execCmd(`unzip -o "${tmpDocx}" word/document.xml -d "${tmpDir}"`);
+    const zip = new AdmZip(tmpDocx);
+    const xmlEntry = zip.getEntry('word/document.xml');
+    if (!xmlEntry) { fs.unlinkSync(tmpDocx); return templatePath; }
 
-    const xmlPath = path.join(tmpDir, 'word', 'document.xml');
-    let xml = fs.readFileSync(xmlPath, 'utf8');
+    let xml = xmlEntry.getData().toString('utf8');
 
     // Tìm dòng template chứa {d.items[i]...}
     let searchPos = 0, rowStart = -1, rowEnd = -1;
@@ -88,11 +78,11 @@ async function expandTemplateItems(templatePath, items) {
       if (xml.slice(s, e).includes('d.items[i]')) { rowStart = s; rowEnd = e; break; }
       searchPos = e;
     }
-    if (rowStart === -1) return templatePath;
+    if (rowStart === -1) { fs.unlinkSync(tmpDocx); return templatePath; }
 
     const templateRow = xml.slice(rowStart, rowEnd);
 
-    // Tìm run chứa mo_ta
+    // Tìm run chứa mo_ta để xử lý xuống dòng
     const moTaPos = templateRow.indexOf('{d.items[i].mo_ta}');
     let moTaRunStart = -1, moTaRunEnd = -1, moTaRun = '';
     if (moTaPos !== -1) {
@@ -116,14 +106,13 @@ async function expandTemplateItems(templatePath, items) {
     }).join('');
 
     xml = xml.slice(0, rowStart) + expandedRows + xml.slice(rowEnd);
-    fs.writeFileSync(xmlPath, xml, 'utf8');
 
-    // Update docx
-    await execCmd(`cd "${tmpDir}" && zip "${tmpDocx}" word/document.xml`);
+    zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
+    zip.writeZip(tmpDocx);
 
-    return tmpDocx; // trả về đường dẫn file đã patch
+    return tmpDocx;
   } catch (e) {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
+    try { fs.unlinkSync(tmpDocx); } catch (_) {}
     throw e;
   }
 }
@@ -281,15 +270,9 @@ async function runJob(jobId, b) {
   if (!fs.existsSync(QUOTES_DIR)) fs.mkdirSync(QUOTES_DIR, { recursive: true });
 
   let patchedTemplatePath = TEMPLATE;
-  let patchedTmpDir = null;
 
   try {
-    // Expand items rows trong template
-    const expanded = await expandTemplateItems(TEMPLATE, carboneItems);
-    if (expanded !== TEMPLATE) {
-      patchedTemplatePath = expanded;
-      patchedTmpDir = path.dirname(expanded);
-    }
+    patchedTemplatePath = expandTemplateItems(TEMPLATE, carboneItems);
   } catch (e) {
     job.status = 'error';
     job.error  = 'Template expand error: ' + e.message;
@@ -297,9 +280,9 @@ async function runJob(jobId, b) {
   }
 
   carbone.render(patchedTemplatePath, data, {}, async (err, result) => {
-    // Dọn tmp dir sau khi Carbone đọc xong
-    if (patchedTmpDir) {
-      try { fs.rmSync(patchedTmpDir, { recursive: true, force: true }); } catch (_) {}
+    // Dọn tmp file sau khi Carbone đọc xong
+    if (patchedTemplatePath !== TEMPLATE) {
+      try { fs.unlinkSync(patchedTemplatePath); } catch (_) {}
     }
 
     if (err) { job.status = 'error'; job.error = err.message; return; }
