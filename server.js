@@ -59,8 +59,16 @@ async function expandTemplateItems(templatePath, items) {
   const templateBuf = fs.readFileSync(templatePath);
   if (!items || items.length === 0) return templateBuf;
 
+  console.log('expandTemplateItems: buf size =', templateBuf.length, 'items =', items.length);
   const zip = await JSZip.loadAsync(templateBuf);
-  let xml = await zip.file('word/document.xml').async('string');
+  console.log('expandTemplateItems: zip loaded OK');
+  const docEntry = zip.file('word/document.xml');
+  if (!docEntry) {
+    console.error('word/document.xml not found in template zip. Files:', Object.keys(zip.files).join(', '));
+    return templateBuf;
+  }
+  let xml = await docEntry.async('string');
+  console.log('expandTemplateItems: xml length =', xml.length);
 
   // Tìm dòng template chứa {d.items[i]...}
   let searchPos = 0, rowStart = -1, rowEnd = -1;
@@ -71,9 +79,11 @@ async function expandTemplateItems(templatePath, items) {
     if (xml.slice(s, e).includes('d.items[i]')) { rowStart = s; rowEnd = e; break; }
     searchPos = e;
   }
+  console.log('expandTemplateItems: rowStart =', rowStart);
   if (rowStart === -1) return templateBuf; // không tìm thấy → trả template gốc
 
   const templateRow = xml.slice(rowStart, rowEnd);
+  console.log('expandTemplateItems: templateRow length =', templateRow.length);
 
   // Tìm run chứa mo_ta để xử lý newlines riêng
   const moTaRunRegex = /<w:r\b[^>]*>(?:(?!<\/w:r>)[\s\S])*?\{d\.items\[i\]\.mo_ta\}(?:(?!<\/w:r>)[\s\S])*?<\/w:r>/;
