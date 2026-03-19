@@ -190,23 +190,31 @@
       gap: 12px;
       flex-wrap: wrap;
     }
-    .status.loading { background: #eaf4fb; color: #2980b9; display: flex; }
-    .status.success { background: #eafaf1; color: #1e8449; display: flex; }
+    .status.loading { background: #f9f2f2; color: #888; display: flex; }
+    .status.success { background: #f9f2f2; color: #555; display: flex; }
     .status.error   { background: #fdedec; color: #c0392b; display: flex; }
-    .status .status-text { flex: 1; }
+    .status .status-text { flex: 1; font-size: 13px; }
     .status .btn-action {
-      padding: 6px 14px;
+      padding: 6px 16px;
       border-radius: 6px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      border: none;
       white-space: nowrap;
-      transition: opacity 0.2s;
+      transition: all 0.2s;
     }
     .status .btn-action:hover { opacity: 0.85; }
-    .btn-copy { background: #1e8449; color: white; }
-    .btn-download { background: #2980b9; color: white; }
+    .btn-copy {
+      background: white;
+      color: #c0392b;
+      border: 1.5px solid #c0392b;
+    }
+    .btn-copy:hover { background: #c0392b; color: white; }
+    .btn-download {
+      background: #c0392b;
+      color: white;
+      border: 1.5px solid #c0392b;
+    }
 
     /* Responsive mobile */
     @media (max-width: 600px) {
