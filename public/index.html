@@ -565,7 +565,8 @@
 
   // ---- Tính toán ----
   function parseNum(str) {
-    return parseFloat((str || '').replace(/[^0-9.]/g, '')) || 0;
+    // Vietnamese format dùng dấu . làm phân cách nghìn (2.500.000) → bỏ hết dấu .
+    return parseFloat((str || '').replace(/\./g, '').replace(/,/g, '.')) || 0;
   }
   function fmtVND(n) {
     return n > 0 ? n.toLocaleString('vi-VN') : '0';
