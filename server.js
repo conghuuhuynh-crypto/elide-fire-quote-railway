@@ -3,11 +3,12 @@
  * Carbone open-source + LibreOffice → PDF không watermark
  */
 
-const express = require('express');
+const express  = require('express');
 const carbone  = require('carbone');
 const path     = require('path');
 const fs       = require('fs');
 const https    = require('https');
+const FormData = require('form-data');
 const { exec } = require('child_process');
 const os       = require('os');
 
@@ -40,8 +41,6 @@ app.get('/', (req, res) => {
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Serve PDF đã xuất (để NocoDB lưu link)
-app.use('/download', express.static(QUOTES_DIR));
 
 // API lấy danh sách nhân viên từ NocoDB
 app.get('/api/employees', (req, res) => {
@@ -64,6 +63,38 @@ app.get('/api/employees', (req, res) => {
   }).on('error', () => res.json([]));
 });
 
+
+// Helper: upload PDF lên NocoDB storage
+function uploadPdfToNocoDB(pdfPath, filename) {
+  return new Promise((resolve) => {
+    try {
+      const form = new FormData();
+      form.append('file', fs.createReadStream(pdfPath), { filename, contentType: 'application/pdf' });
+      const options = {
+        hostname: NOCODB_HOST,
+        path: `/api/v1/db/storage/upload?path=noco/${NOCODB_BASE}/Bao_gia/File_PDF`,
+        method: 'POST',
+        headers: { ...form.getHeaders(), 'xc-token': NOCODB_TOKEN }
+      };
+      const req = https.request(options, r => {
+        let d = '';
+        r.on('data', c => d += c);
+        r.on('end', () => {
+          try {
+            const parsed = JSON.parse(d);
+            const att = Array.isArray(parsed) ? parsed[0] : parsed;
+            resolve(att && att.path ? att : null);
+          } catch (e) { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      form.pipe(req);
+    } catch (e) {
+      console.error('PDF upload error:', e.message);
+      resolve(null);
+    }
+  });
+}
 
 // Helper: lưu record vào NocoDB Bao_gia, trả về Id
 function saveQuoteToNocoDB(record) {
@@ -166,13 +197,12 @@ app.post('/api/generate', (req, res) => {
       const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
       const finalName = path.basename(finalPath);
 
-      // Tạo URL download PDF
-      const appUrl = process.env.RAILWAY_PUBLIC_DOMAIN
-        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-        : 'https://elide-fire-quote-railway-production.up.railway.app';
-      const pdfUrl = `${appUrl}/download/${finalName}`;
+      // Bước 1: Upload PDF lên NocoDB storage
+      const attachment = await uploadPdfToNocoDB(finalPath, finalName);
+      if (attachment) console.log('✅ PDF uploaded to NocoDB');
+      else console.error('❌ PDF upload failed, saving record without file');
 
-      // Bước 1: Lưu data vào NocoDB (không chờ PDF upload)
+      // Bước 2: Lưu data + file vào NocoDB
       const record = {
         So_bao_gia:       b.so_bao_gia        || '',
         Ngay_bao_gia:     b.ngay_bao_gia       || '',
@@ -197,7 +227,7 @@ app.post('/api/generate', (req, res) => {
         ThanhTien_Lovingcare: tt2,
         CK_Tong_don:      ckTong,
         Tong_thanh_toan:  total,
-        PDF_URL:          pdfUrl,
+        File_PDF:         attachment ? [attachment] : null,
       };
 
       let savedId = null;
