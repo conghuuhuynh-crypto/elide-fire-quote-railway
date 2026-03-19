@@ -185,7 +185,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v13-all-fixes' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v14-nocodb-per-product' }));
 
 // Debug: test adm-zip patch + LibreOffice
 app.get('/api/debug/lo-test', (req, res) => {
@@ -393,6 +393,15 @@ async function runJob(jobId, b) {
     job.filename = finalName;
     console.log('✅ PDF ready:', finalName);
 
+    // Map per-product items (Techideas / Lovingcare)
+    const findItem = (kw) => validItems.find(it =>
+      String(it.mo_ta || it.model || '').toLowerCase().includes(kw.toLowerCase())
+    );
+    const itTech = findItem('techideas');
+    const itLove = findItem('lovingcare');
+    const calcTT = (it) =>
+      (parseFloat(it.so_luong)||0) * (parseFloat(it.don_gia)||0) * (1 - (parseFloat(it.chiet_khau)||0)/100);
+
     const record = {
       So_bao_gia: b.so_bao_gia || '', Ngay_bao_gia: b.ngay_bao_gia || '',
       Phien_ban: b.phien_ban || '', Ten_du_an: b.ten_du_an || '',
@@ -401,10 +410,14 @@ async function runJob(jobId, b) {
       Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
       NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
       Items_JSON: JSON.stringify(validItems), CK_Tong_don: ckTong, Tong_thanh_toan: total,
-      So_luong: validItems.reduce((sum, it) => sum + (parseFloat(it.so_luong) || 0), 0),
-      Don_gia: parseFloat((validItems[0] || {}).don_gia) || 0,
-      Thanh_tien: total,
-      Chiet_khau: ckTong,
+      SL_Techideas:        itTech ? parseFloat(itTech.so_luong)    || 0 : 0,
+      DonGia_Techideas:    itTech ? parseFloat(itTech.don_gia)     || 0 : 0,
+      CK_Techideas:        itTech ? parseFloat(itTech.chiet_khau)  || 0 : 0,
+      ThanhTien_Techideas: itTech ? calcTT(itTech) : 0,
+      SL_Lovingcare:        itLove ? parseFloat(itLove.so_luong)   || 0 : 0,
+      DonGia_Lovingcare:    itLove ? parseFloat(itLove.don_gia)    || 0 : 0,
+      CK_Lovingcare:        itLove ? parseFloat(itLove.chiet_khau) || 0 : 0,
+      ThanhTien_Lovingcare: itLove ? calcTT(itLove) : 0,
     };
     Promise.resolve()
       .then(() => uploadPdfToNocoDB(finalPath, finalName))
