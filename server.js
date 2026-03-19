@@ -80,11 +80,26 @@ function fixCellAlign(rowXml, tagStr, align) {
 function moTaToRuns(text, templateRun) {
   const rPrMatch = templateRun.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
   const rPr = rPrMatch ? rPrMatch[0] : '';
+  // Bold rPr: thêm <w:b/><w:bCs/> nếu chưa có
+  const boldRPr = rPr
+    ? (rPr.includes('<w:b/>') ? rPr : rPr.replace('</w:rPr>', '<w:b/><w:bCs/></w:rPr>'))
+    : '<w:rPr><w:b/><w:bCs/></w:rPr>';
+  // Normal rPr: bỏ bold nếu có
+  const normalRPr = rPr
+    .replace(/<w:b\/>/g, '').replace(/<w:bCs\/>/g, '').replace(/<w:b \/>/g, '');
+
+  const BOLD_LINES = 3; // 3 dòng đầu in đậm
   const lines = String(text || '').split('\n');
-  return lines.map((line, i) =>
-    `<w:r>${rPr}<w:t xml:space="preserve">${escXml(line)}</w:t></w:r>` +
-    (i < lines.length - 1 ? `<w:r>${rPr}<w:br/></w:r>` : '')
-  ).join('');
+  return lines.map((line, i) => {
+    const rp = i < BOLD_LINES ? boldRPr : normalRPr;
+    // Thêm dòng trống phân cách sau dòng bold cuối
+    const separator = (i === BOLD_LINES - 1 && lines.length > BOLD_LINES)
+      ? `<w:r>${normalRPr}<w:br/></w:r>`
+      : '';
+    return `<w:r>${rp}<w:t xml:space="preserve">${escXml(line)}</w:t></w:r>` +
+      (i < lines.length - 1 ? `<w:r>${rp}<w:br/></w:r>` : '') +
+      separator;
+  }).join('');
 }
 
 /**
@@ -185,7 +200,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v15-remove-items-json' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v16-bold-mota' }));
 
 // Debug: test adm-zip patch + LibreOffice
 app.get('/api/debug/lo-test', (req, res) => {
