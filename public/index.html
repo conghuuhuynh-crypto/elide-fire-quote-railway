@@ -387,7 +387,7 @@
             <th style="width:30%">Model sản phẩm</th>
             <th style="width:11%">Số lượng</th>
             <th style="width:22%">Đơn giá (VNĐ)</th>
-            <th style="width:14%">Giảm giá</th>
+            <th style="width:14%">Giảm giá (%)</th>
             <th style="width:19%; text-align:right">Thành tiền</th>
             <th style="width:4%"></th>
           </tr>
@@ -421,16 +421,13 @@
       </div>
     </div>
 
-    <!-- Submit + Reset -->
+    <!-- Actions -->
     <div class="card">
-      <div class="btn-row" id="mainBtnRow">
-        <button type="button" class="btn-base btn-reset" onclick="resetForm()">↺ Nhập lại</button>
-        <button type="submit" class="btn-base btn-submit" id="submitBtn">⬇ Xuất PDF Báo Giá</button>
+      <div class="btn-row">
+        <button type="button" class="btn-base btn-copy" id="btnCopyLink" onclick="handleCopy()">📋 Copy link</button>
+        <button type="button" class="btn-base btn-submit" id="btnDownload" onclick="handleDownload()">⬇ Download báo giá PDF</button>
       </div>
-      <div class="status" id="status">
-        <span class="status-text" id="statusText"></span>
-        <div class="btn-row btn-row-actions" id="actionBtnRow" style="display:none"></div>
-      </div>
+      <div id="statusMsg" style="display:none; font-size:13px; margin-top:12px; color:#888;"></div>
     </div>
 
   </form>
@@ -518,10 +515,7 @@
         <input type="text" class="row-price" readonly placeholder="Tự động điền">
       </td>
       <td data-label="Giảm giá (%)">
-        <div class="input-wrap">
-          <input type="number" class="row-ck" min="0" max="100" value="0" oninput="calcTotal()">
-          <span class="suffix">%</span>
-        </div>
+        <input type="number" class="row-ck" min="0" max="100" value="0" oninput="calcTotal()" style="text-align:right">
       </td>
       <td class="col-total" data-label="Thành tiền (VNĐ)">0</td>
       <td class="col-remove">
@@ -600,8 +594,8 @@
     ['nv_ten','nv_bo_phan','nv_email','nv_sdt'].forEach(id => document.getElementById(id).value = '');
     ['nv_bo_phan_display','nv_email_display','nv_sdt_display'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('nv_select').value = '';
-    document.getElementById('status').className = 'status';
-    document.getElementById('actionBtnRow').style.display = 'none';
+    pdfUrl = null; pdfFilename = null;
+    showStatus('');
     // Reset product rows về mặc định
     document.getElementById('productBody').innerHTML = '';
     addProductRow('TECHIDEAS');
@@ -609,124 +603,101 @@
     calcTotal();
   }
 
-  // ---- Poll job status ----
-  async function pollJob(jobId, onProgress) {
-    const maxWait = 180000;
-    const interval = 3000;
-    const start = Date.now();
-    let dots = 0;
-    while (Date.now() - start < maxWait) {
-      await new Promise(r => setTimeout(r, interval));
+  // ---- PDF state ----
+  let pdfUrl = null, pdfFilename = null, isGenerating = false;
+
+  function showStatus(msg, color) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.style.color = color || '#888';
+    el.style.display = msg ? 'block' : 'none';
+  }
+
+  function setBtnsLoading(loading, msg) {
+    const c = document.getElementById('btnCopyLink');
+    const d = document.getElementById('btnDownload');
+    c.disabled = loading;
+    d.disabled = loading;
+    if (loading) { d.textContent = msg || '⏳ Đang tạo PDF...'; c.textContent = '⏳ Đang tạo...'; }
+    else { d.textContent = '⬇ Download báo giá PDF'; c.textContent = pdfUrl ? '✓ Đã copy link' : '📋 Copy link'; }
+  }
+
+  function buildItems() {
+    const items = [];
+    document.querySelectorAll('#productBody tr').forEach(tr => {
+      const sel = tr.querySelector('.row-model');
+      if (!sel.value) return;
+      const opt = sel.options[sel.selectedIndex];
+      const so_luong = parseFloat(tr.querySelector('.row-qty').value) || 0;
+      if (so_luong <= 0) return;
+      const don_gia    = parseNum(tr.querySelector('.row-price').value);
+      const chiet_khau = parseFloat(tr.querySelector('.row-ck').value) || 0;
+      items.push({ model: sel.value, mo_ta: decodeURIComponent(opt.dataset.mota || sel.value), so_luong, don_gia, chiet_khau, thanh_tien: so_luong * don_gia * (1 - chiet_khau / 100) });
+    });
+    return items;
+  }
+
+  // ---- Poll job ----
+  async function pollJob(jobId) {
+    const start = Date.now(); let dots = 0;
+    while (Date.now() - start < 180000) {
+      await new Promise(r => setTimeout(r, 3000));
       dots = (dots % 3) + 1;
-      onProgress('⏳ Đang tạo PDF' + '.'.repeat(dots));
-      const r = await fetch('/api/job/' + jobId);
-      const job = await r.json();
+      setBtnsLoading(true, '⏳ Đang tạo PDF' + '.'.repeat(dots));
+      const job = await fetch('/api/job/' + jobId).then(r => r.json());
       if (job.status === 'done') return { url: job.url, filename: job.filename };
       if (job.status === 'error') throw new Error(job.error || 'Lỗi không xác định');
     }
     throw new Error('Quá thời gian chờ, vui lòng thử lại');
   }
 
-  // ---- Submit xuất PDF ----
-  document.getElementById('quoteForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // ---- Generate PDF (gọi khi chưa có) ----
+  async function generatePdf() {
+    if (pdfUrl) return { url: pdfUrl, filename: pdfFilename };
+    if (isGenerating) return null;
+    if (!document.getElementById('nv_ten').value) { showStatus('❌ Vui lòng chọn nhân viên phụ trách.', '#c0392b'); return null; }
+    const items = buildItems();
+    if (!items.length) { showStatus('❌ Vui lòng thêm ít nhất 1 sản phẩm.', '#c0392b'); return null; }
 
-    if (!document.getElementById('nv_ten').value) {
-      document.getElementById('status').className = 'status error';
-      document.getElementById('statusText').textContent = '❌ Vui lòng chọn nhân viên phụ trách.';
-      document.getElementById('status').style.display = 'block';
-      return;
-    }
-
-    // Build items array từ các dòng sản phẩm
-    const items = [];
-    document.querySelectorAll('#productBody tr').forEach(tr => {
-      const sel    = tr.querySelector('.row-model');
-      const model  = sel.value;
-      if (!model) return;
-      const opt    = sel.options[sel.selectedIndex];
-      const mo_ta  = decodeURIComponent(opt.dataset.mota || model);
-      const so_luong   = parseFloat(tr.querySelector('.row-qty').value) || 0;
-      const don_gia    = parseNum(tr.querySelector('.row-price').value);
-      const chiet_khau = parseFloat(tr.querySelector('.row-ck').value) || 0;
-      const thanh_tien = so_luong * don_gia * (1 - chiet_khau / 100);
-      if (so_luong > 0) {
-        items.push({ model, mo_ta, so_luong, don_gia, chiet_khau, thanh_tien });
-      }
-    });
-
-    if (items.length === 0) {
-      document.getElementById('status').className = 'status error';
-      document.getElementById('statusText').textContent = '❌ Vui lòng thêm ít nhất 1 sản phẩm với số lượng > 0.';
-      document.getElementById('status').style.display = 'block';
-      return;
-    }
-
-    const btn    = document.getElementById('submitBtn');
-    const status = document.getElementById('status');
-    btn.disabled = true;
-    btn.textContent = 'Đang tạo PDF...';
-    status.className = 'status loading';
-    status.style.display = 'block';
-    document.getElementById('actionBtnRow').style.display = 'none';
-    document.getElementById('statusText').textContent = '⏳ Đang khởi tạo...';
-
+    isGenerating = true;
+    setBtnsLoading(true);
+    showStatus('⏳ Đang khởi tạo...', '#888');
     try {
-      // Gom tất cả form data + items
-      const formData = new FormData(e.target);
       const payload = {};
-      formData.forEach((v, k) => { payload[k] = v; });
+      new FormData(document.getElementById('quoteForm')).forEach((v, k) => { payload[k] = v; });
       payload.items = items;
       payload.chiet_khau_tong = document.getElementById('ck_tong').value || '0';
 
-      const r1 = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!r1.ok) throw new Error(await r1.text());
-      const { jobId } = await r1.json();
-
-      const { url, filename } = await pollJob(jobId, (msg) => {
-        document.getElementById('statusText').textContent = msg;
-      });
-
-      status.className = 'status success';
-      document.getElementById('statusText').textContent = '✅ ' + filename;
-
-      const actionRow = document.getElementById('actionBtnRow');
-      actionRow.innerHTML = '';
-      actionRow.style.display = 'flex';
-
-      const btnCopy = document.createElement('button');
-      btnCopy.type = 'button';
-      btnCopy.className = 'btn-base btn-reset btn-copy';
-      btnCopy.textContent = '📋 Copy link';
-      btnCopy.onclick = () => {
-        navigator.clipboard.writeText(url).then(() => {
-          btnCopy.textContent = '✓ Đã copy!';
-          setTimeout(() => { btnCopy.textContent = '📋 Copy link'; }, 2000);
-        });
-      };
-
-      const btnDl = document.createElement('button');
-      btnDl.type = 'button';
-      btnDl.className = 'btn-base btn-submit';
-      btnDl.textContent = '⬇ Download';
-      btnDl.onclick = () => { const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); };
-
-      actionRow.appendChild(btnCopy);
-      actionRow.appendChild(btnDl);
-
+      const { jobId } = await fetch('/api/generate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }).then(r => r.json());
+      const result = await pollJob(jobId);
+      pdfUrl = result.url; pdfFilename = result.filename;
+      showStatus('');
+      return result;
     } catch (err) {
-      status.className = 'status error';
-      document.getElementById('statusText').textContent = '❌ Lỗi: ' + err.message;
-      document.getElementById('actionBtnRow').style.display = 'none';
+      showStatus('❌ Lỗi: ' + err.message, '#c0392b');
+      return null;
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px; margin-bottom:2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Xuất PDF Báo Giá';
+      isGenerating = false;
+      setBtnsLoading(false);
     }
-  });
+  }
+
+  async function handleCopy() {
+    const result = await generatePdf();
+    if (!result) return;
+    navigator.clipboard.writeText(result.url).then(() => {
+      const btn = document.getElementById('btnCopyLink');
+      btn.textContent = '✓ Đã copy link';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = '📋 Copy link'; btn.disabled = false; }, 3000);
+    });
+  }
+
+  async function handleDownload() {
+    const result = await generatePdf();
+    if (!result) return;
+    const a = document.createElement('a'); a.href = result.url; a.download = result.filename; a.click();
+  }
 
   // ---- Khởi động ----
   loadEmployees();
