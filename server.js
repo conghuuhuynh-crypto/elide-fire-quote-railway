@@ -28,6 +28,7 @@ const NOCODB_TOKEN = 'cDiEKkF4wmvUroENBM_LrZb6VXQ6K5MlKgzXS7bA';
 const NOCODB_BASE  = 'p49wwa1uzmjtv1e';
 const TABLE_NV     = 'mbxi5rjran05biu';   // Nhan_vien
 const TABLE_BG     = 'mnfhtr9jysetk07';   // Bao_gia
+const TABLE_SP     = 'm1isvr6ljrp2klj';   // San_pham
 
 // Job queue — lưu trạng thái từng job trong bộ nhớ
 const jobs = {};
@@ -51,6 +52,23 @@ app.get('/api/employees', (req, res) => {
   const options = {
     hostname: NOCODB_HOST,
     path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_NV}?limit=100`,
+    headers: { 'xc-token': NOCODB_TOKEN }
+  };
+  https.get(options, r => {
+    let d = '';
+    r.on('data', c => d += c);
+    r.on('end', () => {
+      try { res.json(JSON.parse(d).list || []); }
+      catch (e) { res.json([]); }
+    });
+  }).on('error', () => res.json([]));
+});
+
+// API lấy danh sách sản phẩm
+app.get('/api/products', (req, res) => {
+  const options = {
+    hostname: NOCODB_HOST,
+    path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_SP}?limit=200&sort=Id`,
     headers: { 'xc-token': NOCODB_TOKEN }
   };
   https.get(options, r => {
@@ -129,20 +147,39 @@ function saveQuoteToNocoDB(record) {
 // Worker: chạy nền — tạo PDF + lưu NocoDB
 function runJob(jobId, b) {
   const job = jobs[jobId];
+  const fmt = (n) => n.toLocaleString('vi-VN');
 
-  const qty1   = parseFloat(b.so_luong_01) || 0;
-  const price1 = parseFloat((b.gia_sp_01 || '').replace(/[^0-9]/g, '')) || 0;
-  const ck1    = parseFloat(b.chiet_khau_01) || 0;
-  const qty2   = parseFloat(b.so_luong_02) || 0;
-  const price2 = parseFloat((b.gia_sp_02 || '').replace(/[^0-9]/g, '')) || 0;
-  const ck2    = parseFloat(b.chiet_khau_02) || 0;
+  // Parse items array (từ JSON body)
+  let rawItems = [];
+  if (Array.isArray(b.items)) {
+    rawItems = b.items;
+  } else if (typeof b.items === 'string') {
+    try { rawItems = JSON.parse(b.items); } catch (_) {}
+  }
+
+  // Chỉ lấy items có số lượng > 0
+  const validItems = rawItems.filter(it => parseFloat(it.so_luong) > 0);
+
+  // Tính thành tiền từng dòng + tổng
   const ckTong = parseFloat(b.chiet_khau_tong) || 0;
+  let tongTruoCK = 0;
 
-  const tt1        = qty1 * price1 * (1 - ck1 / 100);
-  const tt2        = qty2 * price2 * (1 - ck2 / 100);
-  const tongTruoCK = tt1 + tt2;
-  const total      = tongTruoCK * (1 - ckTong / 100);
-  const fmt        = (n) => n.toLocaleString('vi-VN');
+  const carboneItems = validItems.map((it, idx) => {
+    const qty   = parseFloat(it.so_luong) || 0;
+    const price = parseFloat(it.don_gia)  || 0;
+    const ck    = parseFloat(it.chiet_khau) || 0;
+    const tt    = qty * price * (1 - ck / 100);
+    tongTruoCK += tt;
+    return {
+      stt:        String(idx + 1).padStart(2, '0'),
+      mo_ta:      it.mo_ta || it.model || '',
+      so_luong:   String(qty),
+      don_gia:    fmt(price * (1 - ck / 100)),
+      thanh_tien: fmt(tt)
+    };
+  });
+
+  const total = tongTruoCK * (1 - ckTong / 100);
 
   const data = {
     ten_cong_ty:       b.ten_cong_ty       || '',
@@ -154,19 +191,14 @@ function runJob(jobId, b) {
     ngay_bao_gia:      b.ngay_bao_gia      || new Date().toLocaleDateString('vi-VN'),
     so_bao_gia:        b.so_bao_gia        || '',
     ten_du_an:         b.ten_du_an         || '',
-    so_luong_01:       String(qty1 || '0'),
-    gia_sp_01:         fmt(price1 * (1 - ck1 / 100)),
-    thanh_tien_01:     fmt(tt1),
-    so_luong_02:       String(qty2 || '0'),
-    gia_sp_02:         fmt(price2 * (1 - ck2 / 100)),
-    thanh_tien_02:     fmt(tt2),
+    bo_phan:           b.nv_bo_phan        || '',
+    ten_nhan_vien:     b.nv_ten            || '',
+    email_nhan_vien:   b.nv_email          || '',
+    sdt_nhan_vien:     b.nv_sdt            || '',
+    items:             carboneItems,
     truoc_chiet_khau:  fmt(tongTruoCK),
     chiet_khau:        ckTong > 0 ? `${ckTong}%` : '0',
     tong_thanh_tien:   fmt(total),
-    bo_phan:           b.nv_bo_phan || '',
-    ten_nhan_vien:     b.nv_ten     || '',
-    email_nhan_vien:   b.nv_email   || '',
-    sdt_nhan_vien:     b.nv_sdt     || '',
   };
 
   const soSlug  = (b.so_bao_gia || 'bao-gia').replace(/[\/\\:*?"<>|]/g, '-').trim();
@@ -194,22 +226,29 @@ function runJob(jobId, b) {
       const finalName = path.basename(finalPath);
       const appUrl    = 'https://elide-fire-quote-railway-production.up.railway.app';
 
-      // Job done — cập nhật trạng thái
+      // Job done
       job.status   = 'done';
       job.url      = `${appUrl}/download/${finalName}`;
       job.filename = finalName;
 
       // Lưu NocoDB nền
       const record = {
-        So_bao_gia: b.so_bao_gia || '', Ngay_bao_gia: b.ngay_bao_gia || '',
-        Phien_ban: b.phien_ban || '', Ten_du_an: b.ten_du_an || '',
-        Ten_cong_ty: b.ten_cong_ty || '', Phong_ban_KH: b.ten_phong_ban || '',
-        Nguoi_lien_he: b.ten_nguoi_lien_he || '', SDT_khach_hang: b.sdt_khach_hang || '',
-        Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
-        NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
-        SL_Techideas: qty1, DonGia_Techideas: price1, CK_Techideas: ck1, ThanhTien_Techideas: tt1,
-        SL_Lovingcare: qty2, DonGia_Lovingcare: price2, CK_Lovingcare: ck2, ThanhTien_Lovingcare: tt2,
-        CK_Tong_don: ckTong, Tong_thanh_toan: total,
+        So_bao_gia:       b.so_bao_gia        || '',
+        Ngay_bao_gia:     b.ngay_bao_gia      || '',
+        Phien_ban:        b.phien_ban          || '',
+        Ten_du_an:        b.ten_du_an          || '',
+        Ten_cong_ty:      b.ten_cong_ty        || '',
+        Phong_ban_KH:     b.ten_phong_ban      || '',
+        Nguoi_lien_he:    b.ten_nguoi_lien_he  || '',
+        SDT_khach_hang:   b.sdt_khach_hang     || '',
+        Email_khach_hang: b.email_khach_hang   || '',
+        NV_bo_phan:       b.nv_bo_phan         || '',
+        NV_ten:           b.nv_ten             || '',
+        NV_email:         b.nv_email           || '',
+        NV_sdt:           b.nv_sdt             || '',
+        Items_JSON:       JSON.stringify(validItems),
+        CK_Tong_don:      ckTong,
+        Tong_thanh_toan:  total,
       };
       try {
         const att = await uploadPdfToNocoDB(finalPath, finalName);

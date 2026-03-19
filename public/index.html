@@ -66,6 +66,7 @@
       color: #888;
     }
 
+    /* Bảng sản phẩm */
     .product-table { width: 100%; border-collapse: collapse; }
     .product-table th {
       background: #fafafa;
@@ -78,25 +79,66 @@
       text-align: left;
       border-bottom: 2px solid #eee;
     }
-    .product-table td { padding: 10px 12px; vertical-align: middle; }
+    .product-table td { padding: 8px 10px; vertical-align: middle; }
     .product-table tr:not(:last-child) td { border-bottom: 1px solid #f0f0f0; }
-    .product-table input {
+    .product-table select,
+    .product-table input[type="number"],
+    .product-table input[type="text"] {
       width: 100%;
-      padding: 8px 10px;
+      padding: 7px 10px;
       border: 1px solid #ddd;
       border-radius: 5px;
       font-size: 14px;
-      text-align: right;
+      background: white;
     }
+    .product-table select:focus,
     .product-table input:focus { outline: none; border-color: #c0392b; }
-    .product-table .product-name { font-size: 13px; font-weight: 700; color: #333; white-space: nowrap; }
-    .product-table .total-display {
-      font-size: 20px;
+    .product-table input[readonly] { background: #f9f9f9; color: #666; }
+    .product-table .col-total {
+      font-size: 15px;
       font-weight: 700;
       color: #222;
       text-align: right;
       white-space: nowrap;
     }
+    .btn-remove-row {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .btn-remove-row:hover { color: #c0392b; background: #fff0ee; }
+
+    .btn-add-row {
+      margin-top: 14px;
+      padding: 8px 18px;
+      background: white;
+      border: 1.5px dashed #c0392b;
+      border-radius: 6px;
+      color: #c0392b;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-add-row:hover { background: #fff0ee; }
+
+    /* Input với suffix % */
+    .input-wrap { position: relative; }
+    .input-wrap .suffix {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: #aaa;
+      pointer-events: none;
+    }
+    .input-wrap input { padding-right: 28px; }
 
     .subtotal-row {
       display: flex;
@@ -118,7 +160,7 @@
       margin-top: 10px;
     }
     .discount-row label { font-size: 13px; font-weight: 600; color: #555; }
-    .discount-row .input-wrap { position: relative; width: 120px; }
+    .discount-row .input-wrap { width: 120px; }
     .discount-row .input-wrap input {
       width: 100%;
       padding: 8px 32px 8px 10px;
@@ -128,15 +170,6 @@
       text-align: right;
     }
     .discount-row .input-wrap input:focus { outline: none; border-color: #c0392b; }
-    .discount-row .suffix {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 12px;
-      color: #aaa;
-      pointer-events: none;
-    }
 
     .grand-total {
       display: flex;
@@ -150,8 +183,8 @@
     .grand-total label { font-size: 14px; font-weight: 700; color: #555; }
     .grand-total span { font-size: 22px; font-weight: 800; color: #c0392b; }
 
+    /* Buttons */
     .btn-row { display: flex; gap: 12px; }
-    .btn-row.has-actions { flex-wrap: wrap; }
     .btn-base {
       flex: 1;
       min-width: 0;
@@ -170,17 +203,22 @@
       color: white;
       border: 1.5px solid #c0392b;
     }
-    .btn-submit:extend(.btn-base) {}
     .btn-submit:hover { background: #a93226; border-color: #a93226; }
     .btn-submit:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
-
     .btn-reset {
       background: white;
       color: #888;
       border: 1.5px solid #ddd;
     }
     .btn-reset:hover { border-color: #c0392b; color: #c0392b; }
+    .btn-copy {
+      background: white;
+      color: #c0392b;
+      border: 1.5px solid #c0392b;
+    }
+    .btn-copy:hover { background: #c0392b; color: white; }
 
+    /* Status bar */
     .status {
       margin-top: 16px;
       font-size: 13px;
@@ -191,34 +229,23 @@
     .status.success { display: block; }
     .status .status-text { display: block; color: #555; padding: 10px 0 10px; word-break: break-all; }
     .status .btn-row-actions { display: flex; gap: 12px; }
-    .btn-copy {
-      background: white;
-      color: #c0392b;
-      border: 1.5px solid #c0392b;
-    }
-    .btn-copy:hover { background: #c0392b; color: white; }
 
     /* Responsive mobile */
     @media (max-width: 600px) {
-      /* Ngăn iOS Safari tự zoom khi focus vào input */
       input, select, textarea { font-size: 16px !important; }
 
       .header { padding: 20px 16px; }
       .header h1 { font-size: 22px; }
       .header span { font-size: 13px; }
       .header img { height: 44px; }
-
       .container { margin: 16px auto; padding: 0 10px 32px; }
-
       .card { padding: 18px 14px; }
-
       .row { flex-direction: column; gap: 0; }
 
-      /* Bảng sản phẩm: ẩn header, hiển thị dạng card */
+      /* Bảng sản phẩm mobile: card style */
       .product-table thead { display: none; }
       .product-table, .product-table tbody, .product-table tr, .product-table td {
-        display: block;
-        width: 100%;
+        display: block; width: 100%;
       }
       .product-table tr {
         border: 1px solid #eee;
@@ -226,11 +253,9 @@
         margin-bottom: 12px;
         padding: 10px;
         background: #fafafa;
+        position: relative;
       }
-      .product-table td {
-        padding: 6px 4px;
-        border: none !important;
-      }
+      .product-table td { padding: 6px 4px; border: none !important; }
       .product-table td::before {
         content: attr(data-label);
         display: block;
@@ -241,28 +266,14 @@
         letter-spacing: 0.5px;
         margin-bottom: 4px;
       }
-      .product-table .total-display {
-        font-size: 18px;
-        text-align: left;
-      }
+      .product-table td.col-remove { position: absolute; top: 8px; right: 8px; }
+      .product-table td.col-remove::before { display: none; }
+      .product-table .col-total { text-align: left; font-size: 15px; }
       .subtotal-row, .discount-row, .grand-total { flex-direction: column; align-items: flex-end; gap: 6px; }
       .grand-total span { font-size: 20px; }
       .btn-row { flex-direction: column; }
       .btn-base { padding: 13px 12px; font-size: 14px; }
     }
-
-    /* Suffix đơn vị trong input */
-    .input-wrap { position: relative; }
-    .input-wrap .suffix {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 12px;
-      color: #aaa;
-      pointer-events: none;
-    }
-    .input-wrap input { padding-right: 32px; }
   </style>
 </head>
 <body>
@@ -373,53 +384,25 @@
       <table class="product-table">
         <thead>
           <tr>
-            <th style="width:22%; white-space:nowrap">Sản phẩm</th>
-            <th style="width:13%; white-space:nowrap">Số lượng</th>
-            <th style="width:22%; white-space:nowrap">Đơn giá (VNĐ)</th>
-            <th style="width:16%; white-space:nowrap">Giảm giá (%)</th>
-            <th style="width:27%; white-space:nowrap; text-align:right">Thành tiền (VNĐ)</th>
+            <th style="width:30%">Model sản phẩm</th>
+            <th style="width:11%">Số lượng</th>
+            <th style="width:22%">Đơn giá (VNĐ)</th>
+            <th style="width:14%">Giảm giá</th>
+            <th style="width:19%; text-align:right">Thành tiền</th>
+            <th style="width:4%"></th>
           </tr>
         </thead>
-        <tbody>
-          <tr>
-            <td class="product-name" data-label="Sản phẩm">Techideas 1.4kg</td>
-            <td data-label="Số lượng">
-              <input type="number" name="so_luong_01" id="qty1" min="0" value="1" oninput="calcTotal()">
-            </td>
-            <td data-label="Đơn giá (VNĐ)">
-              <input type="text" name="gia_sp_01" id="price1" value="2,500,000" oninput="calcTotal()">
-            </td>
-            <td data-label="Giảm giá (%)">
-              <div class="input-wrap">
-                <input type="number" name="chiet_khau_01" id="ck1" min="0" max="100" value="0" oninput="calcTotal()">
-                <span class="suffix">%</span>
-              </div>
-            </td>
-            <td class="total-display" id="tt1" data-label="Thành tiền (VNĐ)">2,500,000</td>
-          </tr>
-          <tr>
-            <td class="product-name" data-label="Sản phẩm">Lovingcare 0.4kg</td>
-            <td data-label="Số lượng">
-              <input type="number" name="so_luong_02" id="qty2" min="0" value="1" oninput="calcTotal()">
-            </td>
-            <td data-label="Đơn giá (VNĐ)">
-              <input type="text" name="gia_sp_02" id="price2" value="1,950,000" oninput="calcTotal()">
-            </td>
-            <td data-label="Giảm giá (%)">
-              <div class="input-wrap">
-                <input type="number" name="chiet_khau_02" id="ck2" min="0" max="100" value="0" oninput="calcTotal()">
-                <span class="suffix">%</span>
-              </div>
-            </td>
-            <td class="total-display" id="tt2" data-label="Thành tiền (VNĐ)">0</td>
-          </tr>
+        <tbody id="productBody">
+          <!-- Rows thêm bằng JS -->
         </tbody>
       </table>
+
+      <button type="button" class="btn-add-row" onclick="addProductRow()">+ Thêm sản phẩm</button>
 
       <!-- Tổng trước chiết khấu -->
       <div class="subtotal-row">
         <label>Tổng trước chiết khấu:</label>
-        <span id="subtotal_display">2,500,000 VNĐ</span>
+        <span id="subtotal_display">0 VNĐ</span>
       </div>
 
       <!-- Chiết khấu tổng đơn -->
@@ -434,7 +417,7 @@
       <!-- Tổng thanh toán -->
       <div class="grand-total">
         <label>TỔNG THANH TOÁN:</label>
-        <span id="grand_total">2,500,000 VNĐ</span>
+        <span id="grand_total">0 VNĐ</span>
       </div>
     </div>
 
@@ -454,16 +437,14 @@
 </div>
 
 <script>
-  // ---- Khởi tạo ----
+  // ---- Khởi tạo ngày / số BG ----
   const today = new Date();
   document.getElementById('ngay_bao_gia').value =
     today.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
   const month = String(today.getMonth() + 1).padStart(2, '0');
-  const year  = today.getFullYear();
-  document.getElementById('so_bao_gia').value = `EF-${year}-${month}-001`;
+  document.getElementById('so_bao_gia').value = `EF-${today.getFullYear()}-${month}-001`;
 
-  // ---- Load danh sách nhân viên ----
+  // ---- Load nhân viên ----
   let employeeList = [];
   async function loadEmployees() {
     try {
@@ -482,17 +463,15 @@
       document.getElementById('nv_select').innerHTML = '<option value="">-- Không tải được --</option>';
     }
   }
-  loadEmployees();
 
-  // ---- Chọn nhân viên → tự điền thông tin ----
   document.getElementById('nv_select').addEventListener('change', function() {
     const id = parseInt(this.value);
     const nv = employeeList.find(e => e.Id === id);
     if (nv) {
-      document.getElementById('nv_ten').value          = nv.Ten_nhan_vien || '';
-      document.getElementById('nv_bo_phan').value      = nv.Bo_phan       || '';
-      document.getElementById('nv_email').value        = nv.Email         || '';
-      document.getElementById('nv_sdt').value          = nv.So_dien_thoai || '';
+      document.getElementById('nv_ten').value             = nv.Ten_nhan_vien || '';
+      document.getElementById('nv_bo_phan').value         = nv.Bo_phan       || '';
+      document.getElementById('nv_email').value           = nv.Email         || '';
+      document.getElementById('nv_sdt').value             = nv.So_dien_thoai || '';
       document.getElementById('nv_bo_phan_display').value = nv.Bo_phan       || '';
       document.getElementById('nv_email_display').value   = nv.Email         || '';
       document.getElementById('nv_sdt_display').value     = nv.So_dien_thoai || '';
@@ -502,60 +481,136 @@
     }
   });
 
+  // ---- Load sản phẩm ----
+  let productList = [];
+  async function loadProducts() {
+    try {
+      const res = await fetch('/api/products');
+      productList = await res.json();
+      // Thêm 2 dòng mặc định sau khi có dữ liệu sản phẩm
+      addProductRow('TECHIDEAS');
+      addProductRow('LOVINGCARE');
+    } catch (e) {
+      addProductRow();
+    }
+  }
+
+  // ---- Thêm dòng sản phẩm ----
+  function addProductRow(defaultModel) {
+    const tbody = document.getElementById('productBody');
+    const tr = document.createElement('tr');
+
+    const modelOptions = productList.map(p =>
+      `<option value="${p.Model}" data-price="${p.Don_gia || 0}" data-mota="${encodeURIComponent(p.Ten_hang_hoa || p.Model || '')}">${p.Model}</option>`
+    ).join('');
+
+    tr.innerHTML = `
+      <td data-label="Model sản phẩm">
+        <select class="row-model" onchange="onModelChange(this)">
+          <option value="">-- Chọn --</option>
+          ${modelOptions}
+        </select>
+      </td>
+      <td data-label="Số lượng">
+        <input type="number" class="row-qty" min="0" value="1" oninput="calcTotal()">
+      </td>
+      <td data-label="Đơn giá (VNĐ)">
+        <input type="text" class="row-price" readonly placeholder="Tự động điền">
+      </td>
+      <td data-label="Giảm giá (%)">
+        <div class="input-wrap">
+          <input type="number" class="row-ck" min="0" max="100" value="0" oninput="calcTotal()">
+          <span class="suffix">%</span>
+        </div>
+      </td>
+      <td class="col-total" data-label="Thành tiền (VNĐ)">0</td>
+      <td class="col-remove">
+        <button type="button" class="btn-remove-row" onclick="removeRow(this)" title="Xóa dòng">×</button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+
+    if (defaultModel) {
+      const sel = tr.querySelector('.row-model');
+      sel.value = defaultModel;
+      onModelChange(sel);
+    }
+  }
+
+  // ---- Chọn model → điền đơn giá ----
+  function onModelChange(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const tr  = sel.closest('tr');
+    const priceInput = tr.querySelector('.row-price');
+    if (opt && opt.dataset.price) {
+      const price = parseInt(opt.dataset.price) || 0;
+      priceInput.value = price > 0 ? price.toLocaleString('vi-VN') : '';
+    } else {
+      priceInput.value = '';
+    }
+    calcTotal();
+  }
+
+  // ---- Xóa dòng ----
+  function removeRow(btn) {
+    const tbody = document.getElementById('productBody');
+    if (tbody.children.length <= 1) {
+      alert('Cần ít nhất 1 sản phẩm.');
+      return;
+    }
+    btn.closest('tr').remove();
+    calcTotal();
+  }
+
   // ---- Tính toán ----
   function parseNum(str) {
     return parseFloat((str || '').replace(/[^0-9.]/g, '')) || 0;
   }
-
   function fmtVND(n) {
-    if (n === 0) return '0';
-    return n.toLocaleString('vi-VN');
+    return n > 0 ? n.toLocaleString('vi-VN') : '0';
   }
 
   function calcTotal() {
-    const qty1  = parseFloat(document.getElementById('qty1').value)   || 0;
-    const qty2  = parseFloat(document.getElementById('qty2').value)   || 0;
-    const p1    = parseNum(document.getElementById('price1').value);
-    const p2    = parseNum(document.getElementById('price2').value);
-    const ck1   = parseFloat(document.getElementById('ck1').value)    || 0;
-    const ck2   = parseFloat(document.getElementById('ck2').value)    || 0;
+    let subtotal = 0;
+    document.querySelectorAll('#productBody tr').forEach(tr => {
+      const qty   = parseFloat(tr.querySelector('.row-qty').value) || 0;
+      const price = parseNum(tr.querySelector('.row-price').value);
+      const ck    = parseFloat(tr.querySelector('.row-ck').value) || 0;
+      const tt    = qty * price * (1 - ck / 100);
+      tr.querySelector('.col-total').textContent = fmtVND(tt);
+      subtotal += tt;
+    });
     const ckTong = parseFloat(document.getElementById('ck_tong').value) || 0;
-
-    const tt1      = qty1 * p1 * (1 - ck1 / 100);
-    const tt2      = qty2 * p2 * (1 - ck2 / 100);
-    const subtotal = tt1 + tt2;
-    const total    = subtotal * (1 - ckTong / 100);
-
-    document.getElementById('tt1').textContent          = fmtVND(tt1);
-    document.getElementById('tt2').textContent          = fmtVND(tt2);
+    const total  = subtotal * (1 - ckTong / 100);
     document.getElementById('subtotal_display').textContent = fmtVND(subtotal) + ' VNĐ';
-    document.getElementById('grand_total').textContent  = fmtVND(total) + ' VNĐ';
+    document.getElementById('grand_total').textContent      = fmtVND(total)    + ' VNĐ';
   }
-
-  calcTotal();
 
   // ---- Reset form ----
   function resetForm() {
     if (!confirm('Xóa hết thông tin đã nhập?')) return;
     document.getElementById('quoteForm').reset();
-    // Khôi phục giá trị mặc định
     const t = new Date();
     document.getElementById('ngay_bao_gia').value =
       t.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const m = String(t.getMonth() + 1).padStart(2, '0');
     document.getElementById('so_bao_gia').value = `EF-${t.getFullYear()}-${m}-001`;
-    // Xóa thông tin nhân viên
     ['nv_ten','nv_bo_phan','nv_email','nv_sdt'].forEach(id => document.getElementById(id).value = '');
     ['nv_bo_phan_display','nv_email_display','nv_sdt_display'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('nv_select').value = '';
     document.getElementById('status').className = 'status';
     document.getElementById('actionBtnRow').style.display = 'none';
+    // Reset product rows về mặc định
+    document.getElementById('productBody').innerHTML = '';
+    addProductRow('TECHIDEAS');
+    addProductRow('LOVINGCARE');
     calcTotal();
   }
 
   // ---- Poll job status ----
   async function pollJob(jobId, onProgress) {
-    const maxWait = 180000; // 3 phút tối đa
+    const maxWait = 180000;
     const interval = 3000;
     const start = Date.now();
     let dots = 0;
@@ -575,10 +630,34 @@
   document.getElementById('quoteForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Kiểm tra nhân viên đã chọn
     if (!document.getElementById('nv_ten').value) {
       document.getElementById('status').className = 'status error';
-      document.getElementById('status').textContent = '❌ Vui lòng chọn nhân viên phụ trách.';
+      document.getElementById('statusText').textContent = '❌ Vui lòng chọn nhân viên phụ trách.';
+      document.getElementById('status').style.display = 'block';
+      return;
+    }
+
+    // Build items array từ các dòng sản phẩm
+    const items = [];
+    document.querySelectorAll('#productBody tr').forEach(tr => {
+      const sel    = tr.querySelector('.row-model');
+      const model  = sel.value;
+      if (!model) return;
+      const opt    = sel.options[sel.selectedIndex];
+      const mo_ta  = decodeURIComponent(opt.dataset.mota || model);
+      const so_luong   = parseFloat(tr.querySelector('.row-qty').value) || 0;
+      const don_gia    = parseNum(tr.querySelector('.row-price').value);
+      const chiet_khau = parseFloat(tr.querySelector('.row-ck').value) || 0;
+      const thanh_tien = so_luong * don_gia * (1 - chiet_khau / 100);
+      if (so_luong > 0) {
+        items.push({ model, mo_ta, so_luong, don_gia, chiet_khau, thanh_tien });
+      }
+    });
+
+    if (items.length === 0) {
+      document.getElementById('status').className = 'status error';
+      document.getElementById('statusText').textContent = '❌ Vui lòng thêm ít nhất 1 sản phẩm với số lượng > 0.';
+      document.getElementById('status').style.display = 'block';
       return;
     }
 
@@ -587,22 +666,30 @@
     btn.disabled = true;
     btn.textContent = 'Đang tạo PDF...';
     status.className = 'status loading';
+    status.style.display = 'block';
     document.getElementById('actionBtnRow').style.display = 'none';
     document.getElementById('statusText').textContent = '⏳ Đang khởi tạo...';
 
     try {
+      // Gom tất cả form data + items
       const formData = new FormData(e.target);
-      const body     = new URLSearchParams(formData);
-      const r1       = await fetch('/api/generate', { method: 'POST', body });
+      const payload = {};
+      formData.forEach((v, k) => { payload[k] = v; });
+      payload.items = items;
+      payload.chiet_khau_tong = document.getElementById('ck_tong').value || '0';
+
+      const r1 = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
       if (!r1.ok) throw new Error(await r1.text());
       const { jobId } = await r1.json();
 
-      // Poll cho đến khi xong
       const { url, filename } = await pollJob(jobId, (msg) => {
         document.getElementById('statusText').textContent = msg;
       });
 
-      // Hiển thị 2 nút action
       status.className = 'status success';
       document.getElementById('statusText').textContent = '✅ ' + filename;
 
@@ -639,6 +726,10 @@
       btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px; margin-bottom:2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Xuất PDF Báo Giá';
     }
   });
+
+  // ---- Khởi động ----
+  loadEmployees();
+  loadProducts();
 </script>
 </body>
 </html>
