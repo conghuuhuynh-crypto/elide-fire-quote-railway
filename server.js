@@ -5,6 +5,7 @@
 
 const express  = require('express');
 const carbone  = require('carbone');
+const JSZip    = require('jszip');
 const path     = require('path');
 const fs       = require('fs');
 const https    = require('https');
@@ -32,6 +33,72 @@ const TABLE_SP     = 'm1isvr6ljrp2klj';   // San_pham
 
 // Job queue — lưu trạng thái từng job trong bộ nhớ
 const jobs = {};
+
+// Helper: escape XML đặc biệt
+function escXml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Helper: convert text có \n thành Word runs với <w:br/>
+function moTaToRuns(text, templateRun) {
+  const rPrMatch = templateRun.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
+  const rPr = rPrMatch ? rPrMatch[0] : '';
+  const lines = String(text || '').split('\n');
+  return lines.map((line, i) =>
+    `<w:r>${rPr}<w:t xml:space="preserve">${escXml(line)}</w:t></w:r>` +
+    (i < lines.length - 1 ? `<w:r>${rPr}<w:br/></w:r>` : '')
+  ).join('');
+}
+
+// Pre-process template: thay thế items[i] rows bằng actual rows
+async function expandTemplateItems(templatePath, items) {
+  const templateBuf = fs.readFileSync(templatePath);
+  if (!items || items.length === 0) return templateBuf;
+
+  const zip = await JSZip.loadAsync(templateBuf);
+  let xml = await zip.file('word/document.xml').async('string');
+
+  // Tìm dòng template chứa {d.items[i]...}
+  let searchPos = 0, rowStart = -1, rowEnd = -1;
+  while (true) {
+    const s = xml.indexOf('<w:tr ', searchPos);
+    if (s === -1) break;
+    const e = xml.indexOf('</w:tr>', s) + 7;
+    if (xml.slice(s, e).includes('d.items[i]')) { rowStart = s; rowEnd = e; break; }
+    searchPos = e;
+  }
+  if (rowStart === -1) return templateBuf; // không tìm thấy → trả template gốc
+
+  const templateRow = xml.slice(rowStart, rowEnd);
+
+  // Tìm run chứa mo_ta để xử lý newlines riêng
+  const moTaRunRegex = /<w:r\b[^>]*>(?:(?!<\/w:r>)[\s\S])*?\{d\.items\[i\]\.mo_ta\}(?:(?!<\/w:r>)[\s\S])*?<\/w:r>/;
+
+  const expandedRows = items.map(item => {
+    let row = templateRow;
+    // Xử lý mo_ta (có thể có \n)
+    const moTaMatch = row.match(moTaRunRegex);
+    if (moTaMatch) {
+      row = row.replace(moTaRunRegex, moTaToRuns(item.mo_ta, moTaMatch[0]));
+    } else {
+      row = row.replace(/\{d\.items\[i\]\.mo_ta\}/g, escXml(item.mo_ta));
+    }
+    // Thay thế các field còn lại
+    row = row.replace(/\{d\.items\[i\]\.stt\}/g,        escXml(item.stt));
+    row = row.replace(/\{d\.items\[i\]\.so_luong\}/g,   escXml(item.so_luong));
+    row = row.replace(/\{d\.items\[i\]\.don_gia\}/g,    escXml(item.don_gia));
+    row = row.replace(/\{d\.items\[i\]\.thanh_tien\}/g, escXml(item.thanh_tien));
+    return row;
+  }).join('');
+
+  xml = xml.slice(0, rowStart) + expandedRows + xml.slice(rowEnd);
+  zip.file('word/document.xml', xml);
+  return await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -207,9 +274,13 @@ function runJob(jobId, b) {
 
   if (!fs.existsSync(QUOTES_DIR)) fs.mkdirSync(QUOTES_DIR, { recursive: true });
 
-  console.log('carboneItems:', JSON.stringify(carboneItems));
+  // Pre-process: expand items rows trực tiếp trong XML (Carbone array không hỗ trợ Word table reliably)
+  expandTemplateItems(TEMPLATE, carboneItems).then(templateBuf => {
+    // Xóa items khỏi data để Carbone không cần xử lý
+    const carboneData = { ...data };
+    delete carboneData.items;
 
-  carbone.render(TEMPLATE, data, {}, (err, result) => {
+    carbone.render(templateBuf, carboneData, {}, (err, result) => {
     if (err) { job.status = 'error'; job.error = err.message; return; }
 
     fs.writeFileSync(tmpDocx, result);
@@ -260,6 +331,7 @@ function runJob(jobId, b) {
       } catch (e) { console.error('NocoDB error:', e.message); }
     });
   });
+  }).catch(e => { job.status = 'error'; job.error = 'Template error: ' + e.message; });
 }
 
 // API xuất PDF — trả jobId ngay lập tức
