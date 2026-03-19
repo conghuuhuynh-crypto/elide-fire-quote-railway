@@ -95,6 +95,8 @@ async function expandTemplateItems(templatePath, items) {
     moTaRun      = templateRow.slice(moTaRunStart, moTaRunEnd);
   }
 
+  console.log('expandTemplateItems: moTaRunStart =', moTaRunStart, 'moTaRunEnd =', moTaRunEnd);
+  console.log('expandTemplateItems: starting map...');
   const expandedRows = items.map(item => {
     let row = templateRow;
     // Xử lý mo_ta với newlines
@@ -111,9 +113,13 @@ async function expandTemplateItems(templatePath, items) {
     return row;
   }).join('');
 
+  console.log('expandTemplateItems: map done, expandedRows length =', expandedRows.length);
   xml = xml.slice(0, rowStart) + expandedRows + xml.slice(rowEnd);
   zip.file('word/document.xml', xml);
-  return await zip.generateAsync({ type: 'nodebuffer' });
+  console.log('expandTemplateItems: calling generateAsync...');
+  const result = await zip.generateAsync({ type: 'nodebuffer' });
+  console.log('expandTemplateItems: generateAsync done, size =', result.length);
+  return result;
 }
 
 app.use(express.json());
