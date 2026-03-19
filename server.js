@@ -185,7 +185,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v14-nocodb-per-product' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v15-remove-items-json' }));
 
 // Debug: test adm-zip patch + LibreOffice
 app.get('/api/debug/lo-test', (req, res) => {
@@ -409,7 +409,7 @@ async function runJob(jobId, b) {
       Nguoi_lien_he: b.ten_nguoi_lien_he || '', SDT_khach_hang: b.sdt_khach_hang || '',
       Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
       NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
-      Items_JSON: JSON.stringify(validItems), CK_Tong_don: ckTong, Tong_thanh_toan: total,
+      CK_Tong_don: ckTong, Tong_thanh_toan: total,
       SL_Techideas:        itTech ? parseFloat(itTech.so_luong)    || 0 : 0,
       DonGia_Techideas:    itTech ? parseFloat(itTech.don_gia)     || 0 : 0,
       CK_Techideas:        itTech ? parseFloat(itTech.chiet_khau)  || 0 : 0,
