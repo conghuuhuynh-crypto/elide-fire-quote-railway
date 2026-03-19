@@ -134,6 +134,9 @@
 
     /* Responsive mobile */
     @media (max-width: 600px) {
+      /* Ngăn iOS Safari tự zoom khi focus vào input */
+      input, select, textarea { font-size: 16px !important; }
+
       .header { padding: 20px 16px; }
       .header h1 { font-size: 22px; }
       .header span { font-size: 13px; }
