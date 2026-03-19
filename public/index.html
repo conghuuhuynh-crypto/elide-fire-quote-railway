@@ -598,7 +598,8 @@
     btn.disabled = true;
     btn.textContent = 'Đang tạo PDF...';
     status.className = 'status loading';
-    status.textContent = 'Đang xử lý, vui lòng chờ...';
+    status.querySelectorAll('.btn-action').forEach(b => b.remove());
+    document.getElementById('statusText').textContent = '⏳ Đang khởi tạo...';
 
     try {
       const formData = new FormData(e.target);
