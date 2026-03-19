@@ -207,6 +207,8 @@ function runJob(jobId, b) {
 
   if (!fs.existsSync(QUOTES_DIR)) fs.mkdirSync(QUOTES_DIR, { recursive: true });
 
+  console.log('carboneItems:', JSON.stringify(carboneItems));
+
   carbone.render(TEMPLATE, data, {}, (err, result) => {
     if (err) { job.status = 'error'; job.error = err.message; return; }
 
