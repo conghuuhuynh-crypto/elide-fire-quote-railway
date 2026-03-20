@@ -43,7 +43,7 @@ const SOFFICE    = process.platform === 'win32'
 
 // NocoDB config
 const NOCODB_HOST  = 'nocodb-production-4d61.up.railway.app';
-const NOCODB_TOKEN = 'cDiEKkF4wmvUroENBM_LrZb6VXQ6K5MlKgzXS7bA';
+const NOCODB_TOKEN = process.env.NOCODB_TOKEN || '';
 const NOCODB_BASE  = 'p49wwa1uzmjtv1e';
 const TABLE_NV     = 'mbxi5rjran05biu';   // Nhan_vien
 const TABLE_BG     = 'mnfhtr9jysetk07';   // Bao_gia
@@ -213,32 +213,6 @@ app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v24-btn-style' }));
-
-// Debug: test adm-zip patch + LibreOffice
-app.get('/api/debug/lo-test', (req, res) => {
-  if (!fs.existsSync(QUOTES_DIR)) fs.mkdirSync(QUOTES_DIR, { recursive: true });
-  // Step 1: adm-zip copy (no changes) - verify adm-zip output is valid
-  const admOut = path.join(QUOTES_DIR, '_debug_adm.docx');
-  try {
-    const zip = new AdmZip(TEMPLATE);
-    zip.writeZip(admOut);
-  } catch(e) {
-    return res.json({ step: 'adm-zip', error: e.message });
-  }
-  const admSize = (() => { try { return fs.statSync(admOut).size; } catch(_){return 0;} })();
-  const origSize = (() => { try { return fs.statSync(TEMPLATE).size; } catch(_){return 0;} })();
-  // Step 2: convert adm-zip output with LibreOffice
-  const cmd = `${SOFFICE} --headless --convert-to pdf --outdir "${QUOTES_DIR}" "${admOut}"`;
-  exec(cmd, { timeout: 60000 }, (err, stdout, stderr) => {
-    try { fs.unlinkSync(admOut); } catch(_) {}
-    const files = (() => { try { return fs.readdirSync(QUOTES_DIR); } catch(_){return [];} })();
-    res.json({
-      origSize, admSize, cmd,
-      err: err ? err.message : null, stdout, stderr,
-      filesInDir: files
-    });
-  });
-});
 
 // API nhân viên
 app.get('/api/employees', (req, res) => {
@@ -413,7 +387,7 @@ async function runJob(jobId, b) {
 
     const finalPath = fs.existsSync(outPdf) ? outPdf : libreOut;
     const finalName = path.basename(finalPath);
-    const appUrl    = 'https://elide-fire-quote-railway-production.up.railway.app';
+    const appUrl    = process.env.APP_URL || 'https://elide-fire-quote-railway-production.up.railway.app';
 
     job.status   = 'done';
     job.url      = `${appUrl}/download/${finalName}`;
