@@ -242,6 +242,27 @@ app.get('/api/products', (req, res) => {
   }).on('error', () => res.json([]));
 });
 
+// API danh sách báo giá cũ (để nạp lại form)
+app.get('/api/quotes', (req, res) => {
+  const search = (req.query.search || '').trim();
+  const limit  = Math.min(parseInt(req.query.limit) || 30, 50);
+  let qs = `limit=${limit}&sort=-Id`;
+  if (search) {
+    const s = encodeURIComponent(search);
+    qs += `&where=(Ten_cong_ty,like,%25${s}%25)~or(So_bao_gia,like,%25${s}%25)`;
+  }
+  const options = {
+    hostname: NOCODB_HOST,
+    path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}?${qs}`,
+    headers: { 'xc-token': NOCODB_TOKEN }
+  };
+  https.get(options, r => {
+    let d = '';
+    r.on('data', c => d += c);
+    r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch (e) { res.json([]); } });
+  }).on('error', () => res.json([]));
+});
+
 // API job status
 app.get('/api/job/:id', (req, res) => {
   const job = jobs[req.params.id];
