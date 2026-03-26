@@ -49,10 +49,25 @@ const PYTHON3    = process.platform === 'win32'
 const NOCODB_HOST  = process.env.NOCODB_HOST  || 'nocodb-production-4d61.up.railway.app';
 const NOCODB_TOKEN = process.env.NOCODB_TOKEN || '';
 const NOCODB_BASE  = process.env.NOCODB_BASE  || 'p49wwa1uzmjtv1e';
-const TABLE_NV     = process.env.NOCODB_TABLE_NV || 'mbxi5rjran05biu'; // Nhan_vien
-const TABLE_BG     = process.env.NOCODB_TABLE_BG || 'mnfhtr9jysetk07'; // Bao_gia
-const TABLE_SP     = process.env.NOCODB_TABLE_SP || 'm1isvr6ljrp2klj'; // San_pham
-const TABLE_HD     = process.env.NOCODB_TABLE_HD || 'mudqz3rj45htmui'; // Hop_dong
+const TABLE_NV     = process.env.NOCODB_TABLE_NV  || 'mbxi5rjran05biu'; // Nhan_vien
+const TABLE_BG     = process.env.NOCODB_TABLE_BG  || 'mnfhtr9jysetk07'; // Bao_gia
+const TABLE_SP     = process.env.NOCODB_TABLE_SP  || 'm1isvr6ljrp2klj'; // San_pham
+const TABLE_HD     = process.env.NOCODB_TABLE_HD  || 'mudqz3rj45htmui'; // Hop_dong
+const TABLE_CHAT   = process.env.NOCODB_TABLE_CHAT || 'muy359ghdcu7vo2'; // Chat_history
+
+// AI Chat config
+const { OpenAI } = require('openai');
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+const CHAT_MODEL = 'anthropic/claude-haiku-4.5'; // OpenRouter model ID
+const openaiClient = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: OPENROUTER_API_KEY || 'sk-placeholder',
+  defaultHeaders: {
+    'HTTP-Referer': process.env.APP_URL || 'https://elide-fire-quote-railway-production.up.railway.app',
+    'X-Title': 'Elide Fire Quote App'
+  }
+});
+if (!OPENROUTER_API_KEY) console.warn('⚠️  OPENROUTER_API_KEY chưa được set — Chat AI sẽ không hoạt động');
 
 // Cảnh báo sớm nếu thiếu biến bắt buộc
 if (!NOCODB_TOKEN) console.warn('⚠️  NOCODB_TOKEN chưa được set — NocoDB calls sẽ thất bại');
@@ -870,6 +885,373 @@ function saveToNocoDB(tableId, record) {
 }
 
 app.use('/download-contract', express.static(path.join(__dirname, 'outputs', 'contracts')));
+
+// ============================================================
+// AI CHAT
+// ============================================================
+
+// Rate limiting: 10 req/phút/IP
+const rateLimitMap = new Map();
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip) || { count: 0, reset: now + 60000 };
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + 60000; }
+  entry.count++;
+  rateLimitMap.set(ip, entry);
+  return entry.count <= 10;
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of rateLimitMap.entries()) { if (now > v.reset) rateLimitMap.delete(k); }
+}, 120000);
+
+// Load 20 tin nhắn gần nhất của session từ NocoDB
+function loadChatHistory(sessionId) {
+  return new Promise(resolve => {
+    const qs = `limit=20&sort=-Id&where=(Session_id,eq,${encodeURIComponent(sessionId)})`;
+    const req = https.get({
+      hostname: NOCODB_HOST,
+      path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_CHAT}?${qs}`,
+      headers: { 'xc-token': NOCODB_TOKEN }
+    }, r => {
+      let d = '';
+      r.on('data', c => d += c);
+      r.on('end', () => {
+        try { resolve((JSON.parse(d).list || []).reverse()); } catch { resolve([]); }
+      });
+    });
+    req.on('error', () => resolve([]));
+    req.setTimeout(10000, () => { req.destroy(); resolve([]); });
+  });
+}
+
+// Lưu tin nhắn vào NocoDB (async, không block)
+function saveChatMessage(sessionId, role, content, activeTab) {
+  saveToNocoDB(TABLE_CHAT, {
+    Session_id: sessionId,
+    Role: role,
+    Content: content,
+    Active_tab: activeTab || ''
+  }).catch(e => console.error('[chat save error]', e.message));
+}
+
+// Tool definitions cho Claude
+const chatTools = [
+  {
+    type: 'function',
+    function: {
+      name: 'query_quotes',
+      description: 'Truy vấn danh sách báo giá từ hệ thống. Dùng để thống kê hoặc tìm báo giá cụ thể.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Tìm theo tên công ty hoặc số báo giá (bỏ trống để lấy tất cả)' },
+          limit:  { type: 'number', description: 'Số kết quả tối đa (mặc định 20)' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_contracts',
+      description: 'Truy vấn danh sách hợp đồng từ hệ thống.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Tìm theo tên công ty hoặc số hợp đồng' },
+          limit:  { type: 'number', description: 'Số kết quả tối đa (mặc định 20)' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_employees',
+      description: 'Lấy danh sách nhân viên trong hệ thống.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'prefill_quote_form',
+      description: 'Điền thông tin vào form báo giá. Gọi khi đã thu thập đủ thông tin từ user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ten_cong_ty:       { type: 'string', description: 'Tên công ty khách hàng' },
+          ten_phong_ban:     { type: 'string', description: 'Tên phòng ban' },
+          ten_nguoi_lien_he: { type: 'string', description: 'Tên người liên hệ' },
+          email_khach_hang:  { type: 'string', description: 'Email khách hàng' },
+          sdt_khach_hang:    { type: 'string', description: 'Số điện thoại' },
+          ten_du_an:         { type: 'string', description: 'Tên dự án' },
+          items: {
+            type: 'array',
+            description: 'Danh sách sản phẩm',
+            items: {
+              type: 'object',
+              properties: {
+                mo_ta:      { type: 'string', description: 'Mô tả sản phẩm' },
+                so_luong:   { type: 'number', description: 'Số lượng' },
+                don_gia:    { type: 'number', description: 'Đơn giá (VNĐ)' },
+                chiet_khau: { type: 'number', description: 'Chiết khấu (%)' }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'prefill_contract_form',
+      description: 'Điền thông tin vào form hợp đồng. Gọi khi đã thu thập đủ thông tin từ user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          so_hop_dong:             { type: 'string' },
+          ngay_ky_hop_dong:        { type: 'string', description: 'Ngày ký (YYYY-MM-DD)' },
+          ten_cong_ty:             { type: 'string' },
+          dia_chi:                 { type: 'string' },
+          ma_so_thue:              { type: 'string' },
+          so_tai_khoan_ngan_hang:  { type: 'string' },
+          ten_nguoi_dai_dien:      { type: 'string' },
+          chuc_vu:                 { type: 'string' },
+          thoi_gian_giao_hang:     { type: 'string' },
+          dia_diem_giao_hang:      { type: 'string' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                mo_ta:       { type: 'string' },
+                don_vi_tinh: { type: 'string' },
+                so_luong:    { type: 'number' },
+                don_gia:     { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'switch_tab',
+      description: 'Chuyển sang tab phù hợp với yêu cầu của user.',
+      parameters: {
+        type: 'object',
+        required: ['tab'],
+        properties: {
+          tab: { type: 'string', enum: ['quote', 'contract'], description: '"quote" = Báo giá, "contract" = Hợp đồng' }
+        }
+      }
+    }
+  }
+];
+
+// Thực thi tool call
+async function executeTool(name, args) {
+  const queryNoco = (tableId, search, searchFields, limit) => new Promise(resolve => {
+    const lim = Math.min(limit || 20, 50);
+    let qs = `limit=${lim}&sort=-Id`;
+    if (search) {
+      const s = encodeURIComponent(search);
+      const cond = searchFields.map(f => `(${f},like,%25${s}%25)`).join('~or');
+      qs += `&where=${cond}`;
+    }
+    const req = https.get({
+      hostname: NOCODB_HOST,
+      path: `/api/v1/db/data/noco/${NOCODB_BASE}/${tableId}?${qs}`,
+      headers: { 'xc-token': NOCODB_TOKEN }
+    }, r => {
+      let d = ''; r.on('data', c => d += c);
+      r.on('end', () => { try { resolve(JSON.parse(d).list || []); } catch { resolve([]); } });
+    });
+    req.on('error', () => resolve([]));
+    req.setTimeout(15000, () => { req.destroy(); resolve([]); });
+  });
+
+  if (name === 'query_quotes')    return queryNoco(TABLE_BG, args.search, ['Ten_cong_ty','So_bao_gia'], args.limit);
+  if (name === 'query_contracts') return queryNoco(TABLE_HD, args.search, ['Ten_cong_ty','So_hop_dong'], args.limit);
+  if (name === 'query_employees') return queryNoco(TABLE_NV, '', [], 50);
+  // Client-side actions: chỉ cần acknowledge
+  if (['prefill_quote_form','prefill_contract_form','switch_tab'].includes(name)) return { success: true };
+  return { error: 'Unknown tool' };
+}
+
+// Build system prompt với context hiện tại
+function buildSystemPrompt(activeTab, formContext) {
+  const today = new Date().toLocaleDateString('vi-VN');
+  const tabName = activeTab === 'contract' ? 'Hợp đồng' : 'Báo giá';
+
+  let formStr = '';
+  if (formContext && typeof formContext === 'object') {
+    const filled = Object.entries(formContext)
+      .filter(([, v]) => v && String(v).trim())
+      .map(([k, v]) => `  - ${k}: ${v}`)
+      .join('\n');
+    if (filled) formStr = `\nForm đang điền dở:\n${filled}\n`;
+  }
+
+  return `Bạn là trợ lý AI của Elide Fire Vietnam — công ty phân phối bóng chữa cháy tự động Elide Fire (nhập khẩu từ Đan Mạch, bảo hành 5 năm).
+
+Ngày hôm nay: ${today}
+Tab đang mở: ${tabName}
+${formStr}
+SẢN PHẨM & GIÁ:
+- Bóng chữa cháy Techideas 1.4kg: 2.500.000 VNĐ/cái
+- Bóng chữa cháy Lovingcare 0.4kg: 1.950.000 VNĐ/cái
+- Thuế VAT: 8% | Xuất xứ: Đan Mạch
+
+KHẢ NĂNG:
+1. Tư vấn sản phẩm phù hợp theo diện tích/nhu cầu
+2. Thu thập thông tin → điền form báo giá hoặc hợp đồng
+3. Tra cứu và thống kê báo giá, hợp đồng, nhân viên
+
+HƯỚNG DẪN:
+- Trả lời ngắn gọn, thân thiện, bằng Tiếng Việt
+- Nếu form đã điền sẵn thông tin, không hỏi lại các trường đó
+- Khi user muốn tạo báo giá/hợp đồng: hỏi thông tin còn thiếu, sau đó gọi prefill tool
+- Nếu yêu cầu liên quan đến tab khác, gọi switch_tab trước khi prefill
+- Khi gọi prefill: điền đầy đủ mọi thông tin đã thu thập được`;
+}
+
+// POST /api/chat — streaming SSE
+app.post('/api/chat', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+
+  if (!checkRateLimit(ip)) {
+    return res.status(429).json({ error: 'Quá nhiều yêu cầu, vui lòng chờ 1 phút rồi thử lại.' });
+  }
+  if (!OPENROUTER_API_KEY) {
+    return res.status(503).json({ error: 'AI chưa được cấu hình. Vui lòng liên hệ admin.' });
+  }
+
+  const { message, sessionId, activeTab, formContext } = req.body;
+  if (!message || !sessionId) return res.status(400).json({ error: 'Thiếu message hoặc sessionId' });
+
+  // SSE setup
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const send = (data) => { try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch (_) {} };
+
+  // Lưu tin nhắn user ngay lập tức
+  saveChatMessage(sessionId, 'user', message, activeTab);
+
+  try {
+    const history = await loadChatHistory(sessionId);
+    const messages = [
+      { role: 'system', content: buildSystemPrompt(activeTab, formContext || {}) },
+      ...history.slice(-19).map(h => ({ role: h.Role, content: h.Content })),
+      { role: 'user', content: message }
+    ];
+
+    let fullResponse = '';
+
+    // Agentic loop: tối đa 3 vòng tool calls
+    for (let iter = 0; iter < 3; iter++) {
+      const stream = await openaiClient.chat.completions.create({
+        model: CHAT_MODEL,
+        messages,
+        tools: chatTools,
+        tool_choice: 'auto',
+        max_tokens: 1500,
+        stream: true
+      });
+
+      // Accumulate streaming response
+      const toolCallMap = {};
+      let textContent = '';
+      let finishReason = null;
+
+      for await (const chunk of stream) {
+        const choice = chunk.choices[0];
+        if (!choice) continue;
+        finishReason = choice.finish_reason || finishReason;
+        const delta = choice.delta;
+
+        // Text streaming → gửi thẳng về client
+        if (delta?.content) {
+          textContent += delta.content;
+          send({ type: 'text', content: delta.content });
+        }
+
+        // Accumulate tool calls (có thể nhiều chunks)
+        if (delta?.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            if (!toolCallMap[tc.index]) toolCallMap[tc.index] = { id: '', name: '', args: '' };
+            if (tc.id)                   toolCallMap[tc.index].id   += tc.id;
+            if (tc.function?.name)       toolCallMap[tc.index].name += tc.function.name;
+            if (tc.function?.arguments)  toolCallMap[tc.index].args += tc.function.arguments;
+          }
+        }
+      }
+
+      const toolCalls = Object.values(toolCallMap);
+
+      // Không có tool call → xong
+      if (!toolCalls.length || finishReason === 'stop') {
+        fullResponse = textContent;
+        break;
+      }
+
+      // Có tool calls → execute
+      messages.push({
+        role: 'assistant',
+        content: textContent || null,
+        tool_calls: toolCalls.map(tc => ({
+          id: tc.id, type: 'function',
+          function: { name: tc.name, arguments: tc.args }
+        }))
+      });
+
+      for (const tc of toolCalls) {
+        let args = {};
+        try { args = JSON.parse(tc.args || '{}'); } catch (_) {}
+
+        send({ type: 'tool_start', name: tc.name });
+
+        // Gửi action về client để xử lý phía frontend
+        if (['prefill_quote_form', 'prefill_contract_form', 'switch_tab'].includes(tc.name)) {
+          send({ type: 'action', name: tc.name, data: args });
+        }
+
+        const result = await executeTool(tc.name, args);
+        messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+      }
+      // Tiếp tục vòng lặp để lấy response text sau tool calls
+    }
+
+    send({ type: 'done' });
+    res.end();
+
+    if (fullResponse) saveChatMessage(sessionId, 'assistant', fullResponse, activeTab);
+
+  } catch (e) {
+    console.error('[chat error]', e.message);
+    send({ type: 'error', message: 'Xin lỗi, tôi đang gặp sự cố. Vui lòng thử lại sau.' });
+    send({ type: 'done' });
+    res.end();
+  }
+});
+
+// GET /api/chat/history/:sessionId — load lịch sử chat
+app.get('/api/chat/history/:sessionId', async (req, res) => {
+  try {
+    const history = await loadChatHistory(req.params.sessionId);
+    res.json(history);
+  } catch (e) {
+    res.json([]);
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`✅ Elide Fire Quote Server running on port ${PORT}`);

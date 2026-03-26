@@ -6,7 +6,9 @@
   <title>Tạo Báo Giá — Elide Fire</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Non-blocking font load: trang render ngay, font swap vào sau -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap"></noscript>
   <link rel="stylesheet" href="/design-system.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1616,6 +1618,549 @@
   // Invalidate khi form thay đổi sau khi đã tạo
   document.getElementById('quoteForm').addEventListener('input',  () => { if (bgPdfUrl) bgResetButtons(); });
   document.getElementById('quoteForm').addEventListener('change', () => { if (bgPdfUrl) bgResetButtons(); });
+</script>
+
+<!-- ============================================================
+     AI CHAT WIDGET
+     ============================================================ -->
+<style>
+  .chat-bubble {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: #FA0F0F; border: none; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(250,15,15,0.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9000; transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .chat-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(250,15,15,0.5); }
+  .chat-bubble svg { width: 26px; height: 26px; fill: white; }
+
+  .chat-panel {
+    position: fixed; bottom: 92px; right: 24px;
+    width: 380px; height: 580px; max-height: calc(100vh - 120px);
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    display: flex; flex-direction: column;
+    z-index: 8999; overflow: hidden;
+    transform: translateY(20px) scale(0.95); opacity: 0; pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .chat-panel.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
+  @media (max-width: 480px) {
+    .chat-panel { bottom: 0; right: 0; width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; }
+    .chat-bubble { bottom: 16px; right: 16px; }
+  }
+
+  .chat-header {
+    background: #FA0F0F; color: white; padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  .chat-header-avatar { font-size: 22px; }
+  .chat-header-info { flex: 1; }
+  .chat-header-name { font-weight: 700; font-size: 14px; }
+  .chat-header-sub { font-size: 11px; opacity: 0.85; }
+  .chat-header-actions { display: flex; gap: 4px; }
+  .chat-hbtn {
+    background: rgba(255,255,255,0.15); border: none; color: white;
+    width: 30px; height: 30px; border-radius: 7px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+    transition: background 0.15s;
+  }
+  .chat-hbtn:hover { background: rgba(255,255,255,0.28); }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 14px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+  .chat-msg { display: flex; gap: 7px; align-items: flex-end; animation: cmFadeIn 0.2s ease; }
+  .chat-msg.user { flex-direction: row-reverse; }
+  @keyframes cmFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .chat-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #FA0F0F; color: white; font-size: 12px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .chat-msg.user .chat-avatar { background: #090216; }
+
+  .chat-bubble-msg {
+    max-width: 80%; padding: 9px 12px;
+    border-radius: 14px; font-size: 13.5px; line-height: 1.55; word-break: break-word;
+  }
+  .chat-msg.ai  .chat-bubble-msg { background: #f4f4f4; color: #090216; border-bottom-left-radius: 4px; }
+  .chat-msg.user .chat-bubble-msg { background: #FA0F0F; color: white; border-bottom-right-radius: 4px; }
+
+  .chat-tool-status {
+    font-size: 12px; color: #888; display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; background: #f9f9f9; border-radius: 8px; margin-left: 33px;
+    width: fit-content;
+  }
+  .chat-tool-dot { width: 7px; height: 7px; border-radius: 50%; background: #FA0F0F; animation: dotPulse 1s infinite; }
+  @keyframes dotPulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  .chat-typing { display: flex; align-items: center; gap: 4px; padding: 9px 12px; background: #f4f4f4; border-radius: 14px; border-bottom-left-radius: 4px; }
+  .chat-typing span { width: 6px; height: 6px; background: #aaa; border-radius: 50%; animation: tdot 1.2s infinite; }
+  .chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+  .chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes tdot { 0%,60%,100%{transform:none;opacity:.4} 30%{transform:translateY(-4px);opacity:1} }
+
+  /* Summary card */
+  .chat-summary {
+    border: 2px solid #FA0F0F; border-radius: 12px; padding: 12px; margin-left: 33px;
+    font-size: 13px; background: white;
+  }
+  .chat-summary-title { color: #FA0F0F; font-weight: 700; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .chat-summary-row { display: flex; gap: 6px; padding: 3px 0; border-bottom: 1px solid #f5f5f5; }
+  .chat-summary-row:last-of-type { border: none; }
+  .chat-summary-k { color: #888; flex: 0 0 120px; font-size: 12px; }
+  .chat-summary-v { color: #090216; font-weight: 600; font-size: 12px; }
+  .chat-summary-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .chat-summary-ok {
+    flex: 1; background: #FA0F0F; color: white; border: none;
+    padding: 8px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
+    transition: background 0.15s;
+  }
+  .chat-summary-ok:hover { background: #CA0002; }
+  .chat-summary-cancel {
+    background: #f5f5f5; color: #666; border: none;
+    padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  }
+
+  .chat-input-bar {
+    padding: 10px 10px; border-top: 1px solid #efefef;
+    display: flex; align-items: flex-end; gap: 7px; flex-shrink: 0; background: white;
+  }
+  .chat-input {
+    flex: 1; border: 1.5px solid #e5e5e5; border-radius: 11px;
+    padding: 8px 11px; font-size: 13.5px; font-family: inherit;
+    resize: none; outline: none; max-height: 110px; line-height: 1.45;
+    transition: border-color 0.15s;
+  }
+  .chat-input:focus { border-color: #FA0F0F; }
+  .chat-input::placeholder { color: #bbb; }
+  .chat-ibtn {
+    width: 36px; height: 36px; border-radius: 9px; border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0; transition: all 0.15s;
+  }
+  .chat-ibtn-voice { background: #f5f5f5; color: #666; }
+  .chat-ibtn-voice:hover { background: #fde8e8; color: #FA0F0F; }
+  .chat-ibtn-voice.recording { background: #FA0F0F; color: white; animation: recPulse 1s infinite; }
+  @keyframes recPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+  .chat-ibtn-send { background: #FA0F0F; color: white; }
+  .chat-ibtn-send:hover { background: #CA0002; }
+  .chat-ibtn-send:disabled { background: #f5f5f5; color: #ccc; cursor: not-allowed; }
+
+  .chat-toast {
+    position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: #090216; color: white; padding: 9px 18px;
+    border-radius: 20px; font-size: 13px; font-weight: 600;
+    z-index: 9100; opacity: 0; transition: all 0.28s; pointer-events: none; white-space: nowrap;
+  }
+  .chat-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+
+<!-- Bubble button -->
+<button class="chat-bubble" id="chatBubble" onclick="toggleChat()" title="Trợ lý AI Elide Fire">
+  <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.34 5L2.5 21l4.25-.75A9.96 9.96 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 2c4.42 0 8 3.58 8 8s-3.58 8-8 8a7.97 7.97 0 01-3.77-.94L4.5 19.5l.52-3.53A7.97 7.97 0 014 12c0-4.42 3.58-8 8-8z"/><circle cx="8.5" cy="12.5" r="1.5"/><circle cx="12" cy="12.5" r="1.5"/><circle cx="15.5" cy="12.5" r="1.5"/></svg>
+</button>
+
+<!-- Chat panel -->
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <div class="chat-header-avatar">🤖</div>
+    <div class="chat-header-info">
+      <div class="chat-header-name">Trợ lý Elide Fire</div>
+      <div class="chat-header-sub" id="chatHeaderSub">Sẵn sàng hỗ trợ</div>
+    </div>
+    <div class="chat-header-actions">
+      <button class="chat-hbtn" onclick="newChatSession()" title="Cuộc trò chuyện mới">🔄</button>
+      <button class="chat-hbtn" onclick="toggleChat()" title="Đóng">✕</button>
+    </div>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-msg ai">
+      <div class="chat-avatar">🤖</div>
+      <div class="chat-bubble-msg">Xin chào! Tôi có thể giúp bạn:<br><br>
+        • <b>Tạo báo giá / hợp đồng</b> — hỏi & điền form<br>
+        • <b>Tra cứu</b> — báo giá, hợp đồng, nhân viên<br>
+        • <b>Tư vấn</b> — sản phẩm phù hợp<br><br>
+        Bạn cần gì hôm nay?
+      </div>
+    </div>
+  </div>
+  <div class="chat-input-bar">
+    <button class="chat-ibtn chat-ibtn-voice" id="voiceBtn" onclick="toggleVoice()" title="Nhập giọng nói">🎤</button>
+    <textarea class="chat-input" id="chatInput" placeholder="Nhập tin nhắn..." rows="1"
+      onkeydown="onChatKey(event)" oninput="chatAutoResize(this)"></textarea>
+    <button class="chat-ibtn chat-ibtn-send" id="chatSendBtn" onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="chat-toast" id="chatToast"></div>
+
+<script>
+// ---- Session ----
+let chatSessionId = localStorage.getItem('ef_chat_session') || (() => {
+  const id = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  localStorage.setItem('ef_chat_session', id);
+  return id;
+})();
+
+let chatIsOpen = false;
+let chatBusy   = false;
+let voiceRecog = null;
+let isRecording = false;
+let pendingPrefill = null; // { formType, data } waiting user confirm
+
+// ---- Toggle / Open / Close ----
+function toggleChat() {
+  chatIsOpen = !chatIsOpen;
+  document.getElementById('chatPanel').classList.toggle('open', chatIsOpen);
+  if (chatIsOpen) {
+    loadChatHistory();
+    setTimeout(() => document.getElementById('chatInput').focus(), 300);
+  }
+}
+
+function newChatSession() {
+  chatSessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  localStorage.setItem('ef_chat_session', chatSessionId);
+  document.getElementById('chatMessages').innerHTML = `
+    <div class="chat-msg ai">
+      <div class="chat-avatar">🤖</div>
+      <div class="chat-bubble-msg">Cuộc trò chuyện mới bắt đầu! Tôi có thể giúp gì cho bạn?</div>
+    </div>`;
+  showChatToast('🔄 Đã bắt đầu cuộc trò chuyện mới');
+}
+
+// ---- Active tab & form context ----
+function getChatActiveTab() {
+  return document.querySelector('.tab-btn.active')?.getAttribute('onclick')?.includes('hop-dong') ? 'contract' : 'quote';
+}
+
+function getChatFormContext() {
+  const tab = getChatActiveTab();
+  const ctx = {};
+  if (tab === 'quote') {
+    ['ten_cong_ty','ten_phong_ban','ten_nguoi_lien_he','sdt_khach_hang','email_khach_hang','ten_du_an'].forEach(n => {
+      const v = document.querySelector(`#quoteForm [name="${n}"]`)?.value?.trim();
+      if (v) ctx[n] = v;
+    });
+    const sbg = document.getElementById('so_bao_gia')?.value?.trim();
+    if (sbg) ctx['so_bao_gia'] = sbg;
+  } else {
+    [['hd_ten_cong_ty','ten_cong_ty'],['hd_dia_chi','dia_chi'],['hd_ma_so_thue','ma_so_thue'],
+     ['hd_ten_nguoi_dai_dien','ten_nguoi_dai_dien'],['hd_chuc_vu','chuc_vu'],['so_hop_dong','so_hop_dong']].forEach(([id, key]) => {
+      const v = document.getElementById(id)?.value?.trim();
+      if (v) ctx[key] = v;
+    });
+  }
+  return ctx;
+}
+
+// ---- Load history ----
+async function loadChatHistory() {
+  try {
+    const data = await fetch(`/api/chat/history/${chatSessionId}`).then(r => r.json());
+    if (!data.length) return;
+    const msgs = document.getElementById('chatMessages');
+    msgs.innerHTML = '';
+    data.forEach(m => appendMessage(m.Role === 'user' ? 'user' : 'ai', m.Content, false));
+    msgs.scrollTop = msgs.scrollHeight;
+  } catch (_) {}
+}
+
+// ---- Send message ----
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text  = input.value.trim();
+  if (!text || chatBusy) return;
+
+  input.value = ''; chatAutoResize(input);
+  appendMessage('user', text);
+  setChatBusy(true);
+
+  const typingId = showTyping();
+  let aiMsgEl = null;
+  let fullText = '';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message:     text,
+        sessionId:   chatSessionId,
+        activeTab:   getChatActiveTab(),
+        formContext: getChatFormContext()
+      })
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    removeTyping(typingId);
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (evt.type === 'text') {
+          if (!aiMsgEl) aiMsgEl = appendMessage('ai', '', false);
+          fullText += evt.content;
+          aiMsgEl.innerHTML = renderChatMd(fullText);
+          scrollChatBottom();
+        } else if (evt.type === 'tool_start') {
+          showToolStatus(toolStatusLabel(evt.name));
+        } else if (evt.type === 'action') {
+          removeToolStatus();
+          handleChatAction(evt.name, evt.data, aiMsgEl);
+        } else if (evt.type === 'error') {
+          removeTyping(typingId);
+          removeToolStatus();
+          if (!aiMsgEl) aiMsgEl = appendMessage('ai', '', false);
+          aiMsgEl.innerHTML = '⚠️ ' + evt.message;
+        } else if (evt.type === 'done') {
+          removeToolStatus();
+        }
+      }
+    }
+  } catch (e) {
+    removeTyping(typingId);
+    removeToolStatus();
+    if (!aiMsgEl) appendMessage('ai', '⚠️ Không thể kết nối. Vui lòng thử lại.');
+  }
+
+  setChatBusy(false);
+}
+
+function onChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+// ---- Action handler ----
+function handleChatAction(name, data, aiMsgEl) {
+  if (name === 'switch_tab') {
+    switchTab(data.tab === 'contract' ? 'hop-dong' : 'bao-gia');
+    return;
+  }
+  if (name === 'prefill_quote_form' || name === 'prefill_contract_form') {
+    pendingPrefill = { formType: name === 'prefill_quote_form' ? 'quote' : 'contract', data };
+    const card = buildSummaryCard(pendingPrefill.formType, data);
+    const msgs = document.getElementById('chatMessages');
+    msgs.appendChild(card);
+    scrollChatBottom();
+  }
+}
+
+// ---- Summary card ----
+function buildSummaryCard(formType, data) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'chat-summary';
+
+  const labelMap = {
+    ten_cong_ty:'Tên công ty', ten_phong_ban:'Phòng ban', ten_nguoi_lien_he:'Người LH',
+    sdt_khach_hang:'Số điện thoại', email_khach_hang:'Email', ten_du_an:'Tên dự án',
+    dia_chi:'Địa chỉ', ma_so_thue:'Mã số thuế', ten_nguoi_dai_dien:'Người đại diện',
+    chuc_vu:'Chức vụ', thoi_gian_giao_hang:'Thời gian GH', dia_diem_giao_hang:'Địa điểm GH'
+  };
+  const title = formType === 'quote' ? '📋 THÔNG TIN BÁO GIÁ' : '📄 THÔNG TIN HỢP ĐỒNG';
+  let html = `<div class="chat-summary-title">${title}</div>`;
+
+  Object.entries(data).forEach(([k, v]) => {
+    if (k === 'items' || !v) return;
+    const label = labelMap[k] || k;
+    html += `<div class="chat-summary-row"><span class="chat-summary-k">${label}</span><span class="chat-summary-v">${v}</span></div>`;
+  });
+
+  if (data.items?.length) {
+    data.items.forEach((it, i) => {
+      const price = it.don_gia ? Number(it.don_gia).toLocaleString('vi-VN') + ' đ' : '';
+      html += `<div class="chat-summary-row"><span class="chat-summary-k">SP ${i+1}</span><span class="chat-summary-v">${it.mo_ta || ''} × ${it.so_luong || 1} ${price ? '— ' + price : ''}</span></div>`;
+    });
+  }
+
+  html += `<div class="chat-summary-actions">
+    <button class="chat-summary-ok" onclick="confirmPrefill()">✅ Điền vào form</button>
+    <button class="chat-summary-cancel" onclick="this.closest('.chat-summary').remove(); pendingPrefill=null;">Huỷ</button>
+  </div>`;
+  wrapper.innerHTML = html;
+  return wrapper;
+}
+
+function confirmPrefill() {
+  if (!pendingPrefill) return;
+  const { formType, data } = pendingPrefill;
+  pendingPrefill = null;
+
+  if (formType === 'quote') {
+    switchTab('bao-gia');
+    const f = document.getElementById('quoteForm');
+    ['ten_cong_ty','ten_phong_ban','ten_nguoi_lien_he','sdt_khach_hang','email_khach_hang','ten_du_an'].forEach(n => {
+      if (data[n]) { const el = f.querySelector(`[name="${n}"]`); if (el) el.value = data[n]; }
+    });
+    if (data.items?.length) {
+      document.getElementById('productBody').innerHTML = '';
+      data.items.forEach(it => {
+        addProductRow();
+        const rows = document.querySelectorAll('#productBody tr');
+        const lastRow = rows[rows.length - 1];
+        if (it.so_luong) lastRow.querySelector('.row-qty').value = it.so_luong;
+        if (it.don_gia) { lastRow.querySelector('.row-price').value = Number(it.don_gia).toLocaleString('vi-VN'); }
+        calcTotal();
+      });
+    }
+  } else {
+    switchTab('hop-dong');
+    const map = { ten_cong_ty:'hd_ten_cong_ty', dia_chi:'hd_dia_chi', ma_so_thue:'hd_ma_so_thue',
+      so_tai_khoan_ngan_hang:'hd_so_tai_khoan_ngan_hang', ten_nguoi_dai_dien:'hd_ten_nguoi_dai_dien',
+      chuc_vu:'hd_chuc_vu', thoi_gian_giao_hang:'hd_thoi_gian_giao_hang',
+      dia_diem_giao_hang:'hd_dia_diem_giao_hang', so_hop_dong:'so_hop_dong' };
+    Object.entries(map).forEach(([k, id]) => {
+      if (data[k]) { const el = document.getElementById(id); if (el) el.value = data[k]; }
+    });
+    if (data.ngay_ky_hop_dong) {
+      const el = document.getElementById('ngay_ky_hop_dong');
+      if (el) el.value = data.ngay_ky_hop_dong;
+    }
+    if (data.items?.length) {
+      document.getElementById('hd-items').innerHTML = '';
+      data.items.forEach(it => hdAddItem(null, it.so_luong || 1, it.don_gia || 0));
+    }
+  }
+
+  document.querySelectorAll('.chat-summary').forEach(el => el.remove());
+  showChatToast('✅ AI đã điền form — vui lòng kiểm tra lại');
+  setTimeout(() => {
+    const section = formType === 'quote' ? 'section-bao-gia' : 'section-hop-dong';
+    document.getElementById(section)?.scrollIntoView({ behavior: 'smooth' });
+  }, 400);
+}
+
+// ---- Helpers ----
+function appendMessage(role, text, animate = true) {
+  const msgs = document.getElementById('chatMessages');
+  const wrapper = document.createElement('div');
+  wrapper.className = `chat-msg ${role}`;
+  if (!animate) wrapper.style.animation = 'none';
+  const avatar = role === 'user' ? '👤' : '🤖';
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble-msg';
+  bubble.innerHTML = renderChatMd(text);
+  wrapper.innerHTML = `<div class="chat-avatar">${avatar}</div>`;
+  wrapper.appendChild(bubble);
+  msgs.appendChild(wrapper);
+  scrollChatBottom();
+  return bubble;
+}
+
+function showTyping() {
+  const msgs = document.getElementById('chatMessages');
+  const id = 'typing_' + Date.now();
+  const el = document.createElement('div');
+  el.className = 'chat-msg ai'; el.id = id;
+  el.innerHTML = `<div class="chat-avatar">🤖</div><div class="chat-typing"><span></span><span></span><span></span></div>`;
+  msgs.appendChild(el); scrollChatBottom();
+  return id;
+}
+function removeTyping(id) { document.getElementById(id)?.remove(); }
+
+let toolStatusEl = null;
+function showToolStatus(label) {
+  removeToolStatus();
+  const msgs = document.getElementById('chatMessages');
+  toolStatusEl = document.createElement('div');
+  toolStatusEl.className = 'chat-tool-status';
+  toolStatusEl.innerHTML = `<div class="chat-tool-dot"></div>${label}`;
+  msgs.appendChild(toolStatusEl); scrollChatBottom();
+}
+function removeToolStatus() { toolStatusEl?.remove(); toolStatusEl = null; }
+function toolStatusLabel(name) {
+  const map = { query_quotes:'Đang tra cứu báo giá...', query_contracts:'Đang tra cứu hợp đồng...',
+    query_employees:'Đang lấy danh sách nhân viên...', prefill_quote_form:'Đang chuẩn bị thông tin...',
+    prefill_contract_form:'Đang chuẩn bị thông tin...', switch_tab:'Đang chuyển tab...' };
+  return map[name] || 'Đang xử lý...';
+}
+
+function scrollChatBottom() {
+  const el = document.getElementById('chatMessages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function setChatBusy(busy) {
+  chatBusy = busy;
+  document.getElementById('chatSendBtn').disabled = busy;
+  document.getElementById('chatHeaderSub').textContent = busy ? 'Đang trả lời...' : 'Sẵn sàng hỗ trợ';
+}
+
+function chatAutoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 110) + 'px';
+}
+
+function renderChatMd(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+    .replace(/\*(.+?)\*/g,'<i>$1</i>')
+    .replace(/\n/g,'<br>');
+}
+
+function showChatToast(msg) {
+  const el = document.getElementById('chatToast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ---- Voice Input ----
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    showChatToast('⚠️ Trình duyệt không hỗ trợ nhập giọng nói'); return;
+  }
+  if (isRecording) { voiceRecog?.stop(); return; }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  voiceRecog = new SR();
+  voiceRecog.lang = 'vi-VN';
+  voiceRecog.interimResults = true;
+  voiceRecog.maxAlternatives = 1;
+
+  voiceRecog.onstart = () => {
+    isRecording = true;
+    document.getElementById('voiceBtn').classList.add('recording');
+    showChatToast('🎤 Đang nghe...');
+  };
+  voiceRecog.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('chatInput').value = transcript;
+    chatAutoResize(document.getElementById('chatInput'));
+  };
+  voiceRecog.onend = () => {
+    isRecording = false;
+    document.getElementById('voiceBtn').classList.remove('recording');
+    // User review before send — không tự gửi
+  };
+  voiceRecog.onerror = () => {
+    isRecording = false;
+    document.getElementById('voiceBtn').classList.remove('recording');
+    showChatToast('⚠️ Không nhận được giọng nói');
+  };
+  voiceRecog.start();
+}
 </script>
 </body>
 </html>
