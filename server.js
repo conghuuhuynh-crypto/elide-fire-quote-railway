@@ -1134,12 +1134,32 @@ Chính sách: miễn phí giao hàng toàn quốc, có chương trình đại l�
 - Khi prefill: điền đủ mọi thông tin đã thu thập
 - Nếu cần tab khác: gọi switch_tab trước khi prefill
 
-== FIELD THỰC TẾ TRONG KẾT QUẢ TRA CỨU (phân biệt hoa thường) ==
-Báo giá: Ten_cong_ty | So_bao_gia | Ngay_bao_gia | Ten_du_an | Nguoi_lien_he | SDT_khach_hang | Email_khach_hang | Phong_ban_KH | NV_ten | NV_sdt | Tong_thanh_toan
-Hợp đồng: Ten_cong_ty | So_hop_dong | NV_ten | NV_sdt | Tong_gia_tri_hop_dong
-Nhân viên: Ten | Bo_phan | Email | SDT
+== CẤU TRÚC DATA TRA CỨU ==
 
-Hiển thị giá trị CHÍNH XÁC như trong data — không viết tắt, không tự format lại`;
+Bảng BÁO GIÁ — ý nghĩa từng field:
+- Ten_cong_ty       → tên công ty khách hàng
+- So_bao_gia        → số báo giá (vd: EF-2026-03-001)
+- Ngay_bao_gia      → ngày tạo báo giá
+- Ten_du_an         → tên dự án
+- Nguoi_lien_he     → tên người liên hệ (cá nhân, không phải công ty)
+- SDT_khach_hang    → số điện thoại khách hàng
+- Email_khach_hang  → email khách hàng
+- Phong_ban_KH      → phòng ban của khách hàng
+- NV_ten            → tên nhân viên phụ trách
+- NV_sdt            → số điện thoại nhân viên phụ trách
+- Tong_thanh_toan   → tổng tiền (số, đơn vị VNĐ)
+
+Bảng HỢP ĐỒNG:
+- Ten_cong_ty | So_hop_dong | NV_ten | NV_sdt | Tong_gia_tri_hop_dong
+
+Bảng NHÂN VIÊN:
+- Ten | Bo_phan | Email | SDT
+
+== QUY TẮC XỬ LÝ DATA — TUYỆT ĐỐI TUÂN THỦ ==
+- CHỈ đọc và hiển thị giá trị THỰC TẾ có trong field — KHÔNG được bịa, đoán, hoặc suy luận thêm
+- Nếu field trống, null, hoặc không tồn tại → trả lời "không có dữ liệu" — KHÔNG tự điền giá trị
+- Hiển thị giá trị CHÍNH XÁC như trong data — không viết tắt, không format lại
+- Nếu tool trả về mảng rỗng [] → báo "không tìm thấy kết quả phù hợp"`;
 }
 
 // POST /api/chat — streaming SSE
@@ -1185,6 +1205,7 @@ app.post('/api/chat', async (req, res) => {
         tools: chatTools,
         tool_choice: 'auto',
         max_tokens: 1500,
+        temperature: 0,
         stream: true
       });
 
