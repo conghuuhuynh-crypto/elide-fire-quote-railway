@@ -1651,10 +1651,10 @@
     transition: all 0.26s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .chat-panel.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
+  .cb-icon-close { display: none; }
   @media (max-width: 520px) {
     .chat-panel { bottom: 0; right: 0; left: 0; width: 100%; height: 100vh; max-height: 100vh; border-radius: 0; }
-    .chat-bubble { bottom: 20px; right: 20px; }
-    body.chat-open .chat-bubble { display: none; }
+    .chat-bubble { bottom: 20px; right: 20px; z-index: 10001; }
   }
 
   /* ── Header ── */
@@ -1815,10 +1815,17 @@ const _SVG = {
 
 <!-- Bubble button -->
 <button class="chat-bubble" id="chatBubble" onclick="toggleChat()" title="Trợ lý AI Elide Fire">
-  <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
-    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-    <line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="13" y2="14"/>
-  </svg>
+  <span class="cb-icon-chat" style="display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      <line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="13" y2="14"/>
+    </svg>
+  </span>
+  <span class="cb-icon-close" style="align-items:center;justify-content:center;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" width="26" height="26">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </span>
 </button>
 
 <!-- Chat panel -->
@@ -1897,7 +1904,8 @@ let pendingPrefill = null; // { formType, data } waiting user confirm
 function toggleChat() {
   chatIsOpen = !chatIsOpen;
   document.getElementById('chatPanel').classList.toggle('open', chatIsOpen);
-  document.body.classList.toggle('chat-open', chatIsOpen);
+  document.querySelector('.cb-icon-chat').style.display = chatIsOpen ? 'none' : 'flex';
+  document.querySelector('.cb-icon-close').style.display = chatIsOpen ? 'flex' : 'none';
   if (chatIsOpen) {
     loadChatHistory();
     setTimeout(() => document.getElementById('chatInput').focus(), 300);
