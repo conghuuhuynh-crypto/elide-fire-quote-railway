@@ -566,16 +566,10 @@
 <!-- Modal: Nạp báo giá cũ -->
 <div class="modal-overlay" id="quoteModal">
   <div class="modal-box">
-    <div class="modal-header">
-      <h3>Nạp báo giá cũ</h3>
-      <button class="modal-close" onclick="closeQuoteModal()">×</button>
-    </div>
-    <div class="modal-search">
-      <input type="text" id="quoteSearch" placeholder="Tìm theo tên công ty hoặc số báo giá..." oninput="searchQuotes(this.value)">
-    </div>
-    <div class="modal-list" id="quoteList">
-      <div class="modal-loading">Đang tải...</div>
-    </div>
+    <button class="modal-close" onclick="closeQuoteModal()">×</button>
+    <h3>Nạp báo giá cũ</h3>
+    <input type="text" id="quoteSearch" class="modal-search" placeholder="Tìm theo tên công ty hoặc số báo giá..." oninput="searchQuotes(this.value)">
+    <div class="modal-list" id="quoteList"><div class="modal-empty">Đang tải...</div></div>
   </div>
 </div>
 
@@ -1136,13 +1130,9 @@
       return;
     }
     listEl.innerHTML = quotes.map((q, i) => `
-      <div class="quote-item" onclick="loadQuote(${i})">
-        <div class="qi-top">
-          <span class="qi-num">${q.So_bao_gia || '—'}</span>
-          <span class="qi-date">${q.Ngay_bao_gia || ''}</span>
-        </div>
-        <div class="qi-company">${q.Ten_cong_ty || ''}${q.Phong_ban_KH ? ' — ' + q.Phong_ban_KH : ''}</div>
-        <div class="qi-total">Tổng: ${q.Tong_thanh_toan ? Number(q.Tong_thanh_toan).toLocaleString('vi-VN') + ' VNĐ' : '—'}</div>
+      <div class="modal-item" onclick="loadQuote(${i})">
+        <div class="item-title">${q.So_bao_gia || '—'} · ${q.Ten_cong_ty || ''}</div>
+        <div class="item-sub">${q.Ngay_bao_gia || ''}${q.Tong_thanh_toan ? ' · ' + Number(q.Tong_thanh_toan).toLocaleString('vi-VN') + ' VNĐ' : ''}</div>
       </div>
     `).join('');
   }

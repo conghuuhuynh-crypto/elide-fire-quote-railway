@@ -470,32 +470,26 @@ app.use('/download', express.static(QUOTES_DIR));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v25-bold-fix' }));
 
-// API nhân viên
-app.get('/api/employees', (req, res) => {
-  const options = {
-    hostname: NOCODB_HOST,
-    path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_NV}?limit=100`,
-    headers: { 'xc-token': NOCODB_TOKEN }
-  };
-  https.get(options, r => {
+// Helper: NocoDB GET với timeout
+function nocoGet(path, res) {
+  const options = { hostname: NOCODB_HOST, path, headers: { 'xc-token': NOCODB_TOKEN } };
+  const req = https.get(options, r => {
     let d = '';
     r.on('data', c => d += c);
-    r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch (e) { res.json([]); } });
-  }).on('error', () => res.json([]));
+    r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch(e) { res.json([]); } });
+  });
+  req.on('error', () => { if (!res.headersSent) res.json([]); });
+  req.setTimeout(8000, () => { req.destroy(); if (!res.headersSent) res.json([]); });
+}
+
+// API nhân viên
+app.get('/api/employees', (req, res) => {
+  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_NV}?limit=100`, res);
 });
 
 // API sản phẩm
 app.get('/api/products', (req, res) => {
-  const options = {
-    hostname: NOCODB_HOST,
-    path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_SP}?limit=200&sort=Id`,
-    headers: { 'xc-token': NOCODB_TOKEN }
-  };
-  https.get(options, r => {
-    let d = '';
-    r.on('data', c => d += c);
-    r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch (e) { res.json([]); } });
-  }).on('error', () => res.json([]));
+  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_SP}?limit=200&sort=Id`, res);
 });
 
 // API danh sách báo giá cũ (để nạp lại form)
@@ -507,16 +501,7 @@ app.get('/api/quotes', (req, res) => {
     const s = encodeURIComponent(search);
     qs += `&where=(Ten_cong_ty,like,%25${s}%25)~or(So_bao_gia,like,%25${s}%25)`;
   }
-  const options = {
-    hostname: NOCODB_HOST,
-    path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}?${qs}`,
-    headers: { 'xc-token': NOCODB_TOKEN }
-  };
-  https.get(options, r => {
-    let d = '';
-    r.on('data', c => d += c);
-    r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch (e) { res.json([]); } });
-  }).on('error', () => res.json([]));
+  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}?${qs}`, res);
 });
 
 // API job status
@@ -735,16 +720,7 @@ app.get('/api/contracts', (req, res) => {
     const s = encodeURIComponent(search);
     qs += `&where=(Ten_cong_ty,like,%25${s}%25)~or(So_hop_dong,like,%25${s}%25)`;
   }
-  const options = {
-    hostname: NOCODB_HOST,
-    path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_HD}?${qs}`,
-    headers: { 'xc-token': NOCODB_TOKEN }
-  };
-  https.get(options, r => {
-    let d = '';
-    r.on('data', c => d += c);
-    r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch(e) { res.json([]); } });
-  }).on('error', () => res.json([]));
+  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_HD}?${qs}`, res);
 });
 
 // Tạo hợp đồng mới
