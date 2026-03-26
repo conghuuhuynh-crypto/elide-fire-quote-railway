@@ -981,11 +981,12 @@ const chatTools = [
       parameters: {
         type: 'object',
         properties: {
+          nv_ten:            { type: 'string', description: 'Tên nhân viên phụ trách — phải khớp chính xác với Ten_nhan_vien trong danh sách nhân viên' },
           ten_cong_ty:       { type: 'string', description: 'Tên công ty khách hàng' },
           ten_phong_ban:     { type: 'string', description: 'Tên phòng ban' },
           ten_nguoi_lien_he: { type: 'string', description: 'Tên người liên hệ' },
           email_khach_hang:  { type: 'string', description: 'Email khách hàng' },
-          sdt_khach_hang:    { type: 'string', description: 'Số điện thoại' },
+          sdt_khach_hang:    { type: 'string', description: 'Số điện thoại khách hàng' },
           ten_du_an:         { type: 'string', description: 'Tên dự án' },
           items: {
             type: 'array',
@@ -1133,6 +1134,8 @@ Chính sách: miễn phí giao hàng toàn quốc, có chương trình đại l�
 - Không hỏi lại trường đã có trong form
 - Khi prefill: điền đủ mọi thông tin đã thu thập
 - Nếu cần tab khác: gọi switch_tab trước khi prefill
+- Khi user muốn chọn nhân viên phụ trách: gọi query_employees trước → lấy Ten_nhan_vien chính xác → truyền vào nv_ten khi prefill
+- KHÔNG tự đặt tên nhân viên — chỉ dùng tên lấy từ query_employees
 
 == CẤU TRÚC DATA TRA CỨU ==
 
@@ -1152,8 +1155,12 @@ Bảng BÁO GIÁ — ý nghĩa từng field:
 Bảng HỢP ĐỒNG:
 - Ten_cong_ty | So_hop_dong | NV_ten | NV_sdt | Tong_gia_tri_hop_dong
 
-Bảng NHÂN VIÊN:
-- Ten | Bo_phan | Email | SDT
+Bảng NHÂN VIÊN (TABLE_NV):
+- Id              → mã định danh nhân viên (dùng để chọn trong dropdown)
+- Ten_nhan_vien   → tên nhân viên (PHẢI dùng tên này khi prefill, không tự đặt tên khác)
+- Bo_phan         → bộ phận / phòng ban
+- Email           → email nhân viên
+- SDT             → số điện thoại nhân viên
 
 == QUY TẮC XỬ LÝ DATA — TUYỆT ĐỐI TUÂN THỦ ==
 - CHỈ đọc và hiển thị giá trị THỰC TẾ có trong field — KHÔNG được bịa, đoán, hoặc suy luận thêm

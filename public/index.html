@@ -2061,6 +2061,7 @@ function buildSummaryCard(formType, data) {
   wrapper.className = 'chat-summary';
 
   const labelMap = {
+    nv_ten:'Nhân viên phụ trách',
     ten_cong_ty:'Tên công ty', ten_phong_ban:'Phòng ban', ten_nguoi_lien_he:'Người LH',
     sdt_khach_hang:'Số điện thoại', email_khach_hang:'Email', ten_du_an:'Tên dự án',
     dia_chi:'Địa chỉ', ma_so_thue:'Mã số thuế', ten_nguoi_dai_dien:'Người đại diện',
@@ -2098,6 +2099,15 @@ function confirmPrefill() {
   if (formType === 'quote') {
     switchTab('bao-gia');
     const f = document.getElementById('quoteForm');
+    // Chọn nhân viên phụ trách nếu có
+    if (data.nv_ten && typeof employeeList !== 'undefined') {
+      const nv = employeeList.find(e => e.Ten_nhan_vien === data.nv_ten);
+      if (nv) {
+        const sel = document.getElementById('nv_select');
+        sel.value = nv.Id;
+        sel.dispatchEvent(new Event('change'));
+      }
+    }
     ['ten_cong_ty','ten_phong_ban','ten_nguoi_lien_he','sdt_khach_hang','email_khach_hang','ten_du_an'].forEach(n => {
       if (data[n]) { const el = f.querySelector(`[name="${n}"]`); if (el) el.value = data[n]; }
     });
