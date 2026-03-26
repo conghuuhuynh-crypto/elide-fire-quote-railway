@@ -380,9 +380,35 @@
       .btn-base { padding: 13px var(--space-3); font-size: var(--text-base); }
       .summary-total-value { font-size: var(--text-xl); }
     }
+
+    /* ── App loading overlay ── */
+    #app-loading {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #fff;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px;
+    }
+    #app-loading.hidden { display: none; }
+    .app-loading-spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #fde8e8;
+      border-top-color: #FA0F0F;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .app-loading-text { font-size: 15px; color: #666; font-family: 'Be Vietnam Pro', sans-serif; }
+    .app-loading-retry { display: none; margin-top: 8px; padding: 10px 24px; background: #FA0F0F; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-family: 'Be Vietnam Pro', sans-serif; cursor: pointer; }
   </style>
 </head>
 <body>
+
+<div id="app-loading">
+  <div class="app-loading-spinner"></div>
+  <div class="app-loading-text">Đang tải ứng dụng...</div>
+  <button class="app-loading-retry" onclick="location.reload()">Tải lại</button>
+</div>
 
 <div class="header">
   <img src="/assets/logo/Logo-Elide%20Fire.png" alt="Elide Fire" class="header-logo">
@@ -778,12 +804,22 @@
   const month = String(today.getMonth() + 1).padStart(2, '0');
   document.getElementById('so_bao_gia').value = `EF-${today.getFullYear()}-${month}-001`;
 
+  // ---- Fetch helper với client-side timeout ----
+  async function fetchJSON(url, timeoutMs = 12000) {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal });
+      return await r.json();
+    } catch(e) { return []; }
+    finally { clearTimeout(id); }
+  }
+
   // ---- Load nhân viên ----
   let employeeList = [];
   async function loadEmployees() {
     try {
-      const res = await fetch('/api/employees');
-      employeeList = await res.json();
+      employeeList = await fetchJSON('/api/employees');
       const sel = document.getElementById('nv_select');
       sel.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
       const selHd = document.getElementById('hd_nv_select');
@@ -840,8 +876,7 @@
   let productList = [];
   async function loadProducts() {
     try {
-      const res = await fetch('/api/products');
-      productList = await res.json();
+      productList = await fetchJSON('/api/products');
       // Báo giá: 2 dòng mặc định
       addProductRow('TECHIDEAS');
       addProductRow('LOVINGCARE');
@@ -850,6 +885,9 @@
     } catch (e) {
       addProductRow();
       hdAddItem();
+    } finally {
+      // Ẩn loading overlay sau khi sản phẩm load xong (hoặc thất bại)
+      document.getElementById('app-loading').classList.add('hidden');
     }
   }
 
@@ -1085,6 +1123,14 @@
   });
 
   // ---- Khởi động ----
+  // Hiện nút "Tải lại" sau 20s nếu app vẫn đang loading (Railway cold start)
+  setTimeout(() => {
+    const overlay = document.getElementById('app-loading');
+    if (!overlay.classList.contains('hidden')) {
+      overlay.querySelector('.app-loading-retry').style.display = 'block';
+      overlay.querySelector('.app-loading-text').textContent = 'Đang khởi động server, vui lòng chờ...';
+    }
+  }, 20000);
   loadEmployees();
   loadProducts();
 
