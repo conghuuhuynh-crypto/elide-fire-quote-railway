@@ -1085,6 +1085,73 @@ async function executeTool(name, args) {
   return { error: 'Unknown tool' };
 }
 
+// Format tool result — chống hallucination
+function formatToolResult(toolName, result) {
+  const STRICT = '\n[QUY TẮC: Chỉ dùng đúng dữ liệu trên. Không suy luận, không bổ sung, không bịa thêm.]';
+
+  // Client-side actions: không cần format
+  if (['prefill_quote_form','prefill_contract_form','switch_tab'].includes(toolName)) {
+    return JSON.stringify({ success: true });
+  }
+
+  // Mảng rỗng
+  if (Array.isArray(result) && result.length === 0) {
+    return `KHÔNG TÌM THẤY DỮ LIỆU. Trả lời: "Không có dữ liệu phù hợp." Không được bịa thêm.`;
+  }
+
+  // query_employees — chỉ giữ fields cần thiết
+  if (toolName === 'query_employees') {
+    const clean = (Array.isArray(result) ? result : [result]).map(r => ({
+      Id:             r.Id,
+      Ten_nhan_vien:  r.Ten_nhan_vien || null,
+      Bo_phan:        r.Bo_phan       || null,
+      Email:          r.Email         || null,
+      SDT:            r.SDT           || null
+    }));
+    return `DANH SÁCH NHÂN VIÊN (${clean.length} người):\n` +
+      clean.map(r => `- Id=${r.Id} | Tên: ${r.Ten_nhan_vien || 'N/A'} | Bộ phận: ${r.Bo_phan || 'N/A'} | SDT: ${r.SDT || 'không có'} | Email: ${r.Email || 'không có'}`).join('\n') +
+      STRICT;
+  }
+
+  // query_quotes — chỉ giữ fields cần thiết
+  if (toolName === 'query_quotes') {
+    const list = Array.isArray(result) ? result : [result];
+    const clean = list.map(r => ({
+      So_bao_gia:       r.So_bao_gia       || null,
+      Ngay_bao_gia:     r.Ngay_bao_gia     || null,
+      Ten_cong_ty:      r.Ten_cong_ty      || null,
+      Ten_du_an:        r.Ten_du_an        || null,
+      Nguoi_lien_he:    r.Nguoi_lien_he    || null,
+      SDT_khach_hang:   r.SDT_khach_hang   || null,
+      Email_khach_hang: r.Email_khach_hang || null,
+      Phong_ban_KH:     r.Phong_ban_KH     || null,
+      NV_ten:           r.NV_ten           || null,
+      NV_sdt:           r.NV_sdt           || null,
+      Tong_thanh_toan:  r.Tong_thanh_toan  || null
+    }));
+    return `KẾT QUẢ BÁO GIÁ (${clean.length} bản ghi):\n` +
+      JSON.stringify(clean, null, 2) + STRICT;
+  }
+
+  // query_contracts
+  if (toolName === 'query_contracts') {
+    const list = Array.isArray(result) ? result : [result];
+    const clean = list.map(r => ({
+      So_hop_dong:           r.So_hop_dong            || null,
+      Ten_cong_ty:           r.Ten_cong_ty             || null,
+      Ngay_ky:               r.Ngay_ky                || null,
+      NV_ten:                r.NV_ten                  || null,
+      NV_sdt:                r.NV_sdt                  || null,
+      Tong_gia_tri_hop_dong: r.Tong_gia_tri_hop_dong   || null
+    }));
+    return `KẾT QUẢ HỢP ĐỒNG (${clean.length} bản ghi):\n` +
+      JSON.stringify(clean, null, 2) + STRICT;
+  }
+
+  // Default
+  return JSON.stringify(result) + STRICT;
+}
+
 // Build system prompt với context hiện tại
 function buildSystemPrompt(activeTab, formContext) {
   const today = new Date().toLocaleDateString('vi-VN');
@@ -1162,11 +1229,12 @@ Bảng NHÂN VIÊN (TABLE_NV):
 - Email           → email nhân viên
 - SDT             → số điện thoại nhân viên
 
-== QUY TẮC XỬ LÝ DATA — TUYỆT ĐỐI TUÂN THỦ ==
-- CHỈ đọc và hiển thị giá trị THỰC TẾ có trong field — KHÔNG được bịa, đoán, hoặc suy luận thêm
-- Nếu field trống, null, hoặc không tồn tại → trả lời "không có dữ liệu" — KHÔNG tự điền giá trị
-- Hiển thị giá trị CHÍNH XÁC như trong data — không viết tắt, không format lại
-- Nếu tool trả về mảng rỗng [] → báo "không tìm thấy kết quả phù hợp"`;
+== QUY TẮC XỬ LÝ DATA — BẮT BUỘC TUYỆT ĐỐI ==
+- Mọi thông tin (tên, số điện thoại, email, số tiền...) CHỈ được lấy từ kết quả tool. KHÔNG ĐƯỢC tự nghĩ ra.
+- Nếu tool chưa được gọi → gọi tool trước, KHÔNG trả lời từ bộ nhớ.
+- Nếu field = null hoặc "không có" → nói "không có dữ liệu", không điền giá trị khác.
+- Nếu tool trả về rỗng → nói "Không tìm thấy", không đề xuất thông tin thay thế.
+- Khi user hỏi thông tin cụ thể (tên, SĐT, email...): phải quote đúng giá trị từ tool result, không paraphrase.`;
 }
 
 // POST /api/chat — streaming SSE
@@ -1274,7 +1342,7 @@ app.post('/api/chat', async (req, res) => {
         }
 
         const result = await executeTool(tc.name, args);
-        messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+        messages.push({ role: 'tool', tool_call_id: tc.id, content: formatToolResult(tc.name, result) });
       }
       // Tiếp tục vòng lặp để lấy response text sau tool calls
     }
