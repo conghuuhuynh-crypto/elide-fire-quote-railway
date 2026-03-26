@@ -1118,7 +1118,14 @@ CHỨC NĂNG:
 
 - Không hỏi lại trường đã có trong form
 - Khi prefill: điền đủ mọi thông tin đã thu thập
-- Nếu cần tab khác: gọi switch_tab trước khi prefill`;
+- Nếu cần tab khác: gọi switch_tab trước khi prefill
+
+FIELD THỰC TẾ trong kết quả tra cứu (đọc đúng tên, phân biệt hoa thường):
+Báo giá: Ten_cong_ty | So_bao_gia | Ngay_bao_gia | Ten_du_an | Nguoi_lien_he | SDT_khach_hang | Email_khach_hang | Phong_ban_KH | NV_ten | NV_sdt | Tong_thanh_toan
+Hợp đồng: Ten_cong_ty | So_hop_dong | NV_ten | NV_sdt | Tong_gia_tri_hop_dong
+Nhân viên: Ten | Bo_phan | Email | SDT
+
+Hiển thị giá trị CHÍNH XÁC như trong data — không viết tắt, không tự format lại số điện thoại hay ngày tháng`;
 }
 
 // POST /api/chat — streaming SSE
