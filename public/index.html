@@ -1159,12 +1159,14 @@
     setFieldByName('email_khach_hang',   q.Email_khach_hang);
     setFieldByName('ten_du_an',          q.Ten_du_an);
 
-    // Số BG mới, ngày hôm nay, phiên bản đầu
+    // Giữ nguyên số báo giá cũ, chỉ cập nhật ngày hôm nay
     const t = new Date();
     document.getElementById('ngay_bao_gia').value =
       t.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const m = String(t.getMonth() + 1).padStart(2, '0');
-    document.getElementById('so_bao_gia').value = `EF-${t.getFullYear()}-${m}-001`;
+    document.getElementById('so_bao_gia').value = q.So_bao_gia || (() => {
+      const m = String(t.getMonth() + 1).padStart(2, '0');
+      return `EF-${t.getFullYear()}-${m}-001`;
+    })();
     document.querySelector('[name="phien_ban"]').value = 'Phát hành lần đầu';
 
     // Nhân viên — tìm theo tên

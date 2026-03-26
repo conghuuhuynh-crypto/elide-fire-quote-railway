@@ -52,7 +52,7 @@ const NOCODB_BASE  = process.env.NOCODB_BASE  || 'p49wwa1uzmjtv1e';
 const TABLE_NV     = process.env.NOCODB_TABLE_NV || 'mbxi5rjran05biu'; // Nhan_vien
 const TABLE_BG     = process.env.NOCODB_TABLE_BG || 'mnfhtr9jysetk07'; // Bao_gia
 const TABLE_SP     = process.env.NOCODB_TABLE_SP || 'm1isvr6ljrp2klj'; // San_pham
-const TABLE_HD     = process.env.NOCODB_TABLE_HD || ''; // Hop_dong
+const TABLE_HD     = process.env.NOCODB_TABLE_HD || 'mudqz3rj45htmui'; // Hop_dong
 
 // Cảnh báo sớm nếu thiếu biến bắt buộc
 if (!NOCODB_TOKEN) console.warn('⚠️  NOCODB_TOKEN chưa được set — NocoDB calls sẽ thất bại');
