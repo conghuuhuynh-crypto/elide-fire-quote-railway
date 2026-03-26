@@ -7,239 +7,277 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/design-system.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif; background: #f4f5f7; color: #222; }
+    body { font-family: var(--font-family); background: var(--color-bg); color: var(--color-text); }
 
+    /* ── Layout ── */
     .header {
-      background: #f0f0f0;
-      color: #c0392b;
-      padding: 28px 32px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      gap: 6px;
+      background: var(--color-divider);
+      color: var(--color-primary);
+      padding: var(--space-7) var(--space-8);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; gap: var(--space-1);
     }
-    .header h1 { font-size: 32px; font-weight: 700; letter-spacing: 0.5px; }
-    .header span { font-size: 16px; color: #555; }
+    .header h1  { font-size: var(--text-3xl); font-weight: var(--weight-bold); letter-spacing: 0.5px; }
+    .header span { font-size: var(--text-lg); color: var(--color-text-secondary); }
 
-    .container { max-width: 860px; margin: 32px auto; padding: 0 16px 48px; }
+    .container { max-width: 860px; margin: var(--space-8) auto; padding: 0 var(--space-4) 48px; }
 
+    /* ── Card ── */
     .card {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.10);
-      padding: 28px 32px;
-      margin-bottom: 20px;
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      padding: var(--space-7) var(--space-8);
+      margin-bottom: var(--space-5);
     }
     .card h2 {
-      font-size: 14px;
-      font-weight: 700;
-      color: #c0392b;
+      font-size: var(--text-base);
+      font-weight: var(--weight-bold);
+      color: var(--color-primary);
       text-transform: uppercase;
       letter-spacing: 1px;
-      margin-bottom: 20px;
+      margin-bottom: var(--space-5);
+      padding-bottom: var(--space-2) + 2px;
       padding-bottom: 10px;
-      border-bottom: 2px solid #f0f0f0;
+      border-bottom: 2px solid var(--color-divider);
     }
 
-    .row { display: flex; gap: 16px; }
+    /* ── Form fields ── */
+    .row { display: flex; gap: var(--space-4); }
     .row .field { flex: 1; }
-    .field { margin-bottom: 16px; }
-    .field label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
+    .field { margin-bottom: var(--space-4); }
+    .field label {
+      display: block;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-secondary);
+      margin-bottom: 6px;
+    }
     .field input, .field select {
       width: 100%;
-      padding: 9px 12px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-size: 14px;
-      color: #222;
-      transition: border-color 0.2s;
-      background: white;
+      padding: 9px var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: var(--text-base);
+      font-family: var(--font-family);
+      color: var(--color-text);
+      background: var(--color-surface);
+      transition: border-color var(--transition-base);
     }
     .field input:focus, .field select:focus {
       outline: none;
-      border-color: #c0392b;
-      box-shadow: 0 0 0 3px rgba(192,57,43,0.08);
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-focus);
     }
-    .field input[readonly] {
-      background: #f9f9f9;
-      color: #888;
-    }
+    .field input[readonly] { background: var(--color-surface-subtle); color: var(--color-text-muted); }
 
-    /* Bảng sản phẩm */
+    /* ── Product table ── */
     .product-table { width: 100%; border-collapse: collapse; }
     .product-table th {
-      background: #fafafa;
-      font-size: 12px;
-      font-weight: 700;
-      color: #888;
+      background: var(--color-surface-subtle);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      color: var(--color-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 10px 12px;
+      padding: 10px var(--space-3);
       text-align: left;
-      border-bottom: 2px solid #eee;
+      border-bottom: 2px solid var(--color-border-light);
       white-space: nowrap;
     }
-    .product-table td { padding: 8px 10px; vertical-align: middle; }
-    .product-table tr:not(:last-child) td { border-bottom: 1px solid #f0f0f0; }
+    .product-table td { padding: var(--space-2) 10px; vertical-align: middle; }
+    .product-table tr:not(:last-child) td { border-bottom: 1px solid var(--color-divider); }
     .product-table select,
     .product-table input[type="number"],
     .product-table input[type="text"] {
       width: 100%;
       padding: 7px 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      font-size: 14px;
-      background: white;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: var(--text-base);
+      font-family: var(--font-family);
+      background: var(--color-surface);
     }
     .product-table select:focus,
-    .product-table input:focus { outline: none; border-color: #c0392b; }
-    .product-table input[readonly] { background: #f9f9f9; color: #666; }
+    .product-table input:focus { outline: none; border-color: var(--color-primary); }
+    .product-table input[readonly] { background: var(--color-surface-subtle); color: var(--color-text-secondary); }
     .product-table .col-total {
-      font-size: 15px;
-      font-weight: 700;
-      color: #222;
+      font-size: var(--text-md);
+      font-weight: var(--weight-bold);
+      color: var(--color-text);
       text-align: right;
       white-space: nowrap;
     }
+
     .btn-remove-row {
-      background: none;
-      border: none;
-      color: #c0392b;
-      font-size: 20px;
-      font-weight: 700;
+      background: none; border: none;
+      color: var(--color-primary);
+      font-size: 20px; font-weight: var(--weight-bold);
       cursor: pointer;
-      width: 28px;
-      height: 28px;
-      border-radius: 4px;
-      line-height: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 28px; height: 28px;
+      border-radius: var(--radius-sm);
+      line-height: 1; display: flex;
+      align-items: center; justify-content: center;
     }
-    .btn-remove-row:hover { background: #fff0ee; }
+    .btn-remove-row:hover { background: var(--color-primary-light); }
 
     .btn-add-row {
       margin-top: 14px;
-      padding: 8px 18px;
-      background: white;
-      border: 1.5px dashed #c0392b;
-      border-radius: 6px;
-      color: #c0392b;
-      font-size: 13px;
-      font-weight: 600;
+      padding: var(--space-2) 18px;
+      background: var(--color-surface);
+      border: 1.5px dashed var(--color-primary);
+      border-radius: var(--radius-md);
+      color: var(--color-primary);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      font-family: var(--font-family);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background var(--transition-base);
     }
-    .btn-add-row:hover { background: #fff0ee; }
+    .btn-add-row:hover { background: var(--color-primary-light); }
 
-    /* Input với suffix % */
+    /* ── Summary block (inside card) ── */
+    .summary-block {
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4) var(--space-5);
+      margin-top: var(--space-4);
+    }
+    .summary-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: var(--space-2);
+    }
+    .summary-label {
+      flex: 1;
+      font-size: var(--text-sm);
+      color: var(--color-text-secondary);
+    }
+    .summary-value { font-weight: var(--weight-semibold); }
+    .summary-total-label {
+      flex: 1;
+      font-size: var(--text-base);
+      font-weight: var(--weight-bold);
+      color: var(--color-primary);
+    }
+    .summary-total-value {
+      font-size: var(--text-lg);
+      font-weight: var(--weight-extrabold);
+      color: var(--color-primary);
+    }
+    .summary-input-group { display: flex; align-items: center; gap: 6px; }
+    .summary-input-group input {
+      width: 64px;
+      text-align: right;
+      padding: var(--space-1) var(--space-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      font-family: var(--font-family);
+    }
+    .summary-input-group input:focus { outline: none; border-color: var(--color-primary); }
+    .summary-input-group span { font-size: var(--text-sm); color: var(--color-text-secondary); }
+
+    /* ── Input với suffix % (legacy) ── */
     .input-wrap { position: relative; }
     .input-wrap .suffix {
-      position: absolute;
-      right: 10px;
-      top: 50%;
+      position: absolute; right: 10px; top: 50%;
       transform: translateY(-50%);
-      font-size: 12px;
-      color: #aaa;
+      font-size: var(--text-xs); color: var(--color-text-subtle);
       pointer-events: none;
     }
     .input-wrap input { padding-right: 28px; }
 
-    .subtotal-row {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 16px;
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px solid #eee;
-    }
-    .subtotal-row label { font-size: 13px; color: #777; }
-    .subtotal-row span { font-size: 16px; font-weight: 600; color: #444; min-width: 140px; text-align: right; }
-
-    .discount-row {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 16px;
-      margin-top: 10px;
-    }
-    .discount-row label { font-size: 13px; font-weight: 600; color: #555; }
-    .discount-row .input-wrap { width: 120px; }
-    .discount-row .input-wrap input {
-      width: 100%;
-      padding: 8px 32px 8px 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-size: 14px;
-      text-align: right;
-    }
-    .discount-row .input-wrap input:focus { outline: none; border-color: #c0392b; }
-
-    .grand-total {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 16px;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 2px solid #eee;
-    }
-    .grand-total label { font-size: 14px; font-weight: 700; color: #555; }
-    .grand-total span { font-size: 22px; font-weight: 800; color: #c0392b; }
-
-    /* Buttons */
-    .btn-row { display: flex; gap: 12px; }
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: var(--space-3); }
     .btn-base {
-      flex: 1;
-      min-width: 0;
-      padding: 14px 12px;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 700;
+      flex: 1; min-width: 0;
+      padding: 14px var(--space-3);
+      border-radius: var(--radius-lg);
+      font-size: var(--text-md);
+      font-weight: var(--weight-bold);
+      font-family: var(--font-family);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all var(--transition-base);
       text-align: center;
       white-space: nowrap;
       letter-spacing: 0.3px;
     }
     .btn-submit {
-      background: #c0392b;
-      color: white;
-      border: 1.5px solid #c0392b;
+      background: var(--color-primary);
+      color: var(--color-surface);
+      border: 1.5px solid var(--color-primary);
     }
-    .btn-submit:hover { background: #a93226; border-color: #a93226; }
+    .btn-submit:hover  { background: var(--color-primary-dark); border-color: var(--color-primary-dark); }
     .btn-submit:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
     .btn-reset {
-      background: white;
-      color: #888;
-      border: 1.5px solid #ddd;
+      background: var(--color-surface);
+      color: var(--color-text-muted);
+      border: 1.5px solid var(--color-border);
     }
-    .btn-reset:hover { background: #c0392b; color: white; border-color: #c0392b; }
+    .btn-reset:hover { background: var(--color-primary); color: var(--color-surface); border-color: var(--color-primary); }
     .btn-copy {
-      background: white;
-      color: #c0392b;
-      border: 1.5px solid #c0392b;
+      background: var(--color-surface);
+      color: var(--color-primary);
+      border: 1.5px solid var(--color-primary);
     }
-    .btn-copy:hover { background: #c0392b; color: white; }
-
-    /* Status bar */
-    .status {
-      margin-top: 16px;
-      font-size: 13px;
-      display: none;
+    .btn-copy:hover { background: var(--color-primary); color: var(--color-surface); }
+    .btn-load {
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      border: 1.5px solid var(--color-border);
     }
-    .status.loading { display: block; color: #888; padding: 10px 0 4px; }
-    .status.error   { display: block; color: #c0392b; padding: 10px 0 4px; }
-    .status.success { display: block; }
-    .status .status-text { display: block; color: #555; padding: 10px 0 10px; word-break: break-all; }
-    .status .btn-row-actions { display: flex; gap: 12px; }
+    .btn-load:hover { background: var(--color-primary); color: var(--color-surface); border-color: var(--color-primary); }
 
-    /* Modal: Nạp báo giá cũ */
+    /* ── Logo ── */
+    .header-logo { height: 60px; margin-bottom: 10px; }
+
+    /* ── SVG icon trong button ── */
+    .btn-base svg, .btn-row > button svg { vertical-align: middle; margin-right: 7px; margin-bottom: 2px; }
+
+    /* ── Row discount input ── */
+    .row-ck { text-align: right; }
+
+    /* ── Modal empty/loading state ── */
+    .modal-empty { padding: var(--space-4); color: var(--color-text-muted); text-align: center; font-size: var(--text-sm); }
+
+    /* ── Status message ── */
+    #statusMsg, #hdStatusMsg {
+      font-size: var(--text-sm);
+      margin-top: var(--space-3);
+      color: var(--color-text-muted);
+    }
+
+    /* ── Tabs ── */
+    .tab-nav {
+      background: var(--color-surface);
+      border-bottom: 2px solid var(--color-divider);
+      display: flex; justify-content: center;
+    }
+    .tab-btn {
+      padding: 14px var(--space-8);
+      font-size: var(--text-base);
+      font-weight: var(--weight-bold);
+      font-family: var(--font-family);
+      color: var(--color-text-muted);
+      background: none; border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      transition: color var(--transition-base), border-color var(--transition-base);
+      margin-bottom: -2px;
+    }
+    .tab-btn.active          { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+    .tab-btn:hover:not(.active) { color: var(--color-text-secondary); }
+    .tab-section        { display: none; }
+    .tab-section.active { display: block; }
+
+    /* ── Modals ── */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.45); z-index: 1000;
@@ -247,105 +285,128 @@
     }
     .modal-overlay.open { display: flex; }
     .modal-box {
-      background: white; border-radius: 10px;
-      width: 90%; max-width: 600px; max-height: 80vh;
-      display: flex; flex-direction: column;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      background: var(--color-surface);
+      border-radius: var(--radius-xl);
+      padding: var(--space-7) var(--space-7) var(--space-5);
+      width: 540px; max-width: 95vw; max-height: 80vh;
+      display: flex; flex-direction: column; gap: var(--space-3);
+      box-shadow: var(--shadow-modal);
     }
-    .modal-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 20px 24px 14px; border-bottom: 1px solid #eee;
+    .modal-box h3 {
+      font-size: var(--text-md);
+      font-weight: var(--weight-bold);
+      color: var(--color-primary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
-    .modal-header h3 { font-size: 16px; font-weight: 700; color: #222; }
-    .modal-close { background: none; border: none; font-size: 24px; color: #aaa; cursor: pointer; line-height: 1; padding: 0 4px; }
-    .modal-close:hover { color: #c0392b; }
-    .modal-search { padding: 14px 24px 8px; }
-    .modal-search input {
-      width: 100%; padding: 9px 12px;
-      border: 1px solid #ddd; border-radius: 6px; font-size: 14px;
+    .modal-search {
+      width: 100%; padding: 9px var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: var(--text-base);
+      font-family: var(--font-family);
     }
-    .modal-search input:focus { outline: none; border-color: #c0392b; }
-    .modal-list { overflow-y: auto; flex: 1; padding: 8px 16px 16px; }
+    .modal-search:focus { outline: none; border-color: var(--color-primary); }
+    .modal-list { overflow-y: auto; flex: 1; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); }
+    .modal-item {
+      padding: var(--space-3) var(--space-4);
+      cursor: pointer;
+      border-bottom: 1px solid var(--color-divider);
+      font-size: var(--text-base);
+    }
+    .modal-item:hover              { background: #fdf5f5; }
+    .modal-item .item-title        { font-weight: var(--weight-semibold); color: var(--color-text); }
+    .modal-item .item-sub          { font-size: var(--text-sm); color: var(--color-text-muted); margin-top: 2px; }
+    .modal-close {
+      align-self: flex-end; background: none; border: none;
+      font-size: 20px; cursor: pointer;
+      color: var(--color-text-muted); line-height: 1;
+    }
+    .modal-close:hover { color: var(--color-primary); }
+
+    /* ── Quote search modal items ── */
     .quote-item {
-      padding: 12px; border-radius: 6px; cursor: pointer;
-      border: 1px solid #eee; margin-bottom: 8px; transition: all 0.15s;
+      padding: var(--space-3);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      border: 1px solid var(--color-border-light);
+      margin-bottom: var(--space-2);
+      transition: all var(--transition-fast);
     }
     .quote-item:hover { background: #fff5f5; border-color: #f5c6c1; }
-    .qi-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    .qi-num { font-weight: 700; font-size: 14px; color: #c0392b; }
-    .qi-date { font-size: 12px; color: #aaa; }
-    .qi-company { font-size: 14px; color: #222; }
-    .qi-total { font-size: 13px; color: #777; margin-top: 3px; }
-    .modal-empty, .modal-loading { text-align: center; color: #aaa; padding: 32px 0; font-size: 14px; }
-    .btn-load {
-      background: white; color: #555; border: 1.5px solid #ddd;
-    }
-    .btn-load:hover { background: #c0392b; color: white; border-color: #c0392b; }
+    .qi-top    { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .qi-num    { font-weight: var(--weight-bold); font-size: var(--text-base); color: var(--color-primary); }
+    .qi-date   { font-size: var(--text-sm); color: var(--color-text-subtle); }
+    .qi-company { font-size: var(--text-base); color: var(--color-text); }
+    .qi-total  { font-size: var(--text-sm); color: var(--color-text-secondary); margin-top: 3px; }
 
-    /* Responsive mobile */
+    /* ── Responsive ── */
     @media (max-width: 600px) {
       input, select, textarea { font-size: 16px !important; }
-
-      .header { padding: 20px 16px; }
-      .header h1 { font-size: 22px; }
-      .header span { font-size: 13px; }
-      .header img { height: 44px; }
-      .container { margin: 16px auto; padding: 0 10px 32px; }
+      .header { padding: var(--space-5) var(--space-4); }
+      .header h1   { font-size: var(--text-xl); }
+      .header span { font-size: var(--text-sm); }
+      .header-logo { height: 44px; }
+      .container { margin: var(--space-4) auto; padding: 0 10px var(--space-8); }
       .card { padding: 18px 14px; }
-      .row { flex-direction: column; gap: 0; }
+      .row  { flex-direction: column; gap: 0; }
 
-      /* Bảng sản phẩm mobile: card style */
       .product-table thead { display: none; }
-      .product-table, .product-table tbody, .product-table tr, .product-table td {
-        display: block; width: 100%;
-      }
+      .product-table, .product-table tbody,
+      .product-table tr, .product-table td { display: block; width: 100%; }
       .product-table tr {
-        border: 1px solid #eee;
-        border-radius: 8px;
-        margin-bottom: 12px;
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-lg);
+        margin-bottom: var(--space-3);
         padding: 10px;
-        background: #fafafa;
+        background: var(--color-surface-subtle);
         position: relative;
       }
       .product-table td { padding: 6px 4px; border: none !important; }
       .product-table td::before {
         content: attr(data-label);
         display: block;
-        font-size: 11px;
-        font-weight: 700;
-        color: #888;
+        font-size: var(--text-xs);
+        font-weight: var(--weight-bold);
+        color: var(--color-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: 4px;
       }
       .product-table td.col-remove { position: absolute; top: 4px; right: 8px; padding: 0; width: auto; }
       .product-table td.col-remove::before { display: none; }
-      .product-table .col-total { text-align: left; font-size: 15px; }
-      .subtotal-row, .discount-row, .grand-total { flex-direction: column; align-items: flex-end; gap: 6px; }
-      .grand-total span { font-size: 20px; }
+      .product-table .col-total { text-align: left; font-size: var(--text-md); }
       .btn-row { flex-direction: column; }
-      .btn-base { padding: 13px 12px; font-size: 14px; }
+      .btn-base { padding: 13px var(--space-3); font-size: var(--text-base); }
+      .summary-total-value { font-size: var(--text-xl); }
     }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <img src="/assets/logo/Logo-Elide%20Fire.png" alt="Elide Fire" style="height: 60px; margin-bottom: 10px;">
+  <img src="/assets/logo/Logo-Elide%20Fire.png" alt="Elide Fire" class="header-logo">
   <div>
     <h1>APP TẠO BÁO GIÁ ELIDE FIRE</h1>
     <span>Công ty Cổ phần Kỹ thuật Môi trường Tinh Tuệ</span>
   </div>
 </div>
 
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('bao-gia')">📋 Báo giá</button>
+  <button class="tab-btn" onclick="switchTab('hop-dong')">📄 Hợp đồng</button>
+</div>
+
+<!-- ===== TAB BÁO GIÁ ===== -->
+<div id="section-bao-gia" class="tab-section active">
 <div class="container">
-  <div class="card" style="margin-bottom:20px;">
+  <div class="card">
     <div class="btn-row">
-      <button type="button" class="btn-base btn-load" onclick="openQuoteModal()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>Nạp báo giá cũ
-      </button>
       <button type="button" class="btn-base btn-reset" onclick="resetForm()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>Làm mới
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>Tạo mới
+      </button>
+      <button type="button" class="btn-base btn-load" onclick="openQuoteModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>Nạp báo giá cũ
       </button>
     </div>
   </div>
@@ -461,39 +522,42 @@
 
       <button type="button" class="btn-add-row" onclick="addProductRow()">+ Thêm sản phẩm</button>
 
-      <!-- Tổng trước chiết khấu -->
-      <div class="subtotal-row">
-        <label>Tổng trước chiết khấu:</label>
-        <span id="subtotal_display">0 VNĐ</span>
-      </div>
-
-      <!-- Chiết khấu tổng đơn -->
-      <div class="discount-row">
-        <label>Chiết khấu tổng đơn:</label>
-        <div class="input-wrap">
-          <input type="number" name="chiet_khau_tong" id="ck_tong" min="0" max="100" value="0" oninput="calcTotal()">
-          <span class="suffix">%</span>
+      <div class="summary-block">
+        <div class="summary-row">
+          <span class="summary-label">Tổng trước chiết khấu:</span>
+          <span id="subtotal_display" class="summary-value">0 VNĐ</span>
         </div>
-      </div>
-
-      <!-- Tổng thanh toán -->
-      <div class="grand-total">
-        <label>TỔNG THANH TOÁN:</label>
-        <span id="grand_total">0 VNĐ</span>
+        <div class="summary-row">
+          <span class="summary-label">Chiết khấu tổng đơn:</span>
+          <div class="summary-input-group">
+            <input type="number" name="chiet_khau_tong" id="ck_tong" min="0" max="100" value="0" oninput="calcTotal()">
+            <span>%</span>
+          </div>
+        </div>
+        <div class="summary-row">
+          <span class="summary-total-label">TỔNG THANH TOÁN:</span>
+          <span id="grand_total" class="summary-total-value">0 VNĐ</span>
+        </div>
       </div>
     </div>
 
     <!-- Actions -->
     <div class="card">
       <div class="btn-row">
-        <button type="button" class="btn-base btn-copy" id="btnCopyLink" onclick="handleCopy()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy link
+        <button type="button" class="btn-base btn-submit" id="bgBtnSubmit" onclick="bgGenerate()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>Tạo báo giá
         </button>
-        <button type="button" class="btn-base btn-submit" id="btnDownload" onclick="handleDownload()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>Download báo giá PDF
+        <button type="button" class="btn-base btn-submit" id="bgBtnPdf" onclick="bgDownloadPdf()" style="display:none">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>Báo giá (PDF)
+        </button>
+        <button type="button" class="btn-base btn-load" id="bgBtnWord" onclick="bgDownloadWord()" style="display:none">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>Báo giá (Word)
+        </button>
+        <button type="button" class="btn-base btn-copy" id="bgBtnCopy" onclick="bgCopyLink()" style="display:none">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy link (PDF)
         </button>
       </div>
-      <div id="statusMsg" style="display:none; font-size:13px; margin-top:12px; color:#888;"></div>
+      <div id="statusMsg" style="display:none"></div>
     </div>
 
   </form>
@@ -515,6 +579,203 @@
   </div>
 </div>
 
+</div><!-- end section-bao-gia -->
+
+<!-- ===== TAB HỢP ĐỒNG ===== -->
+<div id="section-hop-dong" class="tab-section">
+<div class="container">
+
+  <!-- Action buttons -->
+  <div class="card">
+    <div class="btn-row">
+      <button type="button" class="btn-base btn-load" onclick="hdTaoMoi()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>Tạo mới
+      </button>
+      <button type="button" class="btn-base btn-load" onclick="openHdFromQuoteModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>Lấy từ báo giá
+      </button>
+      <button type="button" class="btn-base btn-load" onclick="openHdOldModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Nạp hợp đồng cũ
+      </button>
+    </div>
+  </div>
+
+  <form id="contractForm">
+
+    <!-- Thông tin nhân viên -->
+    <div class="card">
+      <h2>Nhân viên phụ trách</h2>
+      <div class="row">
+        <div class="field">
+          <label>Chọn nhân viên *</label>
+          <select id="hd_nv_select">
+            <option value="">-- Đang tải... --</option>
+          </select>
+          <input type="hidden" name="nv_ten" id="hd_nv_ten">
+          <input type="hidden" name="nv_bo_phan" id="hd_nv_bo_phan">
+          <input type="hidden" name="nv_email" id="hd_nv_email">
+          <input type="hidden" name="nv_sdt" id="hd_nv_sdt">
+        </div>
+        <div class="field">
+          <label>Bộ phận</label>
+          <input type="text" id="hd_nv_bo_phan_display" readonly>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Email</label>
+          <input type="text" id="hd_nv_email_display" readonly>
+        </div>
+        <div class="field">
+          <label>Số điện thoại</label>
+          <input type="text" id="hd_nv_sdt_display" readonly>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thông tin hợp đồng -->
+    <div class="card">
+      <h2>Thông tin hợp đồng</h2>
+      <div class="row">
+        <div class="field">
+          <label>Số hợp đồng *</label>
+          <input type="text" name="so_hop_dong" id="so_hop_dong" required placeholder="VD: HD-2026-03-001">
+        </div>
+        <div class="field">
+          <label>Ngày ký *</label>
+          <input type="text" name="ngay_ky_hop_dong" id="ngay_ky_hop_dong" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thông tin bên mua -->
+    <div class="card">
+      <h2>Thông tin bên mua</h2>
+      <div class="field">
+        <label>Tên công ty *</label>
+        <input type="text" name="ten_cong_ty" id="hd_ten_cong_ty" required>
+      </div>
+      <div class="field">
+        <label>Địa chỉ</label>
+        <input type="text" name="dia_chi" id="hd_dia_chi">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Mã số thuế</label>
+          <input type="text" name="ma_so_thue" id="hd_ma_so_thue">
+        </div>
+        <div class="field">
+          <label>Số tài khoản ngân hàng</label>
+          <input type="text" name="so_tai_khoan_ngan_hang" id="hd_so_tai_khoan_ngan_hang">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Người đại diện *</label>
+          <input type="text" name="ten_nguoi_dai_dien" id="hd_ten_nguoi_dai_dien" required>
+        </div>
+        <div class="field">
+          <label>Chức vụ</label>
+          <input type="text" name="chuc_vu" id="hd_chuc_vu">
+        </div>
+      </div>
+    </div>
+
+    <!-- Hàng hóa -->
+    <div class="card">
+      <h2>Hàng hóa & Giá trị</h2>
+      <table class="product-table">
+        <thead>
+          <tr>
+            <th>Mô tả hàng hóa</th>
+            <th style="width:100px">Đơn vị tính</th>
+            <th style="width:80px">Số lượng</th>
+            <th style="width:150px">Đơn giá (VNĐ)</th>
+            <th style="width:130px">Thành tiền</th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="hd-items"></tbody>
+      </table>
+      <button type="button" class="btn-add-row" onclick="hdAddItem()">+ Thêm dòng</button>
+      <div class="summary-block">
+        <div class="summary-row">
+          <span class="summary-label">Tổng thành tiền:</span>
+          <span id="hd_tong_thanh_tien" class="summary-value">0 VNĐ</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Thuế GTGT:</span>
+          <div class="summary-input-group">
+            <input type="number" id="hd_thue_suat" name="thue_suat" min="0" max="100" value="8" oninput="hdCalc()">
+            <span>%</span>
+            <span id="hd_thue" class="summary-value">0 VNĐ</span>
+          </div>
+        </div>
+        <div class="summary-row">
+          <span class="summary-total-label">Tổng giá trị HĐ:</span>
+          <span id="hd_tong" class="summary-total-value">0 VNĐ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Giao hàng -->
+    <div class="card">
+      <h2>Điều kiện giao hàng</h2>
+      <div class="row">
+        <div class="field">
+          <label>Thời gian giao hàng</label>
+          <input type="text" name="thoi_gian_giao_hang" id="hd_thoi_gian_giao_hang" placeholder="VD: 07 ngày làm việc">
+        </div>
+        <div class="field">
+          <label>Địa điểm giao hàng</label>
+          <input type="text" name="dia_diem_giao_hang" id="hd_dia_diem_giao_hang" placeholder="VD: 23/10/20 Đường số 21, TP.HCM">
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card">
+      <div class="btn-row">
+        <button type="submit" class="btn-base btn-submit" id="hdBtnSubmit">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>Tạo hợp đồng
+        </button>
+        <button type="button" class="btn-base btn-submit" id="hdBtnPdf" onclick="hdDownloadPdf()" style="display:none">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>Hợp đồng (PDF)
+        </button>
+        <button type="button" class="btn-base btn-load" id="hdBtnWord" onclick="hdDownloadWord()" style="display:none">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>Hợp đồng (Word)
+        </button>
+        <button type="button" class="btn-base btn-copy" id="hdBtnCopy" onclick="hdCopyLink()" style="display:none">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy link (PDF)
+        </button>
+      </div>
+      <div id="hdStatusMsg" style="display:none"></div>
+    </div>
+
+  </form>
+</div>
+</div><!-- end section-hop-dong -->
+
+<!-- Modal: Lấy từ báo giá -->
+<div class="modal-overlay" id="hdFromQuoteModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('hdFromQuoteModal').classList.remove('open')">×</button>
+    <h3>Lấy thông tin từ báo giá</h3>
+    <input type="text" class="modal-search" placeholder="Tìm theo tên công ty hoặc số báo giá..." oninput="searchQuotesForHD(this.value)">
+    <div class="modal-list" id="hdQuoteList"><div class="modal-empty">Đang tải...</div></div>
+  </div>
+</div>
+
+<!-- Modal: Nạp hợp đồng cũ -->
+<div class="modal-overlay" id="hdOldModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('hdOldModal').classList.remove('open')">×</button>
+    <h3>Nạp hợp đồng cũ</h3>
+    <input type="text" class="modal-search" placeholder="Tìm theo tên công ty hoặc số hợp đồng..." oninput="searchOldContracts(this.value)">
+    <div class="modal-list" id="hdOldList"><div class="modal-empty">Đang tải...</div></div>
+  </div>
+</div>
+
 <script>
   // ---- Khởi tạo ngày / số BG ----
   const today = new Date();
@@ -531,15 +792,19 @@
       employeeList = await res.json();
       const sel = document.getElementById('nv_select');
       sel.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
+      const selHd = document.getElementById('hd_nv_select');
+      selHd.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
       employeeList.forEach(nv => {
         if (!nv.Ten_nhan_vien) return;
         const opt = document.createElement('option');
         opt.value = nv.Id;
         opt.textContent = `${nv.Ten_nhan_vien} — ${nv.Bo_phan || ''}`;
         sel.appendChild(opt);
+        selHd.appendChild(opt.cloneNode(true));
       });
     } catch (e) {
       document.getElementById('nv_select').innerHTML = '<option value="">-- Không tải được --</option>';
+      document.getElementById('hd_nv_select').innerHTML = '<option value="">-- Không tải được --</option>';
     }
   }
 
@@ -560,17 +825,37 @@
     }
   });
 
+  document.getElementById('hd_nv_select').addEventListener('change', function() {
+    const id = parseInt(this.value);
+    const nv = employeeList.find(e => e.Id === id);
+    if (nv) {
+      document.getElementById('hd_nv_ten').value             = nv.Ten_nhan_vien || '';
+      document.getElementById('hd_nv_bo_phan').value         = nv.Bo_phan       || '';
+      document.getElementById('hd_nv_email').value           = nv.Email         || '';
+      document.getElementById('hd_nv_sdt').value             = nv.So_dien_thoai || '';
+      document.getElementById('hd_nv_bo_phan_display').value = nv.Bo_phan       || '';
+      document.getElementById('hd_nv_email_display').value   = nv.Email         || '';
+      document.getElementById('hd_nv_sdt_display').value     = nv.So_dien_thoai || '';
+    } else {
+      ['hd_nv_ten','hd_nv_bo_phan','hd_nv_email','hd_nv_sdt'].forEach(id => document.getElementById(id).value = '');
+      ['hd_nv_bo_phan_display','hd_nv_email_display','hd_nv_sdt_display'].forEach(id => document.getElementById(id).value = '');
+    }
+  });
+
   // ---- Load sản phẩm ----
   let productList = [];
   async function loadProducts() {
     try {
       const res = await fetch('/api/products');
       productList = await res.json();
-      // Thêm 2 dòng mặc định sau khi có dữ liệu sản phẩm
+      // Báo giá: 2 dòng mặc định
       addProductRow('TECHIDEAS');
       addProductRow('LOVINGCARE');
+      // Hợp đồng: 1 dòng mặc định
+      hdAddItem('TECHIDEAS');
     } catch (e) {
       addProductRow();
+      hdAddItem();
     }
   }
 
@@ -597,7 +882,7 @@
         <input type="text" class="row-price" readonly placeholder="Tự động điền">
       </td>
       <td data-label="Giảm giá (%)">
-        <input type="number" class="row-ck" min="0" max="100" value="0" oninput="calcTotal()" style="text-align:right">
+        <input type="number" class="row-ck" min="0" max="100" value="0" oninput="calcTotal()">
       </td>
       <td class="col-total" data-label="Thành tiền (VNĐ)">0</td>
       <td class="col-remove">
@@ -676,8 +961,7 @@
     ['nv_ten','nv_bo_phan','nv_email','nv_sdt'].forEach(id => document.getElementById(id).value = '');
     ['nv_bo_phan_display','nv_email_display','nv_sdt_display'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('nv_select').value = '';
-    pdfUrl = null; pdfFilename = null;
-    showStatus('');
+    bgResetButtons();
     // Reset product rows về mặc định
     document.getElementById('productBody').innerHTML = '';
     addProductRow('TECHIDEAS');
@@ -695,9 +979,9 @@
     el.style.display = msg ? 'block' : 'none';
   }
 
-  const SVG_LINK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-  const SVG_DOWNLOAD = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>`;
-  const SVG_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:7px;margin-bottom:2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+  const SVG_LINK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+  const SVG_DOWNLOAD = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>`;
+  const SVG_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
 
   function setBtnsLoading(loading, msg) {
     const c = document.getElementById('btnCopyLink');
@@ -796,6 +1080,14 @@
   });
   document.getElementById('quoteForm').addEventListener('change', () => {
     if (pdfUrl) { pdfUrl = null; pdfFilename = null; showStatus(''); }
+  });
+
+  // Close modal khi click overlay
+  document.getElementById('hdFromQuoteModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+  document.getElementById('hdOldModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
   });
 
   // ---- Khởi động ----
@@ -911,7 +1203,7 @@
     }
 
     calcTotal();
-    pdfUrl = null; pdfFilename = null; showStatus('');
+    bgResetButtons();
     closeQuoteModal();
   }
 
@@ -919,6 +1211,383 @@
     const el = document.querySelector(`[name="${name}"]`);
     if (el) el.value = value || '';
   }
+
+  // ============================================================
+  // ---- TAB SWITCHING ----
+  // ============================================================
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+    document.querySelector(`.tab-btn[onclick*="${tab}"]`).classList.add('active');
+    document.getElementById(`section-${tab}`).classList.add('active');
+  }
+
+  // ============================================================
+  // ---- HỢP ĐỒNG ----
+  // ============================================================
+  let hdPdfUrl = null, hdDocxUrl = null;
+
+  // Khởi tạo ngày và số HĐ
+  const hdToday = new Date();
+  document.getElementById('ngay_ky_hop_dong').value =
+    hdToday.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const hdMonth = String(hdToday.getMonth() + 1).padStart(2, '0');
+  document.getElementById('so_hop_dong').value = `HD-${hdToday.getFullYear()}-${hdMonth}-001`;
+
+  // Thêm dòng hàng hóa hợp đồng (dùng chung productList với báo giá)
+  function hdAddItem(model, qty, overridePrice) {
+    const tbody = document.getElementById('hd-items');
+    const tr = document.createElement('tr');
+    const modelOptions = productList.map(p =>
+      `<option value="${p.Model}" data-price="${p.Don_gia || 0}" data-mota="${encodeURIComponent(p.Ten_hang_hoa || p.Model || '')}">${p.Model}</option>`
+    ).join('');
+    tr.innerHTML = `
+      <td data-label="Mô tả hàng hóa">
+        <select class="hd-row-model" onchange="onHdModelChange(this)">
+          <option value="">-- Chọn sản phẩm --</option>
+          ${modelOptions}
+        </select>
+      </td>
+      <td data-label="Đơn vị tính">
+        <input type="text" class="hd-row-unit" value="Cái">
+      </td>
+      <td data-label="Số lượng">
+        <input type="number" class="hd-row-qty" min="1" value="${qty||1}" oninput="hdCalc()">
+      </td>
+      <td data-label="Đơn giá (VNĐ)">
+        <input type="text" class="hd-row-price" placeholder="Tự động điền" oninput="hdCalc()">
+      </td>
+      <td class="col-total" data-label="Thành tiền">0</td>
+      <td class="col-remove">
+        <button type="button" class="btn-remove-row" onclick="hdRemoveItem(this)" title="Xóa dòng">×</button>
+      </td>`;
+    tbody.appendChild(tr);
+    if (model) {
+      const sel = tr.querySelector('.hd-row-model');
+      sel.value = model;
+      onHdModelChange(sel, overridePrice);
+    }
+    hdCalc();
+  }
+
+  function onHdModelChange(sel, overridePrice) {
+    const opt = sel.options[sel.selectedIndex];
+    const tr  = sel.closest('tr');
+    const priceInput = tr.querySelector('.hd-row-price');
+    if (opt && opt.dataset.price) {
+      const price = overridePrice || parseInt(opt.dataset.price) || 0;
+      priceInput.value = price > 0 ? price.toLocaleString('vi-VN') : '';
+    } else {
+      priceInput.value = overridePrice ? String(overridePrice) : '';
+    }
+    hdCalc();
+  }
+
+  function hdRemoveItem(btn) {
+    const tbody = document.getElementById('hd-items');
+    if (tbody.children.length <= 1) { alert('Phải có ít nhất 1 dòng hàng hóa'); return; }
+    btn.closest('tr').remove();
+    hdCalc();
+  }
+
+  // Tính toán tự động
+  function hdCalc() {
+    let totalTT = 0;
+    document.querySelectorAll('#hd-items tr').forEach(tr => {
+      const sl  = parseFloat(tr.querySelector('.hd-row-qty').value) || 0;
+      const raw = (tr.querySelector('.hd-row-price').value || '').replace(/\s/g,'').replace(/\./g,'').replace(/,/g,'.');
+      const gia = parseFloat(raw) || 0;
+      const tt  = sl * gia;
+      tr.querySelector('.col-total').textContent = tt.toLocaleString('vi-VN');
+      totalTT += tt;
+    });
+    const thueSuat = parseFloat(document.getElementById('hd_thue_suat').value) || 0;
+    const thue = Math.round(totalTT * thueSuat / 100);
+    const tong = totalTT + thue;
+    document.getElementById('hd_tong_thanh_tien').textContent = totalTT.toLocaleString('vi-VN') + ' VNĐ';
+    document.getElementById('hd_thue').textContent            = thue.toLocaleString('vi-VN') + ' VNĐ';
+    document.getElementById('hd_tong').textContent            = tong.toLocaleString('vi-VN') + ' VNĐ';
+  }
+
+  // Tạo mới — reset form
+  function hdTaoMoi() {
+    if (document.getElementById('hd_ten_cong_ty').value &&
+        !confirm('Xóa hết thông tin đã nhập?')) return;
+    document.getElementById('contractForm').reset();
+    const t = new Date();
+    document.getElementById('ngay_ky_hop_dong').value =
+      t.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const m = String(t.getMonth() + 1).padStart(2, '0');
+    document.getElementById('so_hop_dong').value = `HD-${t.getFullYear()}-${m}-001`;
+    document.getElementById('hd-items').innerHTML = '';
+    hdAddItem('TECHIDEAS');
+    hdPdfUrl = null; hdDocxUrl = null; hdShowStatus('');
+    document.getElementById('hdBtnSubmit').style.display = '';
+    document.getElementById('hdBtnSubmit').disabled = false;
+    ['hdBtnPdf','hdBtnWord','hdBtnCopy'].forEach(id => document.getElementById(id).style.display = 'none');
+  }
+
+  // Modal: lấy từ báo giá
+  let hdQuotesList = [];
+  async function openHdFromQuoteModal() {
+    document.getElementById('hdFromQuoteModal').classList.add('open');
+    await searchQuotesForHD('');
+  }
+  async function searchQuotesForHD(q) {
+    const list = document.getElementById('hdQuoteList');
+    list.innerHTML = '<div class="modal-empty">Đang tải...</div>';
+    try {
+      const res  = await fetch(`/api/quotes?search=${encodeURIComponent(q)}&limit=20`);
+      hdQuotesList = await res.json();
+      if (!hdQuotesList.length) { list.innerHTML = '<div class="modal-empty">Không tìm thấy</div>'; return; }
+      list.innerHTML = hdQuotesList.map((q, i) => `
+        <div class="modal-item" onclick="hdFillFromQuote(${i})">
+          <div class="item-title">${q.Ten_cong_ty || '—'}</div>
+          <div class="item-sub">${q.So_bao_gia || ''} · ${q.Ngay_bao_gia || ''} · ${(q.Tong_thanh_toan||0).toLocaleString('vi-VN')} VNĐ</div>
+        </div>`).join('');
+    } catch(e) { list.innerHTML = '<div class="modal-empty">Lỗi tải dữ liệu</div>'; }
+  }
+  function hdFillFromQuote(idx) {
+    const q = hdQuotesList[idx];
+    if (!q) return;
+    // Chỉ nạp phần sản phẩm vào Hàng hóa & Giá trị — giá dùng Price list (không override)
+    document.getElementById('hd-items').innerHTML = '';
+    if (Number(q.SL_Techideas) > 0)  hdAddItem('TECHIDEAS',  q.SL_Techideas);
+    if (Number(q.SL_Lovingcare) > 0) hdAddItem('LOVINGCARE', q.SL_Lovingcare);
+    if (!document.getElementById('hd-items').children.length) hdAddItem();
+    hdCalc();
+    document.getElementById('hdFromQuoteModal').classList.remove('open');
+  }
+
+  // Modal: nạp hợp đồng cũ
+  let hdOldContractsList = [];
+  async function openHdOldModal() {
+    document.getElementById('hdOldModal').classList.add('open');
+    await searchOldContracts('');
+  }
+  async function searchOldContracts(q) {
+    const list = document.getElementById('hdOldList');
+    list.innerHTML = '<div class="modal-empty">Đang tải...</div>';
+    try {
+      const res  = await fetch(`/api/contracts?search=${encodeURIComponent(q)}&limit=20`);
+      hdOldContractsList = await res.json();
+      if (!hdOldContractsList.length) { list.innerHTML = '<div class="modal-empty">Chưa có hợp đồng nào được lưu</div>'; return; }
+      list.innerHTML = hdOldContractsList.map((c, i) => `
+        <div class="modal-item" onclick="hdLoadOld(${i})">
+          <div class="item-title">${c.Ten_cong_ty || '—'}</div>
+          <div class="item-sub">${c.So_hop_dong || ''} · ${c.Ngay_ky || ''} · ${(c.Tong_gia_tri||0).toLocaleString('vi-VN')} VNĐ</div>
+        </div>`).join('');
+    } catch(e) { list.innerHTML = '<div class="modal-empty">Lỗi tải dữ liệu</div>'; }
+  }
+  function hdLoadOld(idx) {
+    const c = hdOldContractsList[idx];
+    if (!c) return;
+    document.getElementById('so_hop_dong').value               = c.So_hop_dong || '';
+    document.getElementById('ngay_ky_hop_dong').value          = c.Ngay_ky || '';
+    document.getElementById('hd_ten_cong_ty').value            = c.Ten_cong_ty || '';
+    document.getElementById('hd_dia_chi').value                = c.Dia_chi || '';
+    document.getElementById('hd_ma_so_thue').value             = c.Ma_so_thue || '';
+    document.getElementById('hd_so_tai_khoan_ngan_hang').value = c.So_tai_khoan || '';
+    document.getElementById('hd_ten_nguoi_dai_dien').value     = c.Nguoi_dai_dien || '';
+    document.getElementById('hd_chuc_vu').value                = c.Chuc_vu || '';
+    document.getElementById('hd_thoi_gian_giao_hang').value    = c.Thoi_gian_giao_hang || '';
+    document.getElementById('hd_dia_diem_giao_hang').value     = c.Dia_diem_giao_hang || '';
+    // Nhân viên
+    if (c.NV_ten) {
+      const nv = employeeList.find(e => e.Ten_nhan_vien === c.NV_ten);
+      if (nv) {
+        document.getElementById('hd_nv_select').value = nv.Id;
+        document.getElementById('hd_nv_select').dispatchEvent(new Event('change'));
+      }
+    }
+    // Load items — detect model từ Mo_ta_san_pham
+    document.getElementById('hd-items').innerHTML = '';
+    const moTaText = c.Mo_ta_san_pham || '';
+    const found = productList.find(p => p.Model && moTaText.includes(p.Model));
+    hdAddItem(found ? found.Model : '', c.So_luong || 1, c.Don_gia || 0);
+    hdCalc();
+    hdPdfUrl = null; hdDocxUrl = null; hdShowStatus('');
+    document.getElementById('hdBtnSubmit').style.display = '';
+    document.getElementById('hdBtnSubmit').disabled = false;
+    ['hdBtnPdf','hdBtnWord','hdBtnCopy'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById('hdOldModal').classList.remove('open');
+  }
+
+  // Submit form
+  document.getElementById('contractForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hdShowStatus('⏳ Đang tạo hợp đồng...');
+    document.getElementById('hdBtnSubmit').disabled = true;
+    const fd = new FormData(e.target);
+    const body = {};
+    fd.forEach((v, k) => body[k] = v);
+    // Collect items from table
+    const items = [];
+    document.querySelectorAll('#hd-items tr').forEach(tr => {
+      const sel      = tr.querySelector('.hd-row-model');
+      const opt      = sel?.options[sel?.selectedIndex];
+      const model    = sel?.value || '';
+      const mo_ta    = (opt && opt.dataset.mota) ? decodeURIComponent(opt.dataset.mota) : model;
+      const don_vi   = tr.querySelector('.hd-row-unit').value.trim();
+      const so_luong = parseFloat(tr.querySelector('.hd-row-qty').value) || 0;
+      const don_gia  = parseFloat((tr.querySelector('.hd-row-price').value || '').replace(/\s/g,'').replace(/\./g,'').replace(/,/g,'.')) || 0;
+      if (model || so_luong) items.push({ model, mo_ta, don_vi_tinh: don_vi, so_luong, don_gia });
+    });
+    body.items = items;
+    try {
+      const r1  = await fetch('/api/generate-contract', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const { jobId } = await r1.json();
+      let result;
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const r2 = await fetch(`/api/job/${jobId}`);
+        result = await r2.json();
+        if (result.status !== 'processing') break;
+      }
+      if (result.status === 'done') {
+        hdPdfUrl  = result.pdfUrl;
+        hdDocxUrl = result.docxUrl;
+        hdShowStatus('✅ Hợp đồng đã tạo xong!');
+        document.getElementById('hdBtnSubmit').style.display = 'none';
+        document.getElementById('hdBtnPdf').style.display = '';
+        document.getElementById('hdBtnWord').style.display = '';
+        document.getElementById('hdBtnCopy').style.display = '';
+      } else {
+        hdShowStatus('❌ Lỗi: ' + (result.error || 'Unknown'));
+        document.getElementById('hdBtnSubmit').disabled = false;
+      }
+    } catch(err) {
+      hdShowStatus('❌ Lỗi kết nối: ' + err.message);
+      document.getElementById('hdBtnSubmit').disabled = false;
+    }
+  });
+
+  function hdDownloadPdf() {
+    if (!hdPdfUrl) { alert('Chưa có hợp đồng. Vui lòng xuất trước.'); return; }
+    const a = document.createElement('a');
+    a.href = hdPdfUrl;
+    a.download = (hdPdfUrl.split('/').pop()) || 'hop-dong.pdf';
+    a.click();
+  }
+  function hdDownloadWord() {
+    if (!hdDocxUrl) { alert('Chưa có hợp đồng. Vui lòng xuất trước.'); return; }
+    const a = document.createElement('a');
+    a.href = hdDocxUrl;
+    a.download = (hdDocxUrl.split('/').pop()) || 'hop-dong.docx';
+    a.click();
+  }
+  function hdShowStatus(msg) {
+    const el = document.getElementById('hdStatusMsg');
+    el.style.display = msg ? 'block' : 'none';
+    el.textContent = msg;
+  }
+
+  function hdCopyLink() {
+    if (!hdPdfUrl) return;
+    const url = window.location.origin + hdPdfUrl;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('hdBtnCopy');
+      btn.innerHTML = SVG_CHECK + 'Đã copy link';
+      btn.disabled = true;
+      setTimeout(() => { btn.innerHTML = SVG_LINK + 'Copy link (PDF)'; btn.disabled = false; }, 3000);
+    });
+  }
+
+  // ---- Báo giá: logic mới ----
+  let bgPdfUrl = null, bgPdfAbsUrl = null, bgPdfFilename = null, bgDocxUrl = null;
+
+  function bgResetButtons() {
+    bgPdfUrl = null; bgPdfAbsUrl = null; bgPdfFilename = null; bgDocxUrl = null;
+    const btn = document.getElementById('bgBtnSubmit');
+    btn.style.display = '';
+    btn.disabled = false;
+    btn.innerHTML = SVG_DOWNLOAD + 'Tạo báo giá';
+    ['bgBtnPdf','bgBtnWord','bgBtnCopy'].forEach(id => document.getElementById(id).style.display = 'none');
+    showStatus('');
+  }
+
+  async function bgGenerate() {
+    if (!document.getElementById('nv_ten').value) { showStatus('❌ Vui lòng chọn nhân viên phụ trách.', '#c0392b'); return; }
+    const items = buildItems();
+    if (!items.length) { showStatus('❌ Vui lòng thêm ít nhất 1 sản phẩm.', '#c0392b'); return; }
+
+    const btn = document.getElementById('bgBtnSubmit');
+    btn.disabled = true;
+    showStatus('⏳ Đang khởi tạo...', '#888');
+
+    try {
+      const payload = {};
+      new FormData(document.getElementById('quoteForm')).forEach((v, k) => { payload[k] = v; });
+      payload.items = items;
+      payload.chiet_khau_tong = document.getElementById('ck_tong').value || '0';
+
+      const { jobId } = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }).then(r => r.json());
+
+      let result;
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const r2 = await fetch('/api/job/' + jobId);
+        result = await r2.json();
+        if (result.status !== 'processing') break;
+      }
+
+      if (result.status === 'done') {
+        bgPdfUrl      = result.relativeUrl || result.url; // relative cho download local
+        bgPdfAbsUrl   = result.url;                        // absolute cho copy link
+        bgPdfFilename = result.filename;
+        bgDocxUrl     = result.docxUrl || null;
+        showStatus('✅ Báo giá đã tạo xong!');
+        btn.style.display = 'none';
+        document.getElementById('bgBtnPdf').style.display = '';
+        document.getElementById('bgBtnWord').style.display = bgDocxUrl ? '' : 'none';
+        document.getElementById('bgBtnCopy').style.display = '';
+      } else {
+        showStatus('❌ Lỗi: ' + (result.error || 'Unknown'), '#c0392b');
+        btn.disabled = false;
+        btn.innerHTML = SVG_DOWNLOAD + 'Tạo báo giá';
+      }
+    } catch(err) {
+      showStatus('❌ Lỗi kết nối: ' + err.message, '#c0392b');
+      btn.disabled = false;
+      btn.innerHTML = SVG_DOWNLOAD + 'Tạo báo giá';
+    }
+  }
+
+  function bgDownloadPdf() {
+    if (!bgPdfUrl) return;
+    const a = document.createElement('a');
+    a.href = bgPdfUrl;
+    a.download = bgPdfFilename || 'bao-gia.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function bgDownloadWord() {
+    if (!bgDocxUrl) return;
+    const a = document.createElement('a');
+    a.href = bgDocxUrl;
+    a.download = bgDocxUrl.split('/').pop() || 'bao-gia.docx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function bgCopyLink() {
+    if (!bgPdfUrl) return;
+    // Dùng window.location.origin để đúng dù local hay Railway
+    const url = window.location.origin + bgPdfUrl;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('bgBtnCopy');
+      btn.innerHTML = SVG_CHECK + 'Đã copy link';
+      btn.disabled = true;
+      setTimeout(() => { btn.innerHTML = SVG_LINK + 'Copy link (PDF)'; btn.disabled = false; }, 3000);
+    });
+  }
+
+  // Invalidate khi form thay đổi sau khi đã tạo
+  document.getElementById('quoteForm').addEventListener('input',  () => { if (bgPdfUrl) bgResetButtons(); });
+  document.getElementById('quoteForm').addEventListener('change', () => { if (bgPdfUrl) bgResetButtons(); });
 </script>
 </body>
 </html>

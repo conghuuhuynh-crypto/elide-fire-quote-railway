@@ -1,3 +1,16 @@
+# Dependencies
 node_modules/
-outputs/quotes/*.pdf
+
+# Environment — KHÔNG bao giờ commit
 .env
+.env.local
+.env.*.local
+
+# Output files
+outputs/
+*.pdf
+*.docx
+
+# OS
+.DS_Store
+Thumbs.db

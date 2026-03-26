@@ -1,0 +1,109 @@
+/**
+ * ============================================================
+ * ELIDE FIRE — QUOTE APP DESIGN SYSTEM
+ * ============================================================
+ * Tất cả token dùng trong app được định nghĩa tại đây.
+ * KHÔNG hardcode màu, font-size, border-radius, spacing
+ * trực tiếp trong style — hãy dùng CSS variable.
+ *
+ * Brand reference: CA0002 (đỏ đậm), #090216 (đen)
+ * Font: Be Vietnam Pro (400, 600, 700, 800)
+ * ============================================================
+ */
+
+:root {
+
+  /* ----------------------------------------------------------
+   * COLORS
+   * ---------------------------------------------------------- */
+
+  /* Brand */
+  --color-primary:       #CA0002;
+  --color-primary-dark:  #a50001;
+  --color-primary-light: #fff0ef;
+  --color-primary-focus: rgba(202, 0, 2, 0.08);
+
+  /* Text */
+  --color-text:          #1a1a1a;   /* heading, body */
+  --color-text-secondary:#555555;   /* label, sub-info */
+  --color-text-muted:    #888888;   /* placeholder, hint */
+  --color-text-subtle:   #aaaaaa;   /* disabled, very faint */
+
+  /* Border & Divider */
+  --color-border:        #dddddd;   /* input border */
+  --color-border-light:  #eeeeee;   /* row divider */
+  --color-divider:       #f0f0f0;   /* section divider */
+
+  /* Surface */
+  --color-bg:            #f4f5f7;   /* page background */
+  --color-surface:       #ffffff;   /* card, modal */
+  --color-surface-subtle:#fafafa;   /* table header, summary block */
+
+  /* Semantic */
+  --color-success:       #27ae60;
+  --color-error:         #c0392b;
+  --color-warning:       #e67e22;
+
+
+  /* ----------------------------------------------------------
+   * TYPOGRAPHY
+   * ---------------------------------------------------------- */
+
+  --font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
+
+  /* Scale */
+  --text-xs:   11px;   /* uppercase badge, table header */
+  --text-sm:   13px;   /* label, helper, caption, status */
+  --text-base: 14px;   /* body, input, modal item */
+  --text-md:   15px;   /* button primary */
+  --text-lg:   16px;   /* modal title, subtitle */
+  --text-xl:   20px;   /* grand total mobile */
+  --text-2xl:  24px;   /* grand total desktop */
+  --text-3xl:  32px;   /* page header */
+
+  /* Weight */
+  --weight-normal:    400;
+  --weight-semibold:  600;
+  --weight-bold:      700;
+  --weight-extrabold: 800;
+
+
+  /* ----------------------------------------------------------
+   * SPACING
+   * ---------------------------------------------------------- */
+
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-7:  28px;
+  --space-8:  32px;
+
+
+  /* ----------------------------------------------------------
+   * BORDER RADIUS
+   * ---------------------------------------------------------- */
+
+  --radius-sm:  4px;   /* chip, small badge */
+  --radius-md:  6px;   /* input, button, tag */
+  --radius-lg:  8px;   /* card, table row mobile */
+  --radius-xl:  10px;  /* modal */
+
+
+  /* ----------------------------------------------------------
+   * SHADOWS
+   * ---------------------------------------------------------- */
+
+  --shadow-card:  0 1px 4px rgba(0, 0, 0, 0.10);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.18);
+
+
+  /* ----------------------------------------------------------
+   * TRANSITIONS
+   * ---------------------------------------------------------- */
+
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+}
