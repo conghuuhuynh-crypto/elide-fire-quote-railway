@@ -1654,6 +1654,7 @@
   @media (max-width: 520px) {
     .chat-panel { bottom: 0; right: 0; left: 0; width: 100%; height: 100vh; max-height: 100vh; border-radius: 0; }
     .chat-bubble { bottom: 20px; right: 20px; }
+    body.chat-open .chat-bubble { display: none; }
   }
 
   /* ── Header ── */
@@ -1768,7 +1769,7 @@
   .chat-input {
     flex: 1; border: 1.5px solid #e2e8f0; border-radius: 12px;
     padding: 9px 13px; font-size: 13.5px; font-family: inherit;
-    resize: none; outline: none; max-height: 110px; line-height: 1.5;
+    outline: none; line-height: 1.5; height: 40px;
     transition: border-color 0.15s; color: #1e293b; background: #f8fafc;
   }
   .chat-input:focus { border-color: #FA0F0F; background: #fff; }
@@ -1867,8 +1868,8 @@ const _SVG = {
     <button class="chat-ibtn chat-ibtn-voice" id="voiceBtn" onclick="toggleVoice()" title="Nhập bằng giọng nói">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
     </button>
-    <textarea class="chat-input" id="chatInput" placeholder="Nhập tin nhắn hoặc nói chuyện với AI..." rows="1"
-      onkeydown="onChatKey(event)" oninput="chatAutoResize(this)"></textarea>
+    <input type="text" class="chat-input" id="chatInput" placeholder="Nhập tin nhắn..."
+      onkeydown="onChatKey(event)" autocomplete="off">
     <button class="chat-ibtn chat-ibtn-send" id="chatSendBtn" onclick="sendChat()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </button>
@@ -1896,6 +1897,7 @@ let pendingPrefill = null; // { formType, data } waiting user confirm
 function toggleChat() {
   chatIsOpen = !chatIsOpen;
   document.getElementById('chatPanel').classList.toggle('open', chatIsOpen);
+  document.body.classList.toggle('chat-open', chatIsOpen);
   if (chatIsOpen) {
     loadChatHistory();
     setTimeout(() => document.getElementById('chatInput').focus(), 300);
@@ -1956,7 +1958,7 @@ async function sendChat() {
   const text  = input.value.trim();
   if (!text || chatBusy) return;
 
-  input.value = ''; chatAutoResize(input);
+  input.value = '';
   appendMessage('user', text);
   setChatBusy(true);
 
@@ -2183,10 +2185,6 @@ function setChatBusy(busy) {
   document.getElementById('chatHeaderSub').textContent = busy ? 'Đang trả lời...' : 'Sẵn sàng hỗ trợ';
 }
 
-function chatAutoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 110) + 'px';
-}
 
 function renderChatMd(text) {
   return text
@@ -2223,7 +2221,6 @@ function toggleVoice() {
   voiceRecog.onresult = (e) => {
     const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
     document.getElementById('chatInput').value = transcript;
-    chatAutoResize(document.getElementById('chatInput'));
   };
   voiceRecog.onend = () => {
     isRecording = false;
