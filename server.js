@@ -479,7 +479,7 @@ function nocoGet(path, res) {
     r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch(e) { res.json([]); } });
   });
   req.on('error', () => { if (!res.headersSent) res.json([]); });
-  req.setTimeout(8000, () => { req.destroy(); if (!res.headersSent) res.json([]); });
+  req.setTimeout(25000, () => { req.destroy(); if (!res.headersSent) res.json([]); });
 }
 
 // API nhân viên

@@ -805,7 +805,7 @@
   document.getElementById('so_bao_gia').value = `EF-${today.getFullYear()}-${month}-001`;
 
   // ---- Fetch helper với client-side timeout ----
-  async function fetchJSON(url, timeoutMs = 12000) {
+  async function fetchJSON(url, timeoutMs = 30000) {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
@@ -1130,7 +1130,7 @@
       overlay.querySelector('.app-loading-retry').style.display = 'block';
       overlay.querySelector('.app-loading-text').textContent = 'Đang khởi động server, vui lòng chờ...';
     }
-  }, 20000);
+  }, 30000);
   loadEmployees();
   loadProducts();
 
@@ -1154,14 +1154,10 @@
 
   async function fetchQuotes(search) {
     const listEl = document.getElementById('quoteList');
-    listEl.innerHTML = '<div class="modal-loading">Đang tải...</div>';
-    try {
-      const url = '/api/quotes?limit=30' + (search ? '&search=' + encodeURIComponent(search) : '');
-      allQuotes = await fetch(url).then(r => r.json());
-      renderQuoteList(allQuotes);
-    } catch (e) {
-      listEl.innerHTML = '<div class="modal-empty">Không thể tải dữ liệu</div>';
-    }
+    listEl.innerHTML = '<div class="modal-empty">Đang tải...</div>';
+    const url = '/api/quotes?limit=30' + (search ? '&search=' + encodeURIComponent(search) : '');
+    allQuotes = await fetchJSON(url);
+    renderQuoteList(allQuotes);
   }
 
   function searchQuotes(val) {
@@ -1374,16 +1370,13 @@
   async function searchQuotesForHD(q) {
     const list = document.getElementById('hdQuoteList');
     list.innerHTML = '<div class="modal-empty">Đang tải...</div>';
-    try {
-      const res  = await fetch(`/api/quotes?search=${encodeURIComponent(q)}&limit=20`);
-      hdQuotesList = await res.json();
-      if (!hdQuotesList.length) { list.innerHTML = '<div class="modal-empty">Không tìm thấy</div>'; return; }
-      list.innerHTML = hdQuotesList.map((q, i) => `
-        <div class="modal-item" onclick="hdFillFromQuote(${i})">
-          <div class="item-title">${q.Ten_cong_ty || '—'}</div>
-          <div class="item-sub">${q.So_bao_gia || ''} · ${q.Ngay_bao_gia || ''} · ${(q.Tong_thanh_toan||0).toLocaleString('vi-VN')} VNĐ</div>
-        </div>`).join('');
-    } catch(e) { list.innerHTML = '<div class="modal-empty">Lỗi tải dữ liệu</div>'; }
+    hdQuotesList = await fetchJSON(`/api/quotes?search=${encodeURIComponent(q)}&limit=20`);
+    if (!hdQuotesList.length) { list.innerHTML = '<div class="modal-empty">Không tìm thấy</div>'; return; }
+    list.innerHTML = hdQuotesList.map((q, i) => `
+      <div class="modal-item" onclick="hdFillFromQuote(${i})">
+        <div class="item-title">${q.Ten_cong_ty || '—'}</div>
+        <div class="item-sub">${q.So_bao_gia || ''} · ${q.Ngay_bao_gia || ''} · ${(q.Tong_thanh_toan||0).toLocaleString('vi-VN')} VNĐ</div>
+      </div>`).join('');
   }
   function hdFillFromQuote(idx) {
     const q = hdQuotesList[idx];
@@ -1406,16 +1399,13 @@
   async function searchOldContracts(q) {
     const list = document.getElementById('hdOldList');
     list.innerHTML = '<div class="modal-empty">Đang tải...</div>';
-    try {
-      const res  = await fetch(`/api/contracts?search=${encodeURIComponent(q)}&limit=20`);
-      hdOldContractsList = await res.json();
-      if (!hdOldContractsList.length) { list.innerHTML = '<div class="modal-empty">Chưa có hợp đồng nào được lưu</div>'; return; }
-      list.innerHTML = hdOldContractsList.map((c, i) => `
-        <div class="modal-item" onclick="hdLoadOld(${i})">
-          <div class="item-title">${c.Ten_cong_ty || '—'}</div>
-          <div class="item-sub">${c.So_hop_dong || ''} · ${c.Ngay_ky || ''} · ${(c.Tong_gia_tri||0).toLocaleString('vi-VN')} VNĐ</div>
-        </div>`).join('');
-    } catch(e) { list.innerHTML = '<div class="modal-empty">Lỗi tải dữ liệu</div>'; }
+    hdOldContractsList = await fetchJSON(`/api/contracts?search=${encodeURIComponent(q)}&limit=20`);
+    if (!hdOldContractsList.length) { list.innerHTML = '<div class="modal-empty">Chưa có hợp đồng nào được lưu</div>'; return; }
+    list.innerHTML = hdOldContractsList.map((c, i) => `
+      <div class="modal-item" onclick="hdLoadOld(${i})">
+        <div class="item-title">${c.Ten_cong_ty || '—'}</div>
+        <div class="item-sub">${c.So_hop_dong || ''} · ${c.Ngay_ky || ''} · ${(c.Tong_gia_tri||0).toLocaleString('vi-VN')} VNĐ</div>
+      </div>`).join('');
   }
   function hdLoadOld(idx) {
     const c = hdOldContractsList[idx];
