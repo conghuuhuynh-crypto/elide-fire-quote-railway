@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v41-fix-model-id' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v42-fix-contract-total' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1235,7 +1235,7 @@ function formatToolResult(toolName, result) {
       Ngay_ky:               r.Ngay_ky                || null,
       NV_ten:                r.NV_ten                  || null,
       NV_sdt:                r.NV_sdt                  || null,
-      Tong_gia_tri_hop_dong: r.Tong_gia_tri_hop_dong   || null
+      Tong_gia_tri: r.Tong_gia_tri || null
     }));
     return `KẾT QUẢ HỢP ĐỒNG (${clean.length} bản ghi):\n` +
       JSON.stringify(clean, null, 2) + STRICT;
@@ -1326,7 +1326,7 @@ Nhân viên: BẮT BUỘC gọi query_employees trước → lấy Ten_nhan_vien
 
 == SCHEMA ==
 BÁO GIÁ: Ten_cong_ty | So_bao_gia | Ngay_bao_gia | Ten_du_an | Nguoi_lien_he | SDT_khach_hang | Email_khach_hang | Phong_ban_KH | NV_ten | NV_sdt | Tong_thanh_toan
-HỢP ĐỒNG: Ten_cong_ty | So_hop_dong | Ngay_ky | NV_ten | NV_sdt | Tong_gia_tri_hop_dong
+HỢP ĐỒNG: Ten_cong_ty | So_hop_dong | Ngay_ky | NV_ten | NV_sdt | Tong_gia_tri
 NHÂN VIÊN: Id | Ten_nhan_vien | Bo_phan | SDT | Email
   → NV_ten (báo giá/hợp đồng) = Ten_nhan_vien (nhân viên) — là cùng 1 người
 
