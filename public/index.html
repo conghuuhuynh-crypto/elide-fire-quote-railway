@@ -1814,8 +1814,10 @@
   .chat-input {
     flex: 1; border: 1.5px solid #e2e8f0; border-radius: 12px;
     padding: 9px 13px; font-size: 13.5px; font-family: inherit;
-    outline: none; line-height: 1.5; height: 40px;
+    outline: none; line-height: 1.5; min-height: 40px; max-height: 160px;
+    resize: none; overflow: hidden;
     transition: border-color 0.15s; color: #1e293b; background: #f8fafc;
+    display: block; box-sizing: border-box;
   }
   .chat-input:focus { border-color: #FA0F0F; background: #fff; }
   .chat-input::placeholder { color: #94a3b8; }
@@ -1913,8 +1915,9 @@ const _SVG = {
     <button class="chat-ibtn chat-ibtn-voice" id="voiceBtn" onclick="toggleVoice()" title="Nhập bằng giọng nói">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
     </button>
-    <input type="text" class="chat-input" id="chatInput" placeholder="Nhập tin nhắn..."
-      onkeydown="onChatKey(event)" autocomplete="off">
+    <textarea class="chat-input" id="chatInput" placeholder="Nhập tin nhắn..."
+      onkeydown="onChatKey(event)" oninput="autoResizeInput(this)"
+      autocomplete="off" rows="1"></textarea>
     <button class="chat-ibtn chat-ibtn-send" id="chatSendBtn" onclick="sendChat()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </button>
@@ -2010,6 +2013,7 @@ async function sendChat() {
   if (!text || chatBusy) return;
 
   input.value = '';
+  input.style.height = 'auto';
   appendMessage('user', text);
   setChatBusy(true);
 
@@ -2078,6 +2082,11 @@ async function sendChat() {
 
 function onChatKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+function autoResizeInput(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
 }
 
 // ---- Action handler ----
@@ -2244,12 +2253,13 @@ function toggleVoice() {
     showChatToast('Đang nghe — nhấn mic lần nữa để dừng');
   };
   voiceRecog.onresult = (e) => {
-    // Gộp tất cả kết quả (final + interim)
     let transcript = '';
     for (let i = 0; i < e.results.length; i++) {
       transcript += e.results[i][0].transcript;
     }
-    document.getElementById('chatInput').value = transcript.trim();
+    const el = document.getElementById('chatInput');
+    el.value = transcript.trim();
+    autoResizeInput(el);
   };
   voiceRecog.onend = () => {
     isRecording = false;
