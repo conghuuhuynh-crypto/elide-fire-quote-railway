@@ -489,7 +489,54 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v42-fix-contract-total' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v43-admin-schema' }));
+
+// GET /admin/schema — scan field names thực tế từ NocoDB, so sánh với bot config
+app.get('/admin/schema', async (req, res) => {
+  const fetchFields = (tableId, label) => new Promise(resolve => {
+    const req2 = https.get({
+      hostname: NOCODB_HOST,
+      path: `/api/v1/db/data/noco/${NOCODB_BASE}/${tableId}?limit=1`,
+      headers: { 'xc-token': NOCODB_TOKEN }
+    }, r => {
+      let d = ''; r.on('data', c => d += c);
+      r.on('end', () => {
+        try {
+          const row = (JSON.parse(d).list || [])[0] || {};
+          const fields = Object.keys(row).filter(k => !['Id','CreatedAt','UpdatedAt'].includes(k));
+          resolve({ label, tableId, fields, error: null });
+        } catch (e) { resolve({ label, tableId, fields: [], error: e.message }); }
+      });
+    });
+    req2.on('error', e => resolve({ label, tableId, fields: [], error: e.message }));
+    req2.setTimeout(10000, () => { req2.destroy(); resolve({ label, tableId, fields: [], error: 'timeout' }); });
+  });
+
+  const [bg, hd, nv] = await Promise.all([
+    fetchFields(TABLE_BG, 'Bao_gia'),
+    fetchFields(TABLE_HD, 'Hop_dong'),
+    fetchFields(TABLE_NV, 'Nhan_vien'),
+  ]);
+
+  // Field names bot đang dùng (hardcoded trong formatToolResult + system prompt)
+  const botConfig = {
+    Bao_gia:   ['Ten_cong_ty','So_bao_gia','Ngay_bao_gia','Ten_du_an','Nguoi_lien_he','SDT_khach_hang','Email_khach_hang','Phong_ban_KH','NV_ten','NV_sdt','Tong_thanh_toan'],
+    Hop_dong:  ['So_hop_dong','Ten_cong_ty','Ngay_ky','NV_ten','NV_sdt','Tong_gia_tri'],
+    Nhan_vien: ['Ten_nhan_vien','Bo_phan','SDT','Email'],
+  };
+
+  const diff = (actual, expected) => ({
+    ok:      expected.filter(f => actual.includes(f)),
+    missing: expected.filter(f => !actual.includes(f)),  // bot dùng nhưng NocoDB không có
+    extra:   actual.filter(f => !expected.includes(f)),  // NocoDB có nhưng bot chưa dùng
+  });
+
+  res.json({
+    Bao_gia:   { ...bg,   diff: diff(bg.fields,   botConfig.Bao_gia)   },
+    Hop_dong:  { ...hd,   diff: diff(hd.fields,   botConfig.Hop_dong)  },
+    Nhan_vien: { ...nv,   diff: diff(nv.fields,   botConfig.Nhan_vien) },
+  });
+});
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
