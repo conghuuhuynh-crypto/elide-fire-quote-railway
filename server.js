@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v37-fix-employee-sdt' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v38-session-per-row' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -913,19 +913,46 @@ setInterval(() => {
   for (const [k, v] of rateLimitMap.entries()) { if (now > v.reset) rateLimitMap.delete(k); }
 }, 120000);
 
-// Load 20 tin nhắn gần nhất của session từ NocoDB
-function loadChatHistory(sessionId) {
+// Track NocoDB row IDs per session để tránh re-search
+const sessionRowIds = new Map();
+
+// PATCH một row NocoDB
+function patchNocoDB(tableId, rowId, data) {
+  return new Promise((resolve, reject) => {
+    const body = Buffer.from(JSON.stringify(data));
+    const opts = {
+      hostname: NOCODB_HOST,
+      path: `/api/v1/db/data/noco/${NOCODB_BASE}/${tableId}/${rowId}`,
+      method: 'PATCH',
+      headers: { 'xc-token': NOCODB_TOKEN, 'Content-Type': 'application/json', 'Content-Length': body.length }
+    };
+    const req = https.request(opts, r => {
+      let d = ''; r.on('data', c => d += c);
+      r.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve({}); } });
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
+    req.write(body); req.end();
+  });
+}
+
+// Load session từ NocoDB — 1 row per session, Content = JSON array [{role, content}]
+function loadChatSession(sessionId) {
   return new Promise(resolve => {
-    const qs = `limit=20&sort=-Id&where=(Session_id,eq,${encodeURIComponent(sessionId)})`;
+    const qs = `limit=1&where=(Session_id,eq,${encodeURIComponent(sessionId)})`;
     const req = https.get({
       hostname: NOCODB_HOST,
       path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_CHAT}?${qs}`,
       headers: { 'xc-token': NOCODB_TOKEN }
     }, r => {
-      let d = '';
-      r.on('data', c => d += c);
+      let d = ''; r.on('data', c => d += c);
       r.on('end', () => {
-        try { resolve((JSON.parse(d).list || []).reverse()); } catch { resolve([]); }
+        try {
+          const row = (JSON.parse(d).list || [])[0];
+          if (!row) return resolve([]);
+          if (row.Id) sessionRowIds.set(sessionId, row.Id);
+          try { resolve(JSON.parse(row.Content || '[]')); } catch { resolve([]); }
+        } catch { resolve([]); }
       });
     });
     req.on('error', () => resolve([]));
@@ -933,14 +960,38 @@ function loadChatHistory(sessionId) {
   });
 }
 
-// Lưu tin nhắn vào NocoDB (async, không block)
-function saveChatMessage(sessionId, role, content, activeTab) {
-  saveToNocoDB(TABLE_CHAT, {
-    Session_id: sessionId,
-    Role: role,
-    Content: content,
-    Active_tab: activeTab || ''
-  }).catch(e => console.error('[chat save error]', e.message));
+// Upsert session: 1 row per session trong NocoDB (async, không block)
+function upsertChatSession(sessionId, messages, activeTab) {
+  const payload = { Content: JSON.stringify(messages), Active_tab: activeTab || '' };
+  const rowId = sessionRowIds.get(sessionId);
+  if (rowId) {
+    patchNocoDB(TABLE_CHAT, rowId, payload).catch(e => console.error('[chat patch]', e.message));
+    return;
+  }
+  // Lần đầu: search xem row đã tồn tại chưa
+  const qs = `limit=1&where=(Session_id,eq,${encodeURIComponent(sessionId)})`;
+  const req = https.get({
+    hostname: NOCODB_HOST,
+    path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_CHAT}?${qs}`,
+    headers: { 'xc-token': NOCODB_TOKEN }
+  }, r => {
+    let d = ''; r.on('data', c => d += c);
+    r.on('end', () => {
+      try {
+        const row = (JSON.parse(d).list || [])[0];
+        if (row?.Id) {
+          sessionRowIds.set(sessionId, row.Id);
+          patchNocoDB(TABLE_CHAT, row.Id, payload).catch(e => console.error('[chat patch]', e.message));
+        } else {
+          saveToNocoDB(TABLE_CHAT, { Session_id: sessionId, Role: 'session', ...payload })
+            .then(r => { if (r?.Id) sessionRowIds.set(sessionId, r.Id); })
+            .catch(e => console.error('[chat create]', e.message));
+        }
+      } catch (e) { console.error('[chat upsert]', e.message); }
+    });
+  });
+  req.on('error', e => console.error('[chat upsert get]', e.message));
+  req.setTimeout(10000, () => req.destroy());
 }
 
 // Tool definitions cho Claude
@@ -1310,9 +1361,6 @@ app.post('/api/chat', async (req, res) => {
 
   const send = (data) => { try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch (_) {} };
 
-  // Lưu tin nhắn user ngay lập tức
-  saveChatMessage(sessionId, 'user', message, activeTab);
-
   try {
     // In-memory history cho session hiện tại (reset khi redeploy — không dùng NocoDB history)
     const sessionHistory = chatHistories.get(sessionId) || [];
@@ -1403,11 +1451,13 @@ app.post('/api/chat', async (req, res) => {
     res.end();
 
     if (fullResponse) {
-      saveChatMessage(sessionId, 'assistant', fullResponse, activeTab);
       // Cập nhật in-memory history
       sessionHistory.push({ role: 'user', content: message });
       sessionHistory.push({ role: 'assistant', content: fullResponse });
-      chatHistories.set(sessionId, sessionHistory.slice(-CHAT_HISTORY_MAX));
+      const updated = sessionHistory.slice(-CHAT_HISTORY_MAX);
+      chatHistories.set(sessionId, updated);
+      // Lưu toàn bộ session vào 1 row NocoDB
+      upsertChatSession(sessionId, updated, activeTab);
     }
 
   } catch (e) {
@@ -1418,10 +1468,15 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// GET /api/chat/history/:sessionId — load lịch sử chat
+// GET /api/chat/history/:sessionId — load lịch sử chat (1 session = 1 row)
 app.get('/api/chat/history/:sessionId', async (req, res) => {
   try {
-    const history = await loadChatHistory(req.params.sessionId);
+    // Nếu session đang có trong memory → dùng luôn (tránh gọi NocoDB)
+    const inMem = chatHistories.get(req.params.sessionId);
+    if (inMem && inMem.length) return res.json(inMem);
+    const history = await loadChatSession(req.params.sessionId);
+    // Restore vào memory nếu load được
+    if (history.length) chatHistories.set(req.params.sessionId, history);
     res.json(history);
   } catch (e) {
     res.json([]);

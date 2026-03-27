@@ -2001,7 +2001,7 @@ async function loadChatHistory() {
     if (!data.length) return;
     const msgs = document.getElementById('chatMessages');
     msgs.innerHTML = '';
-    data.forEach(m => appendMessage(m.Role === 'user' ? 'user' : 'ai', m.Content, false));
+    data.forEach(m => appendMessage((m.role || m.Role) === 'user' ? 'user' : 'ai', m.content || m.Content, false));
     msgs.scrollTop = msgs.scrollHeight;
   } catch (_) {}
 }
