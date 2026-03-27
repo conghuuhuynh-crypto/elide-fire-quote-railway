@@ -1936,7 +1936,7 @@ let chatIsOpen = false;
 let chatBusy   = false;
 let voiceRecog = null;
 let isRecording = false;
-let pendingPrefill = null; // { formType, data } waiting user confirm
+// pendingPrefill removed — prefill now auto-executes when bot calls the tool
 
 // ---- Toggle / Open / Close ----
 function toggleChat() {
@@ -2081,59 +2081,16 @@ function handleChatAction(name, data, aiMsgEl) {
     return;
   }
   if (name === 'prefill_quote_form' || name === 'prefill_contract_form') {
-    pendingPrefill = { formType: name === 'prefill_quote_form' ? 'quote' : 'contract', data };
-    const card = buildSummaryCard(pendingPrefill.formType, data);
-    const msgs = document.getElementById('chatMessages');
-    msgs.appendChild(card);
-    scrollChatBottom();
+    const formType = name === 'prefill_quote_form' ? 'quote' : 'contract';
+    doFill(formType, data);
   }
 }
 
-// ---- Summary card ----
-function buildSummaryCard(formType, data) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'chat-summary';
-
-  const labelMap = {
-    nv_ten:'Nhân viên phụ trách',
-    ten_cong_ty:'Tên công ty', ten_phong_ban:'Phòng ban', ten_nguoi_lien_he:'Người LH',
-    sdt_khach_hang:'Số điện thoại', email_khach_hang:'Email', ten_du_an:'Tên dự án',
-    dia_chi:'Địa chỉ', ma_so_thue:'Mã số thuế', ten_nguoi_dai_dien:'Người đại diện',
-    chuc_vu:'Chức vụ', thoi_gian_giao_hang:'Thời gian GH', dia_diem_giao_hang:'Địa điểm GH'
-  };
-  const title = formType === 'quote' ? 'THÔNG TIN BÁO GIÁ' : 'THÔNG TIN HỢP ĐỒNG';
-  let html = `<div class="chat-summary-title"><svg viewBox="0 0 24 24" fill="#FA0F0F" stroke="none"><path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74z"/></svg>${title}</div>`;
-
-  Object.entries(data).forEach(([k, v]) => {
-    if (k === 'items' || !v) return;
-    const label = labelMap[k] || k;
-    html += `<div class="chat-summary-row"><span class="chat-summary-k">${label}</span><span class="chat-summary-v">${v}</span></div>`;
-  });
-
-  if (data.items?.length) {
-    data.items.forEach((it, i) => {
-      const price = it.don_gia ? Number(it.don_gia).toLocaleString('vi-VN') + ' đ' : '';
-      html += `<div class="chat-summary-row"><span class="chat-summary-k">SP ${i+1}</span><span class="chat-summary-v">${it.mo_ta || ''} × ${it.so_luong || 1} ${price ? '— ' + price : ''}</span></div>`;
-    });
-  }
-
-  html += `<div class="chat-summary-actions">
-    <button class="chat-summary-ok" onclick="confirmPrefill()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Điền vào form</button>
-    <button class="chat-summary-cancel" onclick="this.closest('.chat-summary').remove(); pendingPrefill=null;">Huỷ</button>
-  </div>`;
-  wrapper.innerHTML = html;
-  return wrapper;
-}
-
-function confirmPrefill() {
-  if (!pendingPrefill) return;
-  const { formType, data } = pendingPrefill;
-  pendingPrefill = null;
-
+// ---- Auto-fill form (no confirmation card needed — bot asks in text first) ----
+function doFill(formType, data) {
   if (formType === 'quote') {
     switchTab('bao-gia');
     const f = document.getElementById('quoteForm');
-    // Chọn nhân viên phụ trách nếu có
     if (data.nv_ten && typeof employeeList !== 'undefined') {
       const nv = employeeList.find(e => e.Ten_nhan_vien === data.nv_ten);
       if (nv) {
@@ -2148,11 +2105,12 @@ function confirmPrefill() {
     if (data.items?.length) {
       document.getElementById('productBody').innerHTML = '';
       data.items.forEach(it => {
-        addProductRow();
+        addProductRow(it.model || '');
         const rows = document.querySelectorAll('#productBody tr');
         const lastRow = rows[rows.length - 1];
         if (it.so_luong) lastRow.querySelector('.row-qty').value = it.so_luong;
-        if (it.don_gia) { lastRow.querySelector('.row-price').value = Number(it.don_gia).toLocaleString('vi-VN'); }
+        if (it.don_gia) lastRow.querySelector('.row-price').value = Number(it.don_gia).toLocaleString('vi-VN');
+        if (it.chiet_khau) lastRow.querySelector('.row-ck').value = it.chiet_khau;
         calcTotal();
       });
     }
@@ -2171,12 +2129,11 @@ function confirmPrefill() {
     }
     if (data.items?.length) {
       document.getElementById('hd-items').innerHTML = '';
-      data.items.forEach(it => hdAddItem(null, it.so_luong || 1, it.don_gia || 0));
+      data.items.forEach(it => hdAddItem(it.model || null, it.so_luong || 1, it.don_gia || 0));
     }
   }
 
-  document.querySelectorAll('.chat-summary').forEach(el => el.remove());
-  showChatToast('✅ AI đã điền form — vui lòng kiểm tra lại');
+  showChatToast('Đã điền form — vui lòng kiểm tra lại');
   setTimeout(() => {
     const section = formType === 'quote' ? 'section-bao-gia' : 'section-hop-dong';
     document.getElementById(section)?.scrollIntoView({ behavior: 'smooth' });

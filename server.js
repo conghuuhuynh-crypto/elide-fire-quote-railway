@@ -483,7 +483,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v29-chatbot-eq-search' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v30-chatbot-prefill-ux' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -996,9 +996,10 @@ const chatTools = [
             items: {
               type: 'object',
               properties: {
-                mo_ta:      { type: 'string', description: 'Mô tả sản phẩm' },
+                model:      { type: 'string', description: 'Mã model sản phẩm: "TECHIDEAS" (1.4kg, 2.5tr) hoặc "LOVINGCARE" (0.4kg, 1.95tr)' },
+                mo_ta:      { type: 'string', description: 'Mô tả thêm nếu có' },
                 so_luong:   { type: 'number', description: 'Số lượng' },
-                don_gia:    { type: 'number', description: 'Đơn giá (VNĐ)' },
+                don_gia:    { type: 'number', description: 'Đơn giá (VNĐ) — bỏ trống để dùng giá mặc định' },
                 chiet_khau: { type: 'number', description: 'Chiết khấu (%)' }
               }
             }
@@ -1208,8 +1209,27 @@ Chính sách: miễn phí giao hàng toàn quốc, có chương trình đại l�
 - Không hỏi lại thông tin đã có trong form context — kể cả khi query trả về rỗng
 - Nếu form đang hiển thị So_bao_gia hoặc So_hop_dong → đây có thể là record ĐÃ LƯU được load lên. Khi user hỏi về record đó → BẮT BUỘC gọi query_quotes/query_contracts với search = số đó để lấy dữ liệu thực tế từ DB, không tự kết luận từ form context.
 - Sau khi query, nếu kết quả rỗng → chỉ nói "Không tìm thấy trong hệ thống" rồi dừng. KHÔNG hỏi thêm thông tin, KHÔNG đề nghị nhập lại.
-- Khi prefill: điền đủ mọi thông tin đã thu thập
 - Nếu cần tab khác: gọi switch_tab trước khi prefill
+
+== PREFILL FORM — QUY TRÌNH BẮT BUỘC ==
+1. Thu thập thông tin từ user (hỏi các trường còn thiếu)
+2. Khi đã đủ thông tin → nói "Tôi đã có đủ thông tin. Bạn xác nhận để tôi điền form không?" (KHÔNG gọi prefill lúc này)
+3. Sau khi user xác nhận (OK / có / được / ...) → GỌI prefill_quote_form hoặc prefill_contract_form
+4. Form sẽ tự động điền — KHÔNG cần hỏi thêm gì
+
+== PREFILL — MERGE VỚI FORM CONTEXT ==
+- Keys trong "Dữ liệu form hiện tại" MAP TRỰC TIẾP sang params của prefill_quote_form:
+  ten_cong_ty → ten_cong_ty | ten_phong_ban → ten_phong_ban | ten_nguoi_lien_he → ten_nguoi_lien_he
+  sdt_khach_hang → sdt_khach_hang | email_khach_hang → email_khach_hang | ten_du_an → ten_du_an
+- Khi gọi prefill, LUÔN bao gồm TẤT CẢ fields từ formContext + fields mới từ user (merge lại)
+- Nếu user chỉ muốn cập nhật 1 field: đọc formContext lấy các field cũ, ghép field mới → gọi prefill 1 lần
+- KHÔNG bao giờ hỏi lại field đã có trong formContext
+
+== SẢN PHẨM (items) ==
+- TECHIDEAS = bóng 1.4kg, giá mặc định 2.500.000đ, dùng cho nhà xưởng/kho/nhà máy
+- LOVINGCARE = bóng 0.4kg, giá mặc định 1.950.000đ, dùng cho gia đình/xe/văn phòng
+- Khi user nói "TECHIDEAS" hoặc "1.4kg" hoặc "công nghiệp" → model = "TECHIDEAS"
+- Khi user nói "LOVINGCARE" hoặc "0.4kg" hoặc "gia đình" → model = "LOVINGCARE"
 - Khi user muốn chọn nhân viên phụ trách: gọi query_employees trước → lấy Ten_nhan_vien chính xác → truyền vào nv_ten khi prefill
 - KHÔNG tự đặt tên nhân viên — chỉ dùng tên lấy từ query_employees
 
