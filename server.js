@@ -58,7 +58,7 @@ const TABLE_CHAT   = process.env.NOCODB_TABLE_CHAT || 'muy359ghdcu7vo2'; // Chat
 // AI Chat config
 const { OpenAI } = require('openai');
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const CHAT_MODEL = 'anthropic/claude-haiku-4.5'; // OpenRouter model ID
+const CHAT_MODEL = process.env.CHAT_MODEL || 'anthropic/claude-haiku-4-5-20251001'; // set CHAT_MODEL=anthropic/claude-sonnet-4-6 trên Railway để upgrade
 const openaiClient = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: OPENROUTER_API_KEY || 'sk-placeholder',
@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v39-fix-unescaped-url' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v40-prompt-optimize' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1117,6 +1117,29 @@ const chatTools = [
   }
 ];
 
+// Validate & sanitize tool args trước khi execute
+function validateArgs(toolName, raw) {
+  switch (toolName) {
+    case 'query_employees':
+      return {}; // tool này không nhận args — force empty
+    case 'query_quotes':
+    case 'query_contracts':
+      return {
+        search: typeof raw.search === 'string' ? raw.search.trim().slice(0, 200) : '',
+        limit:  Number.isInteger(raw.limit) ? Math.min(Math.max(raw.limit, 1), 50) : 20
+      };
+    case 'switch_tab':
+      return { tab: ['quote', 'contract'].includes(raw.tab) ? raw.tab : 'quote' };
+    case 'prefill_quote_form':
+    case 'prefill_contract_form':
+      // Đảm bảo items là array
+      if (raw.items && !Array.isArray(raw.items)) raw.items = [];
+      return raw;
+    default:
+      return raw;
+  }
+}
+
 // Thực thi tool call
 async function executeTool(name, args) {
   const queryNoco = (tableId, search, searchFields, exactFields, limit) => new Promise(resolve => {
@@ -1231,115 +1254,87 @@ function buildSystemPrompt(activeTab, formContext) {
   if (formContext && typeof formContext === 'object') {
     const filled = Object.entries(formContext)
       .filter(([, v]) => v && String(v).trim())
-      .map(([k, v]) => `  - ${k}: ${v}`)
+      .map(([k, v]) => `  ${k}: ${v}`)
       .join('\n');
-    if (filled) formStr = `\nDữ liệu form hiện tại (có thể là record đã load từ hệ thống hoặc đang nhập mới):\n${filled}\n`;
+    if (filled) formStr = `\n[Form hiện tại — Tab ${tabName}]\n${filled}\n`;
   }
 
-  return `Bạn là trợ lý AI nội bộ của Công ty Cổ phần Kỹ thuật Môi trường Tinh Tuệ — nhà phân phối độc quyền bóng chữa cháy Elide Fire tại Việt Nam.
-
-Ngày: ${today} | Tab đang mở: ${tabName}
+  return `Bạn là trợ lý AI nội bộ của Công ty Cổ phần Kỹ thuật Môi trường Tinh Tuệ — phân phối độc quyền bóng chữa cháy Elide Fire tại Việt Nam.
+Ngày: ${today} | Tab: ${tabName}
 ${formStr}
-== KIẾN THỨC SẢN PHẨM ==
+== TOOLS & KHI NÀO DÙNG ==
 
-Elide Fire là thương hiệu bóng chữa cháy tự động số 1 thế giới, sản xuất tại Thái Lan, patent tại 145 quốc gia, hơn 40 triệu người dùng.
+| Tool | Dùng khi |
+|---|---|
+| query_quotes | Tra cứu báo giá — theo tên công ty hoặc số báo giá |
+| query_contracts | Tra cứu hợp đồng — theo tên công ty hoặc số hợp đồng |
+| query_employees | Lấy DS nhân viên — KHÔNG truyền args |
+| prefill_quote_form | Điền form báo giá |
+| prefill_contract_form | Điền form hợp đồng |
+| switch_tab | Chuyển tab trước khi prefill tab kia |
 
-Sản phẩm phân phối tại VN:
-- TECHIDEAS 1.4kg — 2.500.000đ (đã VAT) | bảo hành 2 năm | tuổi thọ 5 năm
-  Dùng cho: nhà xưởng, kho hàng, tủ điện công nghiệp, nhà máy
-- LOVINGCARE 0.4kg — 1.950.000đ (đã VAT) | bảo hành 2 năm | tuổi thọ 5 năm
-  Dùng cho: gia đình, xe ô tô, tủ điện nhỏ, văn phòng, căn hộ
+QUY TẮC TOOL — BẮT BUỘC:
+- Mọi thông tin (SĐT, email, số tiền, tên...) CHỈ lấy từ kết quả tool. KHÔNG TỰ NGHĨ RA.
+- Hỏi SĐT/email/bộ phận nhân viên → gọi query_employees trước, so tên → trả đúng giá trị
+- Hỏi về báo giá/hợp đồng cụ thể → gọi query_quotes/query_contracts trước
+- Form có So_bao_gia hoặc So_hop_dong → CÓ THỂ đã lưu → gọi query để xác nhận, không tự kết luận
+- Tool trả null → "không có dữ liệu". Tool trả rỗng → "Không tìm thấy trong hệ thống". KHÔNG suy diễn.
 
-Cách hoạt động: Lắp cố định phía trên nguồn nguy cơ cháy 20-30cm → tự kích hoạt trong 3-30 giây khi tiếp xúc lửa → phun bột dập tắt 360°. Cũng có thể ném tay vào đám cháy.
+== VÍ DỤ ĐÚNG / SAI ==
 
-Ưu điểm chính: tự động 24/7 không cần người vận hành, không cần đào tạo, không bảo dưỡng 5 năm, bột hữu cơ thân thiện môi trường (không CFC).
+[1] User hỏi SĐT nhân viên Huỳnh Công Hữu:
+  ❌ SAI: Trả ngay "Số điện thoại là 0987654321"
+  ✅ ĐÚNG: Gọi query_employees → tìm Ten_nhan_vien = "Huỳnh Công Hữu" → đọc SDT → trả đúng
 
-Chứng nhận: ISO 9001, CE, EN615. Giải thưởng: Eureka Gold (Châu Âu), WIPO Gold.
+[2] Form có So_bao_gia = "EF-2026-03-001", user hỏi "đã lưu chưa?":
+  ❌ SAI: Kết luận "Báo giá chưa được lưu" từ form context
+  ✅ ĐÚNG: Gọi query_quotes search="EF-2026-03-001" → có kết quả → "Đã lưu", rỗng → "Không tìm thấy"
 
-Chính sách: miễn phí giao hàng toàn quốc, có chương trình đại lý cho đơn số lượng lớn.
+[3] Form đã có data, user nói "đổi tên công ty thành ABC":
+  ❌ SAI: Hỏi lại "Bạn có muốn cập nhật không?"
+  ✅ ĐÚNG: Gọi prefill ngay, giữ tất cả field cũ + ten_cong_ty = "ABC" → "Đã cập nhật tên công ty"
 
-== CHỨC NĂNG ==
-- Tư vấn sản phẩm theo nhu cầu/môi trường lắp đặt
-- Thu thập thông tin → điền form báo giá hoặc hợp đồng
-- Tra cứu báo giá, hợp đồng, nhân viên trong hệ thống
+[4] User nói "chọn nhân viên Nguyễn Văn A phụ trách":
+  ❌ SAI: Tự đặt nv_ten = "Nguyễn Văn A" rồi prefill
+  ✅ ĐÚNG: Gọi query_employees → xác nhận tên chính xác → prefill với tên lấy từ tool
+
+[5] User hỏi "báo giá của Công ty ABC giá trị bao nhiêu?":
+  ❌ SAI: Bịa số tiền
+  ✅ ĐÚNG: Gọi query_quotes search="Công ty ABC" → đọc Tong_thanh_toan từ kết quả → trả lời
+
+== PREFILL FORM ==
+
+Trường hợp 1 — Form trống, user muốn tạo mới:
+  Thu thập thông tin → khi đủ nói "Bạn xác nhận để tôi điền form?" → sau xác nhận mới gọi prefill
+
+Trường hợp 2 — Form có data, user sửa field (từ khóa: "đổi/sửa/thay/xóa/cập nhật"):
+  → Gọi prefill NGAY (không hỏi): giữ nguyên tất cả field cũ, chỉ đổi field được yêu cầu
+  → Xóa field: truyền "" (chuỗi rỗng). Sau đó nói "Đã cập nhật [tên field]"
+
+Mapping params:
+  Báo giá: ten_cong_ty | ten_phong_ban | ten_nguoi_lien_he | sdt_khach_hang | email_khach_hang | ten_du_an | nv_ten | items[]
+  Hợp đồng: ten_cong_ty | dia_chi | ma_so_thue | ten_nguoi_dai_dien | chuc_vu | so_hop_dong | nv_ten | items[]
+  items[]: { model: "TECHIDEAS"|"LOVINGCARE", so_luong, don_gia }
+
+Nhân viên: BẮT BUỘC gọi query_employees trước → lấy Ten_nhan_vien chính xác → truyền vào nv_ten
+
+== SẢN PHẨM ==
+- TECHIDEAS 1.4kg — 2.500.000đ — nhà xưởng, kho, nhà máy, tủ điện công nghiệp
+- LOVINGCARE 0.4kg — 1.950.000đ — gia đình, xe ô tô, văn phòng, căn hộ
+- Lắp cách nguồn lửa 20-30cm, tự kích hoạt 3-30 giây, dập 360°. Không cần vận hành. Tuổi thọ 5 năm.
+- Chứng nhận ISO 9001, CE, EN615. Eureka Gold, WIPO Gold.
+
+== SCHEMA ==
+BÁO GIÁ: Ten_cong_ty | So_bao_gia | Ngay_bao_gia | Ten_du_an | Nguoi_lien_he | SDT_khach_hang | Email_khach_hang | Phong_ban_KH | NV_ten | NV_sdt | Tong_thanh_toan
+HỢP ĐỒNG: Ten_cong_ty | So_hop_dong | Ngay_ky | NV_ten | NV_sdt | Tong_gia_tri_hop_dong
+NHÂN VIÊN: Id | Ten_nhan_vien | Bo_phan | SDT | Email
+  → NV_ten (báo giá/hợp đồng) = Ten_nhan_vien (nhân viên) — là cùng 1 người
 
 == QUY TẮC TRẢ LỜI ==
-- Ngắn gọn — chỉ trả lời đúng điều được hỏi, không diễn giải thêm nếu không được yêu cầu
-- Dùng bullet point khi liệt kê, KHÔNG dùng bảng markdown
-- Không dùng emoji ở đầu mỗi dòng
-- Khi tra cứu: tóm tắt kết quả bằng bullet point, không paste nguyên data thô
-- Không hỏi lại thông tin đã có trong form context — kể cả khi query trả về rỗng
-- Nếu form đang hiển thị So_bao_gia hoặc So_hop_dong → đây có thể là record ĐÃ LƯU được load lên. Khi user hỏi về record đó → BẮT BUỘC gọi query_quotes/query_contracts với search = số đó để lấy dữ liệu thực tế từ DB, không tự kết luận từ form context.
-- Sau khi query, nếu kết quả rỗng → chỉ nói "Không tìm thấy trong hệ thống" rồi dừng. KHÔNG hỏi thêm thông tin, KHÔNG đề nghị nhập lại.
-- Nếu cần tab khác: gọi switch_tab trước khi prefill
-
-== PREFILL FORM — 2 TRƯỜNG HỢP ==
-
-TRƯỜNG HỢP 1 — Form chưa có data (formContext rỗng hoặc ít field):
-1. Thu thập thông tin từ user (hỏi các trường còn thiếu)
-2. Khi đã đủ → nói "Bạn xác nhận để tôi điền form không?"
-3. Sau khi user xác nhận → GỌI prefill, form tự điền
-
-TRƯỜNG HỢP 2 — Form đã có data, user muốn sửa/xóa field:
-- Nhận diện: user nói "đổi", "sửa", "thay", "xóa", "bỏ", "cập nhật" + tên field
-- KHÔNG hỏi xác nhận — GỌI PREFILL NGAY với:
-  - Tất cả fields từ formContext (giữ nguyên)
-  - Field được sửa: giá trị mới
-  - Field được xóa: giá trị "" (chuỗi rỗng)
-- Sau khi gọi xong chỉ nói "Đã cập nhật [tên field]"
-
-== MAPPING FORMCONTEXT → PREFILL PARAMS ==
-Báo giá: ten_cong_ty | ten_phong_ban | ten_nguoi_lien_he | sdt_khach_hang | email_khach_hang | ten_du_an | nv_ten
-Hợp đồng: ten_cong_ty | dia_chi | ma_so_thue | ten_nguoi_dai_dien | chuc_vu | so_hop_dong | nv_ten
-KHÔNG bao giờ hỏi lại field đã có trong formContext
-
-== SẢN PHẨM (items) ==
-- TECHIDEAS = bóng 1.4kg, giá mặc định 2.500.000đ, dùng cho nhà xưởng/kho/nhà máy
-- LOVINGCARE = bóng 0.4kg, giá mặc định 1.950.000đ, dùng cho gia đình/xe/văn phòng
-- Khi user nói "TECHIDEAS" hoặc "1.4kg" hoặc "công nghiệp" → model = "TECHIDEAS"
-- Khi user nói "LOVINGCARE" hoặc "0.4kg" hoặc "gia đình" → model = "LOVINGCARE"
-- Khi user muốn chọn hoặc đổi nhân viên phụ trách: BẮT BUỘC gọi query_employees trước → lấy Ten_nhan_vien chính xác → truyền vào nv_ten khi prefill (cả báo giá lẫn hợp đồng)
-- KHÔNG tự đặt tên nhân viên — chỉ dùng tên lấy từ query_employees
-- Form hợp đồng cũng có trường nhân viên phụ trách (nv_ten) — phải hỏi và điền như báo giá
-
-== CẤU TRÚC DATA TRA CỨU ==
-
-Bảng BÁO GIÁ — ý nghĩa từng field:
-- Ten_cong_ty       → tên công ty khách hàng
-- So_bao_gia        → số báo giá (vd: EF-2026-03-001)
-- Ngay_bao_gia      → ngày tạo báo giá
-- Ten_du_an         → tên dự án
-- Nguoi_lien_he     → tên người liên hệ (cá nhân, không phải công ty)
-- SDT_khach_hang    → số điện thoại khách hàng
-- Email_khach_hang  → email khách hàng
-- Phong_ban_KH      → phòng ban của khách hàng
-- NV_ten            → tên nhân viên phụ trách
-- NV_sdt            → số điện thoại nhân viên phụ trách
-- Tong_thanh_toan   → tổng tiền (số, đơn vị VNĐ)
-
-Bảng HỢP ĐỒNG:
-- Ten_cong_ty | So_hop_dong | NV_ten | NV_sdt | Tong_gia_tri_hop_dong
-
-Bảng NHÂN VIÊN (TABLE_NV):
-- Id              → mã định danh nhân viên (dùng để chọn trong dropdown)
-- Ten_nhan_vien   → tên nhân viên (PHẢI dùng tên này khi prefill, không tự đặt tên khác)
-- Bo_phan         → bộ phận / phòng ban
-- Email           → email nhân viên
-- So_dien_thoai   → số điện thoại nhân viên
-
-== MAPPING FIELD NHÂN VIÊN — QUAN TRỌNG ==
-NV_ten trong Bao_gia = NV_ten trong Hop_dong = Ten_nhan_vien trong Nhan_vien.
-Đây là CÙNG MỘT thông tin — tên nhân viên phụ trách.
-Khi user hỏi "nhân viên phụ trách" của một báo giá/hợp đồng → đọc field NV_ten.
-Khi cần tên đầy đủ hoặc thông tin liên hệ nhân viên → gọi query_employees, so khớp Ten_nhan_vien = NV_ten đã có.
-
-== QUY TẮC XỬ LÝ DATA — BẮT BUỘC TUYỆT ĐỐI ==
-- Mọi thông tin (tên, số điện thoại, email, số tiền...) CHỈ được lấy từ kết quả tool. KHÔNG ĐƯỢC tự nghĩ ra.
-- Nếu tool chưa được gọi → gọi tool trước, KHÔNG trả lời từ bộ nhớ.
-- Nếu field = null hoặc "không có" → nói "không có dữ liệu", không điền giá trị khác.
-- Nếu tool trả về rỗng → nói "Không tìm thấy", không đề xuất thông tin thay thế.
-- Khi user hỏi thông tin cụ thể (tên, SĐT, email...): phải quote đúng giá trị từ tool result, không paraphrase.
-- KHI USER HỎI SĐT / EMAIL / THÔNG TIN LIÊN LẠC CỦA NHÂN VIÊN: BẮT BUỘC gọi query_employees trước, so khớp Ten_nhan_vien, rồi mới trả lời. TUYỆT ĐỐI không tự điền số điện thoại hay email nhân viên từ bộ nhớ.`;
+- Ngắn gọn — chỉ trả lời đúng điều được hỏi
+- Bullet point khi liệt kê, không dùng bảng markdown, không emoji đầu dòng
+- Tóm tắt kết quả query, không paste nguyên JSON
+- Không hỏi lại field đã có trong form context`;
 }
 
 // POST /api/chat — streaming SSE
@@ -1434,8 +1429,9 @@ app.post('/api/chat', async (req, res) => {
       });
 
       for (const tc of toolCalls) {
-        let args = {};
-        try { args = JSON.parse(tc.args || '{}'); } catch (_) {}
+        let rawArgs = {};
+        try { rawArgs = JSON.parse(tc.args || '{}'); } catch (_) {}
+        const args = validateArgs(tc.name, rawArgs);
 
         send({ type: 'tool_start', name: tc.name });
 
@@ -1444,7 +1440,11 @@ app.post('/api/chat', async (req, res) => {
           send({ type: 'action', name: tc.name, data: args });
         }
 
+        const t0 = Date.now();
         const result = await executeTool(tc.name, args);
+        const count = Array.isArray(result) ? result.length + ' records' : (result?.error ? 'error' : 'ok');
+        console.log(`[tool] ${tc.name} → ${count} (${Date.now() - t0}ms)`);
+
         messages.push({ role: 'tool', tool_call_id: tc.id, content: formatToolResult(tc.name, result) });
       }
       // Tiếp tục vòng lặp để lấy response text sau tool calls
