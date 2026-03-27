@@ -1430,11 +1430,17 @@
         document.getElementById('hd_nv_select').dispatchEvent(new Event('change'));
       }
     }
-    // Load items — detect model từ Mo_ta_san_pham
+    // Load items — dùng Items JSON array nếu có, fallback sang legacy single-item
     document.getElementById('hd-items').innerHTML = '';
-    const moTaText = c.Mo_ta_san_pham || '';
-    const found = productList.find(p => p.Model && moTaText.includes(p.Model));
-    hdAddItem(found ? found.Model : '', c.So_luong || 1, c.Don_gia || 0);
+    let oldItems = [];
+    if (c.Items) { try { oldItems = JSON.parse(c.Items); } catch(_) {} }
+    if (oldItems.length > 0) {
+      oldItems.forEach(it => hdAddItem(it.model || '', it.so_luong || 1));
+    } else {
+      const moTaText = c.Mo_ta_san_pham || '';
+      const found = productList.find(p => p.Model && moTaText.includes(p.Model));
+      hdAddItem(found ? found.Model : '', c.So_luong || 1);
+    }
     hdCalc();
     hdPdfUrl = null; hdDocxUrl = null; hdShowStatus('');
     document.getElementById('hdBtnSubmit').style.display = '';
