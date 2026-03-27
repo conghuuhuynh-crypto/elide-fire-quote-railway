@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v33-prefill-update-field' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v34-contract-nv-model' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1022,6 +1022,7 @@ const chatTools = [
       parameters: {
         type: 'object',
         properties: {
+          nv_ten:                  { type: 'string', description: 'Tên nhân viên phụ trách — phải khớp chính xác với Ten_nhan_vien trong danh sách nhân viên' },
           so_hop_dong:             { type: 'string' },
           ngay_ky_hop_dong:        { type: 'string', description: 'Ngày ký (YYYY-MM-DD)' },
           ten_cong_ty:             { type: 'string' },
@@ -1037,6 +1038,7 @@ const chatTools = [
             items: {
               type: 'object',
               properties: {
+                model:       { type: 'string', description: '"TECHIDEAS" hoặc "LOVINGCARE"' },
                 mo_ta:       { type: 'string' },
                 don_vi_tinh: { type: 'string' },
                 so_luong:    { type: 'number' },
@@ -1233,8 +1235,8 @@ TRƯỜNG HỢP 2 — Form đã có data, user muốn sửa/xóa field:
 - Sau khi gọi xong chỉ nói "Đã cập nhật [tên field]"
 
 == MAPPING FORMCONTEXT → PREFILL PARAMS ==
-Keys trong "Dữ liệu form hiện tại" map trực tiếp sang prefill:
-ten_cong_ty | ten_phong_ban | ten_nguoi_lien_he | sdt_khach_hang | email_khach_hang | ten_du_an
+Báo giá: ten_cong_ty | ten_phong_ban | ten_nguoi_lien_he | sdt_khach_hang | email_khach_hang | ten_du_an | nv_ten
+Hợp đồng: ten_cong_ty | dia_chi | ma_so_thue | ten_nguoi_dai_dien | chuc_vu | so_hop_dong | nv_ten
 KHÔNG bao giờ hỏi lại field đã có trong formContext
 
 == SẢN PHẨM (items) ==
@@ -1242,8 +1244,9 @@ KHÔNG bao giờ hỏi lại field đã có trong formContext
 - LOVINGCARE = bóng 0.4kg, giá mặc định 1.950.000đ, dùng cho gia đình/xe/văn phòng
 - Khi user nói "TECHIDEAS" hoặc "1.4kg" hoặc "công nghiệp" → model = "TECHIDEAS"
 - Khi user nói "LOVINGCARE" hoặc "0.4kg" hoặc "gia đình" → model = "LOVINGCARE"
-- Khi user muốn chọn nhân viên phụ trách: gọi query_employees trước → lấy Ten_nhan_vien chính xác → truyền vào nv_ten khi prefill
+- Khi user muốn chọn hoặc đổi nhân viên phụ trách: BẮT BUỘC gọi query_employees trước → lấy Ten_nhan_vien chính xác → truyền vào nv_ten khi prefill (cả báo giá lẫn hợp đồng)
 - KHÔNG tự đặt tên nhân viên — chỉ dùng tên lấy từ query_employees
+- Form hợp đồng cũng có trường nhân viên phụ trách (nv_ten) — phải hỏi và điền như báo giá
 
 == CẤU TRÚC DATA TRA CỨU ==
 

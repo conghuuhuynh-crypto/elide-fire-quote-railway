@@ -1975,12 +1975,18 @@ function getChatFormContext() {
     });
     const sbg = document.getElementById('so_bao_gia')?.value?.trim();
     if (sbg) ctx['so_bao_gia'] = sbg;
+    // Nhân viên phụ trách
+    const nvTen = document.getElementById('nv_ten')?.value?.trim();
+    if (nvTen) ctx['nv_ten'] = nvTen;
   } else {
     [['hd_ten_cong_ty','ten_cong_ty'],['hd_dia_chi','dia_chi'],['hd_ma_so_thue','ma_so_thue'],
      ['hd_ten_nguoi_dai_dien','ten_nguoi_dai_dien'],['hd_chuc_vu','chuc_vu'],['so_hop_dong','so_hop_dong']].forEach(([id, key]) => {
       const v = document.getElementById(id)?.value?.trim();
       if (v) ctx[key] = v;
     });
+    // Nhân viên phụ trách (hợp đồng)
+    const nvTenHd = document.getElementById('hd_nv_ten')?.value?.trim();
+    if (nvTenHd) ctx['nv_ten'] = nvTenHd;
   }
   return ctx;
 }
@@ -2116,6 +2122,12 @@ function doFill(formType, data) {
     }
   } else {
     switchTab('hop-dong');
+    // Nhân viên phụ trách hợp đồng
+    if ('nv_ten' in data && typeof employeeList !== 'undefined') {
+      const nv = data.nv_ten ? employeeList.find(e => e.Ten_nhan_vien === data.nv_ten) : null;
+      const sel = document.getElementById('hd_nv_select');
+      if (sel) { sel.value = nv ? nv.Id : ''; sel.dispatchEvent(new Event('change')); }
+    }
     const map = { ten_cong_ty:'hd_ten_cong_ty', dia_chi:'hd_dia_chi', ma_so_thue:'hd_ma_so_thue',
       so_tai_khoan_ngan_hang:'hd_so_tai_khoan_ngan_hang', ten_nguoi_dai_dien:'hd_ten_nguoi_dai_dien',
       chuc_vu:'hd_chuc_vu', thoi_gian_giao_hang:'hd_thoi_gian_giao_hang',
@@ -2222,27 +2234,33 @@ function toggleVoice() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   voiceRecog = new SR();
   voiceRecog.lang = 'vi-VN';
+  voiceRecog.continuous = true;       // tiếp tục nghe, không tự dừng sau câu đầu
   voiceRecog.interimResults = true;
   voiceRecog.maxAlternatives = 1;
 
   voiceRecog.onstart = () => {
     isRecording = true;
     document.getElementById('voiceBtn').classList.add('recording');
-    showChatToast('🎤 Đang nghe...');
+    showChatToast('Đang nghe — nhấn mic lần nữa để dừng');
   };
   voiceRecog.onresult = (e) => {
-    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
-    document.getElementById('chatInput').value = transcript;
+    // Gộp tất cả kết quả (final + interim)
+    let transcript = '';
+    for (let i = 0; i < e.results.length; i++) {
+      transcript += e.results[i][0].transcript;
+    }
+    document.getElementById('chatInput').value = transcript.trim();
   };
   voiceRecog.onend = () => {
-    isRecording = false;
+    // Nếu user chưa bấm dừng mà recognition tự kết thúc → restart để tiếp tục nghe
+    if (isRecording) { try { voiceRecog.start(); } catch (_) {} return; }
     document.getElementById('voiceBtn').classList.remove('recording');
-    // User review before send — không tự gửi
   };
-  voiceRecog.onerror = () => {
+  voiceRecog.onerror = (e) => {
+    if (e.error === 'no-speech' && isRecording) { try { voiceRecog.start(); } catch (_) {} return; }
     isRecording = false;
     document.getElementById('voiceBtn').classList.remove('recording');
-    showChatToast('⚠️ Không nhận được giọng nói');
+    showChatToast('Không nhận được giọng nói');
   };
   voiceRecog.start();
 }
