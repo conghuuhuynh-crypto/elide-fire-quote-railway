@@ -58,7 +58,7 @@ const TABLE_CHAT   = process.env.NOCODB_TABLE_CHAT || 'muy359ghdcu7vo2'; // Chat
 // AI Chat config
 const { OpenAI } = require('openai');
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const CHAT_MODEL = process.env.CHAT_MODEL || 'anthropic/claude-haiku-4-5-20251001'; // set CHAT_MODEL=anthropic/claude-sonnet-4-6 trên Railway để upgrade
+const CHAT_MODEL = process.env.CHAT_MODEL || 'anthropic/claude-haiku-4.5'; // set CHAT_MODEL=anthropic/claude-sonnet-4.5 trên Railway để upgrade
 const openaiClient = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: OPENROUTER_API_KEY || 'sk-placeholder',
@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v40-prompt-optimize' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v41-fix-model-id' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
