@@ -1435,7 +1435,7 @@
     let oldItems = [];
     if (c.Items) { try { oldItems = JSON.parse(c.Items); } catch(_) {} }
     if (oldItems.length > 0) {
-      oldItems.forEach(it => hdAddItem(it.model || '', it.so_luong || 1));
+      oldItems.forEach(it => hdAddItem(it.model || '', it.so_luong || 1, it.don_gia || 0));
     } else {
       // Fallback: scan Mo_ta_san_pham tìm tất cả models xuất hiện
       const moTaText = c.Mo_ta_san_pham || '';
