@@ -2252,12 +2252,11 @@ function toggleVoice() {
     document.getElementById('chatInput').value = transcript.trim();
   };
   voiceRecog.onend = () => {
-    // Nếu user chưa bấm dừng mà recognition tự kết thúc → restart để tiếp tục nghe
-    if (isRecording) { try { voiceRecog.start(); } catch (_) {} return; }
+    isRecording = false;
     document.getElementById('voiceBtn').classList.remove('recording');
   };
   voiceRecog.onerror = (e) => {
-    if (e.error === 'no-speech' && isRecording) { try { voiceRecog.start(); } catch (_) {} return; }
+    if (e.error === 'no-speech') return; // continuous mode — bỏ qua, tiếp tục nghe
     isRecording = false;
     document.getElementById('voiceBtn').classList.remove('recording');
     showChatToast('Không nhận được giọng nói');
