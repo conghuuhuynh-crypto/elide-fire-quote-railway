@@ -483,7 +483,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v26-contract-fix' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v27-chatbot-fix' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
