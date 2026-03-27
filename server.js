@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v44-verified-fields' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v45-add-chucvu' }));
 
 // GET /admin/schema — scan field names thực tế từ NocoDB, so sánh với bot config
 app.get('/admin/schema', async (req, res) => {
@@ -521,7 +521,7 @@ app.get('/admin/schema', async (req, res) => {
   // Field names bot đang dùng (hardcoded trong formatToolResult + system prompt)
   const botConfig = {
     Bao_gia:   ['Ten_cong_ty','So_bao_gia','Ngay_bao_gia','Ten_du_an','Nguoi_lien_he','SDT_khach_hang','Email_khach_hang','Phong_ban_KH','NV_ten','NV_sdt','Tong_thanh_toan'],
-    Hop_dong:  ['So_hop_dong','Ten_cong_ty','Ngay_ky','NV_ten','NV_sdt','Tong_gia_tri'],
+    Hop_dong:  ['So_hop_dong','Ten_cong_ty','Ngay_ky','Nguoi_dai_dien','Chuc_vu','Dia_chi','Ma_so_thue','NV_ten','NV_sdt','Tong_gia_tri'],
     Nhan_vien: ['Ten_nhan_vien','Bo_phan','SDT','Email'],
   };
 
@@ -1281,6 +1281,7 @@ function formatToolResult(toolName, result) {
       Ten_cong_ty:    r.Ten_cong_ty    || null,
       Ngay_ky:        r.Ngay_ky        || null,
       Nguoi_dai_dien: r.Nguoi_dai_dien || null,
+      Chuc_vu:        r.Chuc_vu        || null,
       Dia_chi:        r.Dia_chi        || null,
       Ma_so_thue:     r.Ma_so_thue     || null,
       NV_ten:         r.NV_ten         || null,
@@ -1376,7 +1377,7 @@ Nhân viên: BẮT BUỘC gọi query_employees trước → lấy Ten_nhan_vien
 
 == SCHEMA ==
 BÁO GIÁ: Ten_cong_ty | So_bao_gia | Ngay_bao_gia | Ten_du_an | Nguoi_lien_he | SDT_khach_hang | Email_khach_hang | Phong_ban_KH | NV_ten | NV_sdt | Tong_thanh_toan
-HỢP ĐỒNG: Ten_cong_ty | So_hop_dong | Ngay_ky | Nguoi_dai_dien | Dia_chi | Ma_so_thue | NV_ten | NV_sdt | Tong_gia_tri
+HỢP ĐỒNG: Ten_cong_ty | So_hop_dong | Ngay_ky | Nguoi_dai_dien | Chuc_vu | Dia_chi | Ma_so_thue | NV_ten | NV_sdt | Tong_gia_tri
 NHÂN VIÊN: Id | Ten_nhan_vien | Bo_phan | So_dien_thoai (hiển thị là SDT) | Email
   → NV_ten (báo giá/hợp đồng) = Ten_nhan_vien (nhân viên) — là cùng 1 người
 
