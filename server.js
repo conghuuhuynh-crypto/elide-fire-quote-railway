@@ -77,6 +77,12 @@ const CONTRACT_TEMPLATE = path.join(__dirname, 'templates', 'contract-template.d
 // Job queue
 const jobs = {};
 
+// In-memory chat histories: sessionId → [{role, content}]
+// Chỉ lưu user + assistant text (không lưu tool calls)
+// Reset khi Railway redeploy — tránh stale data từ session cũ
+const chatHistories = new Map();
+const CHAT_HISTORY_MAX = 20; // 10 lượt hội thoại
+
 // ---- Helpers ----
 
 /**
@@ -483,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v31-prefill-clear-field' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v32-chat-inmemory-history' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1299,10 +1305,11 @@ app.post('/api/chat', async (req, res) => {
   saveChatMessage(sessionId, 'user', message, activeTab);
 
   try {
-    // Không load history vào AI context — luôn query data mới
-    // History chỉ lưu NocoDB để đánh giá chất lượng
+    // In-memory history cho session hiện tại (reset khi redeploy — không dùng NocoDB history)
+    const sessionHistory = chatHistories.get(sessionId) || [];
     const messages = [
       { role: 'system', content: buildSystemPrompt(activeTab, formContext || {}) },
+      ...sessionHistory,
       { role: 'user', content: message }
     ];
 
@@ -1386,7 +1393,13 @@ app.post('/api/chat', async (req, res) => {
     send({ type: 'done' });
     res.end();
 
-    if (fullResponse) saveChatMessage(sessionId, 'assistant', fullResponse, activeTab);
+    if (fullResponse) {
+      saveChatMessage(sessionId, 'assistant', fullResponse, activeTab);
+      // Cập nhật in-memory history
+      sessionHistory.push({ role: 'user', content: message });
+      sessionHistory.push({ role: 'assistant', content: fullResponse });
+      chatHistories.set(sessionId, sessionHistory.slice(-CHAT_HISTORY_MAX));
+    }
 
   } catch (e) {
     console.error('[chat error]', e.message);
