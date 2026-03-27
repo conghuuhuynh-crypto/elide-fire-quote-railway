@@ -483,7 +483,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v28-chatbot-formcontext' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v29-chatbot-eq-search' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1059,13 +1059,18 @@ const chatTools = [
 
 // Thực thi tool call
 async function executeTool(name, args) {
-  const queryNoco = (tableId, search, searchFields, limit) => new Promise(resolve => {
+  const queryNoco = (tableId, search, searchFields, exactFields, limit) => new Promise(resolve => {
     const lim = Math.min(limit || 20, 50);
     let qs = `limit=${lim}&sort=-Id`;
     if (search) {
-      const s = encodeURIComponent(search);
-      const cond = searchFields.map(f => `(${f},like,%25${s}%25)`).join('~or');
-      qs += `&where=${cond}`;
+      const s = encodeURIComponent(search.trim());
+      const st = search.trim();
+      // exactFields dùng eq (tránh issue % trong URL), likeFields dùng like
+      const conds = searchFields.map(f => {
+        if (exactFields && exactFields.includes(f)) return `(${f},eq,${st})`;
+        return `(${f},like,%25${s}%25)`;
+      });
+      qs += `&where=${conds.join('~or')}`;
     }
     const req = https.get({
       hostname: NOCODB_HOST,
@@ -1079,8 +1084,8 @@ async function executeTool(name, args) {
     req.setTimeout(15000, () => { req.destroy(); resolve([]); });
   });
 
-  if (name === 'query_quotes')    return queryNoco(TABLE_BG, args.search, ['Ten_cong_ty','So_bao_gia'], args.limit);
-  if (name === 'query_contracts') return queryNoco(TABLE_HD, args.search, ['Ten_cong_ty','So_hop_dong'], args.limit);
+  if (name === 'query_quotes')    return queryNoco(TABLE_BG, args.search, ['Ten_cong_ty','So_bao_gia'], ['So_bao_gia'], args.limit);
+  if (name === 'query_contracts') return queryNoco(TABLE_HD, args.search, ['Ten_cong_ty','So_hop_dong'], ['So_hop_dong'], args.limit);
   if (name === 'query_employees') return queryNoco(TABLE_NV, '', [], 50);
   // Client-side actions: chỉ cần acknowledge
   if (['prefill_quote_form','prefill_contract_form','switch_tab'].includes(name)) return { success: true };
@@ -1200,8 +1205,9 @@ Chính sách: miễn phí giao hàng toàn quốc, có chương trình đại l�
 - Dùng bullet point khi liệt kê, KHÔNG dùng bảng markdown
 - Không dùng emoji ở đầu mỗi dòng
 - Khi tra cứu: tóm tắt kết quả bằng bullet point, không paste nguyên data thô
-- Không hỏi lại trường đã có trong form
+- Không hỏi lại thông tin đã có trong form context — kể cả khi query trả về rỗng
 - Nếu form đang hiển thị So_bao_gia hoặc So_hop_dong → đây có thể là record ĐÃ LƯU được load lên. Khi user hỏi về record đó → BẮT BUỘC gọi query_quotes/query_contracts với search = số đó để lấy dữ liệu thực tế từ DB, không tự kết luận từ form context.
+- Sau khi query, nếu kết quả rỗng → chỉ nói "Không tìm thấy trong hệ thống" rồi dừng. KHÔNG hỏi thêm thông tin, KHÔNG đề nghị nhập lại.
 - Khi prefill: điền đủ mọi thông tin đã thu thập
 - Nếu cần tab khác: gọi switch_tab trước khi prefill
 - Khi user muốn chọn nhân viên phụ trách: gọi query_employees trước → lấy Ten_nhan_vien chính xác → truyền vào nv_ten khi prefill
