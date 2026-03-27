@@ -1398,9 +1398,15 @@
     if (!q) return;
     // Chỉ nạp phần sản phẩm vào Hàng hóa & Giá trị — giá dùng Price list (không override)
     document.getElementById('hd-items').innerHTML = '';
-    if (Number(q.SL_Techideas) > 0)  hdAddItem('TECHIDEAS',  q.SL_Techideas);
-    if (Number(q.SL_Lovingcare) > 0) hdAddItem('LOVINGCARE', q.SL_Lovingcare);
-    if (!document.getElementById('hd-items').children.length) hdAddItem();
+    let bgItems = [];
+    if (q.Items) { try { bgItems = JSON.parse(q.Items); } catch(_) {} }
+    if (bgItems.length > 0) {
+      bgItems.forEach(it => hdAddItem(it.model || '', it.so_luong || 1));
+    } else {
+      if (Number(q.SL_Techideas) > 0)  hdAddItem('TECHIDEAS',  q.SL_Techideas);
+      if (Number(q.SL_Lovingcare) > 0) hdAddItem('LOVINGCARE', q.SL_Lovingcare);
+      if (!document.getElementById('hd-items').children.length) hdAddItem();
+    }
     hdCalc();
     document.getElementById('hdFromQuoteModal').classList.remove('open');
   }
