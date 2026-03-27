@@ -2229,7 +2229,7 @@ function toggleVoice() {
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     showChatToast('⚠️ Trình duyệt không hỗ trợ nhập giọng nói'); return;
   }
-  if (isRecording) { voiceRecog?.stop(); return; }
+  if (isRecording) { isRecording = false; voiceRecog?.stop(); return; }
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   voiceRecog = new SR();
