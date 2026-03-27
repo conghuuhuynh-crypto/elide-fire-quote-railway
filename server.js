@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v35-fix-query-employees-crash' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v37-fix-employee-sdt' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1122,7 +1122,7 @@ function formatToolResult(toolName, result) {
       Ten_nhan_vien:  r.Ten_nhan_vien || null,
       Bo_phan:        r.Bo_phan       || null,
       Email:          r.Email         || null,
-      SDT:            r.So_dien_thoai || null
+      SDT:            r.SDT || r.So_dien_thoai || null
     }));
     return `DANH SÁCH NHÂN VIÊN (${clean.length} người):\n` +
       clean.map(r => `- Id=${r.Id} | Tên: ${r.Ten_nhan_vien || 'N/A'} | Bộ phận: ${r.Bo_phan || 'N/A'} | SDT: ${r.SDT || 'không có'} | Email: ${r.Email || 'không có'}`).join('\n') +
@@ -1284,7 +1284,8 @@ Khi cần tên đầy đủ hoặc thông tin liên hệ nhân viên → gọi q
 - Nếu tool chưa được gọi → gọi tool trước, KHÔNG trả lời từ bộ nhớ.
 - Nếu field = null hoặc "không có" → nói "không có dữ liệu", không điền giá trị khác.
 - Nếu tool trả về rỗng → nói "Không tìm thấy", không đề xuất thông tin thay thế.
-- Khi user hỏi thông tin cụ thể (tên, SĐT, email...): phải quote đúng giá trị từ tool result, không paraphrase.`;
+- Khi user hỏi thông tin cụ thể (tên, SĐT, email...): phải quote đúng giá trị từ tool result, không paraphrase.
+- KHI USER HỎI SĐT / EMAIL / THÔNG TIN LIÊN LẠC CỦA NHÂN VIÊN: BẮT BUỘC gọi query_employees trước, so khớp Ten_nhan_vien, rồi mới trả lời. TUYỆT ĐỐI không tự điền số điện thoại hay email nhân viên từ bộ nhớ.`;
 }
 
 // POST /api/chat — streaming SSE
@@ -1410,8 +1411,8 @@ app.post('/api/chat', async (req, res) => {
     }
 
   } catch (e) {
-    console.error('[chat error]', e.message);
-    send({ type: 'error', message: 'Xin lỗi, tôi đang gặp sự cố. Vui lòng thử lại sau.' });
+    console.error('[chat error]', e.message, e.stack?.split('\n')[1]);
+    send({ type: 'error', message: 'Xin lỗi, tôi đang gặp sự cố. Vui lòng thử lại sau. (' + e.message.slice(0, 80) + ')' });
     send({ type: 'done' });
     res.end();
   }
