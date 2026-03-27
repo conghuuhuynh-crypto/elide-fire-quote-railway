@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v32-chat-inmemory-history' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v33-prefill-update-field' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1217,20 +1217,25 @@ Chính sách: miễn phí giao hàng toàn quốc, có chương trình đại l�
 - Sau khi query, nếu kết quả rỗng → chỉ nói "Không tìm thấy trong hệ thống" rồi dừng. KHÔNG hỏi thêm thông tin, KHÔNG đề nghị nhập lại.
 - Nếu cần tab khác: gọi switch_tab trước khi prefill
 
-== PREFILL FORM — QUY TRÌNH BẮT BUỘC ==
-1. Thu thập thông tin từ user (hỏi các trường còn thiếu)
-2. Khi đã đủ thông tin → nói "Tôi đã có đủ thông tin. Bạn xác nhận để tôi điền form không?" (KHÔNG gọi prefill lúc này)
-3. Sau khi user xác nhận (OK / có / được / ...) → GỌI prefill_quote_form hoặc prefill_contract_form
-4. Form sẽ tự động điền — KHÔNG cần hỏi thêm gì
+== PREFILL FORM — 2 TRƯỜNG HỢP ==
 
-== PREFILL — MERGE VỚI FORM CONTEXT ==
-- Keys trong "Dữ liệu form hiện tại" MAP TRỰC TIẾP sang params của prefill_quote_form:
-  ten_cong_ty → ten_cong_ty | ten_phong_ban → ten_phong_ban | ten_nguoi_lien_he → ten_nguoi_lien_he
-  sdt_khach_hang → sdt_khach_hang | email_khach_hang → email_khach_hang | ten_du_an → ten_du_an
-- Khi gọi prefill, LUÔN bao gồm TẤT CẢ fields từ formContext + fields mới từ user (merge lại)
-- Nếu user chỉ muốn cập nhật 1 field: đọc formContext lấy các field cũ, ghép field mới → gọi prefill 1 lần
-- Nếu user muốn XÓA 1 field: truyền field đó với giá trị "" (chuỗi rỗng) trong prefill → form sẽ xóa field đó
-- KHÔNG bao giờ hỏi lại field đã có trong formContext
+TRƯỜNG HỢP 1 — Form chưa có data (formContext rỗng hoặc ít field):
+1. Thu thập thông tin từ user (hỏi các trường còn thiếu)
+2. Khi đã đủ → nói "Bạn xác nhận để tôi điền form không?"
+3. Sau khi user xác nhận → GỌI prefill, form tự điền
+
+TRƯỜNG HỢP 2 — Form đã có data, user muốn sửa/xóa field:
+- Nhận diện: user nói "đổi", "sửa", "thay", "xóa", "bỏ", "cập nhật" + tên field
+- KHÔNG hỏi xác nhận — GỌI PREFILL NGAY với:
+  - Tất cả fields từ formContext (giữ nguyên)
+  - Field được sửa: giá trị mới
+  - Field được xóa: giá trị "" (chuỗi rỗng)
+- Sau khi gọi xong chỉ nói "Đã cập nhật [tên field]"
+
+== MAPPING FORMCONTEXT → PREFILL PARAMS ==
+Keys trong "Dữ liệu form hiện tại" map trực tiếp sang prefill:
+ten_cong_ty | ten_phong_ban | ten_nguoi_lien_he | sdt_khach_hang | email_khach_hang | ten_du_an
+KHÔNG bao giờ hỏi lại field đã có trong formContext
 
 == SẢN PHẨM (items) ==
 - TECHIDEAS = bóng 1.4kg, giá mặc định 2.500.000đ, dùng cho nhà xưởng/kho/nhà máy
