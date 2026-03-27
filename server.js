@@ -483,7 +483,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v27-chatbot-fix' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v28-chatbot-formcontext' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1165,7 +1165,7 @@ function buildSystemPrompt(activeTab, formContext) {
       .filter(([, v]) => v && String(v).trim())
       .map(([k, v]) => `  - ${k}: ${v}`)
       .join('\n');
-    if (filled) formStr = `\nForm đang điền dở:\n${filled}\n`;
+    if (filled) formStr = `\nDữ liệu form hiện tại (có thể là record đã load từ hệ thống hoặc đang nhập mới):\n${filled}\n`;
   }
 
   return `Bạn là trợ lý AI nội bộ của Công ty Cổ phần Kỹ thuật Môi trường Tinh Tuệ — nhà phân phối độc quyền bóng chữa cháy Elide Fire tại Việt Nam.
@@ -1201,6 +1201,7 @@ Chính sách: miễn phí giao hàng toàn quốc, có chương trình đại l�
 - Không dùng emoji ở đầu mỗi dòng
 - Khi tra cứu: tóm tắt kết quả bằng bullet point, không paste nguyên data thô
 - Không hỏi lại trường đã có trong form
+- Nếu form đang hiển thị So_bao_gia hoặc So_hop_dong → đây có thể là record ĐÃ LƯU được load lên. Khi user hỏi về record đó → BẮT BUỘC gọi query_quotes/query_contracts với search = số đó để lấy dữ liệu thực tế từ DB, không tự kết luận từ form context.
 - Khi prefill: điền đủ mọi thông tin đã thu thập
 - Nếu cần tab khác: gọi switch_tab trước khi prefill
 - Khi user muốn chọn nhân viên phụ trách: gọi query_employees trước → lấy Ten_nhan_vien chính xác → truyền vào nv_ten khi prefill
