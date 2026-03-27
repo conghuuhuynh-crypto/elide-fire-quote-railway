@@ -1430,16 +1430,25 @@
         document.getElementById('hd_nv_select').dispatchEvent(new Event('change'));
       }
     }
-    // Load items — dùng Items JSON array nếu có, fallback sang legacy single-item
+    // Load items — dùng Items JSON array nếu có, fallback parse Mo_ta_san_pham
     document.getElementById('hd-items').innerHTML = '';
     let oldItems = [];
     if (c.Items) { try { oldItems = JSON.parse(c.Items); } catch(_) {} }
     if (oldItems.length > 0) {
       oldItems.forEach(it => hdAddItem(it.model || '', it.so_luong || 1));
     } else {
+      // Fallback: scan Mo_ta_san_pham tìm tất cả models xuất hiện
       const moTaText = c.Mo_ta_san_pham || '';
-      const found = productList.find(p => p.Model && moTaText.includes(p.Model));
-      hdAddItem(found ? found.Model : '', c.So_luong || 1);
+      const foundModels = productList.filter(p => p.Model && moTaText.includes(p.Model));
+      if (foundModels.length > 1) {
+        // Nhiều sản phẩm — thêm từng dòng riêng, qty=1 (user tự điều chỉnh)
+        foundModels.forEach(p => hdAddItem(p.Model, 1));
+      } else if (foundModels.length === 1) {
+        // 1 sản phẩm — dùng So_luong gốc
+        hdAddItem(foundModels[0].Model, c.So_luong || 1);
+      } else {
+        hdAddItem('', c.So_luong || 1);
+      }
     }
     hdCalc();
     hdPdfUrl = null; hdDocxUrl = null; hdShowStatus('');
