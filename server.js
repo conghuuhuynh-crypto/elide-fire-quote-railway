@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v38-session-per-row' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v39-fix-unescaped-url' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1120,28 +1120,31 @@ const chatTools = [
 // Thực thi tool call
 async function executeTool(name, args) {
   const queryNoco = (tableId, search, searchFields, exactFields, limit) => new Promise(resolve => {
-    const lim = Math.min(limit || 20, 50);
-    let qs = `limit=${lim}&sort=-Id`;
-    if (search) {
-      const s = encodeURIComponent(search.trim());
-      const st = search.trim();
-      // exactFields dùng eq (tránh issue % trong URL), likeFields dùng like
-      const conds = searchFields.map(f => {
-        if (exactFields && exactFields.includes(f)) return `(${f},eq,${st})`;
-        return `(${f},like,%25${s}%25)`;
+    try {
+      const lim = Math.min(limit || 20, 50);
+      let qs = `limit=${lim}&sort=-Id`;
+      if (search) {
+        const s = encodeURIComponent(search.trim()); // encode mọi ký tự kể cả tiếng Việt
+        const conds = searchFields.map(f => {
+          if (exactFields && exactFields.includes(f)) return `(${f},eq,${s})`;
+          return `(${f},like,%25${s}%25)`;
+        });
+        qs += `&where=${conds.join('~or')}`;
+      }
+      const req = https.get({
+        hostname: NOCODB_HOST,
+        path: `/api/v1/db/data/noco/${NOCODB_BASE}/${tableId}?${qs}`,
+        headers: { 'xc-token': NOCODB_TOKEN }
+      }, r => {
+        let d = ''; r.on('data', c => d += c);
+        r.on('end', () => { try { resolve(JSON.parse(d).list || []); } catch { resolve([]); } });
       });
-      qs += `&where=${conds.join('~or')}`;
+      req.on('error', () => resolve([]));
+      req.setTimeout(15000, () => { req.destroy(); resolve([]); });
+    } catch (e) {
+      console.error('[queryNoco]', e.message);
+      resolve([]);
     }
-    const req = https.get({
-      hostname: NOCODB_HOST,
-      path: `/api/v1/db/data/noco/${NOCODB_BASE}/${tableId}?${qs}`,
-      headers: { 'xc-token': NOCODB_TOKEN }
-    }, r => {
-      let d = ''; r.on('data', c => d += c);
-      r.on('end', () => { try { resolve(JSON.parse(d).list || []); } catch { resolve([]); } });
-    });
-    req.on('error', () => resolve([]));
-    req.setTimeout(15000, () => { req.destroy(); resolve([]); });
   });
 
   if (name === 'query_quotes')    return queryNoco(TABLE_BG, args.search, ['Ten_cong_ty','So_bao_gia'], ['So_bao_gia'], args.limit);
