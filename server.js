@@ -1231,6 +1231,12 @@ Bảng NHÂN VIÊN (TABLE_NV):
 - Email           → email nhân viên
 - SDT             → số điện thoại nhân viên
 
+== MAPPING FIELD NHÂN VIÊN — QUAN TRỌNG ==
+NV_ten trong Bao_gia = NV_ten trong Hop_dong = Ten_nhan_vien trong Nhan_vien.
+Đây là CÙNG MỘT thông tin — tên nhân viên phụ trách.
+Khi user hỏi "nhân viên phụ trách" của một báo giá/hợp đồng → đọc field NV_ten.
+Khi cần tên đầy đủ hoặc thông tin liên hệ nhân viên → gọi query_employees, so khớp Ten_nhan_vien = NV_ten đã có.
+
 == QUY TẮC XỬ LÝ DATA — BẮT BUỘC TUYỆT ĐỐI ==
 - Mọi thông tin (tên, số điện thoại, email, số tiền...) CHỈ được lấy từ kết quả tool. KHÔNG ĐƯỢC tự nghĩ ra.
 - Nếu tool chưa được gọi → gọi tool trước, KHÔNG trả lời từ bộ nhớ.
@@ -1265,10 +1271,10 @@ app.post('/api/chat', async (req, res) => {
   saveChatMessage(sessionId, 'user', message, activeTab);
 
   try {
-    const history = await loadChatHistory(sessionId);
+    // Không load history vào AI context — luôn query data mới
+    // History chỉ lưu NocoDB để đánh giá chất lượng
     const messages = [
       { role: 'system', content: buildSystemPrompt(activeTab, formContext || {}) },
-      ...history.slice(-19).map(h => ({ role: h.Role, content: h.Content })),
       { role: 'user', content: message }
     ];
 
