@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v34-contract-nv-model' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v35-fix-query-employees-crash' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1095,7 +1095,7 @@ async function executeTool(name, args) {
 
   if (name === 'query_quotes')    return queryNoco(TABLE_BG, args.search, ['Ten_cong_ty','So_bao_gia'], ['So_bao_gia'], args.limit);
   if (name === 'query_contracts') return queryNoco(TABLE_HD, args.search, ['Ten_cong_ty','So_hop_dong'], ['So_hop_dong'], args.limit);
-  if (name === 'query_employees') return queryNoco(TABLE_NV, '', [], 50);
+  if (name === 'query_employees') return queryNoco(TABLE_NV, '', [], [], 50);
   // Client-side actions: chỉ cần acknowledge
   if (['prefill_quote_form','prefill_contract_form','switch_tab'].includes(name)) return { success: true };
   return { error: 'Unknown tool' };
