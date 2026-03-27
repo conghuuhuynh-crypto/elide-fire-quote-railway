@@ -489,7 +489,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v43-admin-schema' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v44-verified-fields' }));
 
 // GET /admin/schema — scan field names thực tế từ NocoDB, so sánh với bot config
 app.get('/admin/schema', async (req, res) => {
@@ -1246,7 +1246,7 @@ function formatToolResult(toolName, result) {
       Ten_nhan_vien:  r.Ten_nhan_vien || null,
       Bo_phan:        r.Bo_phan       || null,
       Email:          r.Email         || null,
-      SDT:            r.SDT || r.So_dien_thoai || null
+      SDT:            r.So_dien_thoai || r.SDT || null  // So_dien_thoai là field thực tế trong NocoDB
     }));
     return `DANH SÁCH NHÂN VIÊN (${clean.length} người):\n` +
       clean.map(r => `- Id=${r.Id} | Tên: ${r.Ten_nhan_vien || 'N/A'} | Bộ phận: ${r.Bo_phan || 'N/A'} | SDT: ${r.SDT || 'không có'} | Email: ${r.Email || 'không có'}`).join('\n') +
@@ -1277,12 +1277,15 @@ function formatToolResult(toolName, result) {
   if (toolName === 'query_contracts') {
     const list = Array.isArray(result) ? result : [result];
     const clean = list.map(r => ({
-      So_hop_dong:           r.So_hop_dong            || null,
-      Ten_cong_ty:           r.Ten_cong_ty             || null,
-      Ngay_ky:               r.Ngay_ky                || null,
-      NV_ten:                r.NV_ten                  || null,
-      NV_sdt:                r.NV_sdt                  || null,
-      Tong_gia_tri: r.Tong_gia_tri || null
+      So_hop_dong:    r.So_hop_dong    || null,
+      Ten_cong_ty:    r.Ten_cong_ty    || null,
+      Ngay_ky:        r.Ngay_ky        || null,
+      Nguoi_dai_dien: r.Nguoi_dai_dien || null,
+      Dia_chi:        r.Dia_chi        || null,
+      Ma_so_thue:     r.Ma_so_thue     || null,
+      NV_ten:         r.NV_ten         || null,
+      NV_sdt:         r.NV_sdt         || null,
+      Tong_gia_tri:   r.Tong_gia_tri   || null
     }));
     return `KẾT QUẢ HỢP ĐỒNG (${clean.length} bản ghi):\n` +
       JSON.stringify(clean, null, 2) + STRICT;
@@ -1373,8 +1376,8 @@ Nhân viên: BẮT BUỘC gọi query_employees trước → lấy Ten_nhan_vien
 
 == SCHEMA ==
 BÁO GIÁ: Ten_cong_ty | So_bao_gia | Ngay_bao_gia | Ten_du_an | Nguoi_lien_he | SDT_khach_hang | Email_khach_hang | Phong_ban_KH | NV_ten | NV_sdt | Tong_thanh_toan
-HỢP ĐỒNG: Ten_cong_ty | So_hop_dong | Ngay_ky | NV_ten | NV_sdt | Tong_gia_tri
-NHÂN VIÊN: Id | Ten_nhan_vien | Bo_phan | SDT | Email
+HỢP ĐỒNG: Ten_cong_ty | So_hop_dong | Ngay_ky | Nguoi_dai_dien | Dia_chi | Ma_so_thue | NV_ten | NV_sdt | Tong_gia_tri
+NHÂN VIÊN: Id | Ten_nhan_vien | Bo_phan | So_dien_thoai (hiển thị là SDT) | Email
   → NV_ten (báo giá/hợp đồng) = Ten_nhan_vien (nhân viên) — là cùng 1 người
 
 == QUY TẮC TRẢ LỜI ==
