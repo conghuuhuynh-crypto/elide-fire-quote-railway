@@ -1215,27 +1215,40 @@
     // Chiết khấu tổng đơn
     document.getElementById('ck_tong').value = q.CK_Tong_don || 0;
 
-    // Sản phẩm
+    // Sản phẩm — dùng Items JSON nếu có, fallback cột cố định cho records cũ
     document.getElementById('productBody').innerHTML = '';
-    if (Number(q.SL_Techideas) > 0) {
-      addProductRow('TECHIDEAS');
-      const row = document.getElementById('productBody').lastElementChild;
-      row.querySelector('.row-qty').value = q.SL_Techideas;
-      if (q.DonGia_Techideas > 0)
-        row.querySelector('.row-price').value = Number(q.DonGia_Techideas).toLocaleString('vi-VN');
-      row.querySelector('.row-ck').value = q.CK_Techideas || 0;
-    }
-    if (Number(q.SL_Lovingcare) > 0) {
-      addProductRow('LOVINGCARE');
-      const row = document.getElementById('productBody').lastElementChild;
-      row.querySelector('.row-qty').value = q.SL_Lovingcare;
-      if (q.DonGia_Lovingcare > 0)
-        row.querySelector('.row-price').value = Number(q.DonGia_Lovingcare).toLocaleString('vi-VN');
-      row.querySelector('.row-ck').value = q.CK_Lovingcare || 0;
-    }
-    if (!document.getElementById('productBody').children.length) {
-      addProductRow('TECHIDEAS');
-      addProductRow('LOVINGCARE');
+    let oldBgItems = [];
+    if (q.Items) { try { oldBgItems = JSON.parse(q.Items); } catch(_) {} }
+    if (oldBgItems.length > 0) {
+      oldBgItems.forEach(it => {
+        addProductRow(it.model || '');
+        const row = document.getElementById('productBody').lastElementChild;
+        row.querySelector('.row-qty').value = it.so_luong || 1;
+        if (it.don_gia > 0)
+          row.querySelector('.row-price').value = Number(it.don_gia).toLocaleString('vi-VN');
+        row.querySelector('.row-ck').value = it.chiet_khau || 0;
+      });
+    } else {
+      if (Number(q.SL_Techideas) > 0) {
+        addProductRow('TECHIDEAS');
+        const row = document.getElementById('productBody').lastElementChild;
+        row.querySelector('.row-qty').value = q.SL_Techideas;
+        if (q.DonGia_Techideas > 0)
+          row.querySelector('.row-price').value = Number(q.DonGia_Techideas).toLocaleString('vi-VN');
+        row.querySelector('.row-ck').value = q.CK_Techideas || 0;
+      }
+      if (Number(q.SL_Lovingcare) > 0) {
+        addProductRow('LOVINGCARE');
+        const row = document.getElementById('productBody').lastElementChild;
+        row.querySelector('.row-qty').value = q.SL_Lovingcare;
+        if (q.DonGia_Lovingcare > 0)
+          row.querySelector('.row-price').value = Number(q.DonGia_Lovingcare).toLocaleString('vi-VN');
+        row.querySelector('.row-ck').value = q.CK_Lovingcare || 0;
+      }
+      if (!document.getElementById('productBody').children.length) {
+        addProductRow('TECHIDEAS');
+        addProductRow('LOVINGCARE');
+      }
     }
 
     calcTotal();

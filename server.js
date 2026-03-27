@@ -694,6 +694,7 @@ async function runJob(jobId, b) {
       Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
       NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
       CK_Tong_don: ckTong, Tong_thanh_toan: total,
+      Items: JSON.stringify(validItems),
       SL_Techideas:        itTech ? parseFloat(itTech.so_luong)    || 0 : 0,
       DonGia_Techideas:    itTech ? parseFloat(itTech.don_gia)     || 0 : 0,
       CK_Techideas:        itTech ? parseFloat(itTech.chiet_khau)  || 0 : 0,
