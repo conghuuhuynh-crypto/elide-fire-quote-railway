@@ -1108,7 +1108,7 @@ function formatToolResult(toolName, result) {
       Ten_nhan_vien:  r.Ten_nhan_vien || null,
       Bo_phan:        r.Bo_phan       || null,
       Email:          r.Email         || null,
-      SDT:            r.SDT           || null
+      SDT:            r.So_dien_thoai || null
     }));
     return `DANH SÁCH NHÂN VIÊN (${clean.length} người):\n` +
       clean.map(r => `- Id=${r.Id} | Tên: ${r.Ten_nhan_vien || 'N/A'} | Bộ phận: ${r.Bo_phan || 'N/A'} | SDT: ${r.SDT || 'không có'} | Email: ${r.Email || 'không có'}`).join('\n') +
@@ -1229,7 +1229,7 @@ Bảng NHÂN VIÊN (TABLE_NV):
 - Ten_nhan_vien   → tên nhân viên (PHẢI dùng tên này khi prefill, không tự đặt tên khác)
 - Bo_phan         → bộ phận / phòng ban
 - Email           → email nhân viên
-- SDT             → số điện thoại nhân viên
+- So_dien_thoai   → số điện thoại nhân viên
 
 == MAPPING FIELD NHÂN VIÊN — QUAN TRỌNG ==
 NV_ten trong Bao_gia = NV_ten trong Hop_dong = Ten_nhan_vien trong Nhan_vien.
