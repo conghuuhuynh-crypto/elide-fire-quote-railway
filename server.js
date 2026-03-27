@@ -483,7 +483,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v30-chatbot-prefill-ux' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v31-prefill-clear-field' }));
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
@@ -1223,6 +1223,7 @@ Chính sách: miễn phí giao hàng toàn quốc, có chương trình đại l�
   sdt_khach_hang → sdt_khach_hang | email_khach_hang → email_khach_hang | ten_du_an → ten_du_an
 - Khi gọi prefill, LUÔN bao gồm TẤT CẢ fields từ formContext + fields mới từ user (merge lại)
 - Nếu user chỉ muốn cập nhật 1 field: đọc formContext lấy các field cũ, ghép field mới → gọi prefill 1 lần
+- Nếu user muốn XÓA 1 field: truyền field đó với giá trị "" (chuỗi rỗng) trong prefill → form sẽ xóa field đó
 - KHÔNG bao giờ hỏi lại field đã có trong formContext
 
 == SẢN PHẨM (items) ==

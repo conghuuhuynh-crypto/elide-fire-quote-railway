@@ -2100,7 +2100,7 @@ function doFill(formType, data) {
       }
     }
     ['ten_cong_ty','ten_phong_ban','ten_nguoi_lien_he','sdt_khach_hang','email_khach_hang','ten_du_an'].forEach(n => {
-      if (data[n]) { const el = f.querySelector(`[name="${n}"]`); if (el) el.value = data[n]; }
+      if (n in data) { const el = f.querySelector(`[name="${n}"]`); if (el) el.value = data[n] ?? ''; }
     });
     if (data.items?.length) {
       document.getElementById('productBody').innerHTML = '';
@@ -2121,7 +2121,7 @@ function doFill(formType, data) {
       chuc_vu:'hd_chuc_vu', thoi_gian_giao_hang:'hd_thoi_gian_giao_hang',
       dia_diem_giao_hang:'hd_dia_diem_giao_hang', so_hop_dong:'so_hop_dong' };
     Object.entries(map).forEach(([k, id]) => {
-      if (data[k]) { const el = document.getElementById(id); if (el) el.value = data[k]; }
+      if (k in data) { const el = document.getElementById(id); if (el) el.value = data[k] ?? ''; }
     });
     if (data.ngay_ky_hop_dong) {
       const el = document.getElementById('ngay_ky_hop_dong');
