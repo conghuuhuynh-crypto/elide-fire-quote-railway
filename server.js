@@ -482,8 +482,8 @@ function renderDocxTemplate(templatePath, data, items) {
   return tmpDocx;
 }
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
@@ -1553,6 +1553,580 @@ app.get('/api/chat/history/:sessionId', async (req, res) => {
   } catch (e) {
     res.json([]);
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CMS — Content Publisher
+// ═══════════════════════════════════════════════════════════════════════════
+
+const CMS_ROOT    = path.join(__dirname, '..');
+const CMS_CONTENT = path.join(CMS_ROOT, 'outputs', 'content');
+const CMS_IMAGES  = path.join(CMS_ROOT, 'outputs', 'images');
+const WP_DOMAIN   = 'elidefire.com.vn';
+const WP_AUTH     = Buffer.from('admin.tech@tinhtue.vn:ovxA ptuO XFnn yfK5 ayd9 9WML').toString('base64');
+
+function cmsParseFrontmatter(raw) {
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return { meta: {}, body: raw };
+  const meta = {};
+  match[1].split(/\r?\n/).forEach(line => {
+    const c = line.indexOf(':');
+    if (c < 0) return;
+    meta[line.slice(0, c).trim()] = line.slice(c + 1).trim();
+  });
+  return { meta, body: raw.slice(match[0].length).trim() };
+}
+
+function cmsMdToHtml(md) {
+  const scripts = [];
+  md = md.replace(/<script[\s\S]*?<\/script>/gi, m => { scripts.push(m); return `%%S${scripts.length-1}%%`; });
+  let html = md
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>').replace(/^## (.+)$/gm, '<h2>$1</h2>').replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>').replace(/^---$/gm, '<hr>')
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%">')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  html = html.replace(/(\|.+\|\r?\n)+/g, table => {
+    const rows = table.trim().split(/\r?\n/).filter(r => !r.match(/^\|[-| :]+\|$/));
+    return '<table class="wp-table">\n' + rows.map((row, i) => {
+      const cells = row.split('|').slice(1, -1), tag = i === 0 ? 'th' : 'td';
+      return '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+    }).join('\n') + '\n</table>';
+  });
+  html = html.replace(/(^- .+$\r?\n?)+/gm, block =>
+    '<ul>' + block.trim().split(/\r?\n/).map(l => '<li>' + l.replace(/^- /, '') + '</li>').join('') + '</ul>\n'
+  );
+  html = html.split(/\r?\n\r?\n/).map(p => {
+    p = p.trim(); if (!p) return '';
+    if (p.match(/^<(h[1-6]|ul|ol|blockquote|hr|table|script|img|%%S)/)) return p;
+    return '<p>' + p.replace(/\r?\n/g, '<br>') + '</p>';
+  }).join('\n');
+  scripts.forEach((s, i) => { html = html.replace(`%%S${i}%%`, s); });
+  return html;
+}
+
+function cmsWpRequest(method, endpoint, body, extraHeaders = {}) {
+  return new Promise((resolve, reject) => {
+    const isBuffer = Buffer.isBuffer(body);
+    const data = isBuffer ? body : (body ? JSON.stringify(body) : undefined);
+    const headers = { 'Authorization': 'Basic ' + WP_AUTH, ...extraHeaders };
+    if (!isBuffer && data) { headers['Content-Type'] = headers['Content-Type'] || 'application/json'; headers['Content-Length'] = Buffer.byteLength(data); }
+    const req = https.request({ hostname: WP_DOMAIN, path: endpoint, method, headers }, res => {
+      let d = ''; res.on('data', c => d += c);
+      res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { reject(new Error(d.slice(0, 300))); } });
+    });
+    req.on('error', reject);
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
+// Serve content-ui.html
+app.get('/content', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'tools', 'content-ui.html'));
+});
+
+// Serve images from outputs/images/
+app.get('/api/cms/img/:filename', (req, res) => {
+  const imgPath = path.join(CMS_IMAGES, req.params.filename);
+  if (!fs.existsSync(imgPath)) { res.status(404).end(); return; }
+  const ext  = imgPath.split('.').pop().toLowerCase();
+  const mime = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp' }[ext] || 'image/jpeg';
+  res.setHeader('Content-Type', mime);
+  res.end(fs.readFileSync(imgPath));
+});
+
+// List posts
+app.get('/api/cms/posts', (req, res) => {
+  if (!fs.existsSync(CMS_CONTENT)) { res.json([]); return; }
+  const posts = fs.readdirSync(CMS_CONTENT).filter(f => f.endsWith('.md')).sort().reverse().map(f => {
+    try {
+      const { meta } = cmsParseFrontmatter(fs.readFileSync(path.join(CMS_CONTENT, f), 'utf8'));
+      return { filename: f, title: meta['Meta Title'] || f, keyword: meta['Focus Keyword'] || '', slug: meta['URL Slug'] || '' };
+    } catch { return { filename: f, title: f, keyword: '', slug: '' }; }
+  });
+  res.json(posts);
+});
+
+// List images
+app.get('/api/cms/images', (req, res) => {
+  if (!fs.existsSync(CMS_IMAGES)) { res.json([]); return; }
+  res.json(fs.readdirSync(CMS_IMAGES).filter(f => /\.(jpg|jpeg|png|gif|webp)$/i.test(f)).sort().reverse());
+});
+
+// Get post content
+app.get('/api/cms/post/:filename', (req, res) => {
+  const filePath = path.join(CMS_CONTENT, req.params.filename);
+  if (!fs.existsSync(filePath)) { res.status(404).json({ error: 'Not found' }); return; }
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const { meta, body } = cmsParseFrontmatter(raw);
+  const h1Match = body.match(/^# (.+)$/m);
+  res.json({ meta, body, html: cmsMdToHtml(body.replace(/^# .+\n?/, '').trim()), raw, title: h1Match ? h1Match[1] : (meta['Meta Title'] || req.params.filename) });
+});
+
+// Save post
+app.put('/api/cms/post/:filename', express.json({ limit: '5mb' }), (req, res) => {
+  const filePath = path.join(CMS_CONTENT, req.params.filename);
+  fs.writeFileSync(filePath, req.body.raw, 'utf8');
+  res.json({ ok: true });
+});
+
+// AI Generate content
+app.post('/api/cms/generate', express.json({ limit: '1mb' }), async (req, res) => {
+  try {
+    const { title, brief, keyword } = req.body;
+    if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY chưa được cấu hình');
+
+    const prompt = `Bạn là chuyên gia content marketing cho bóng chữa cháy tự động Elide Fire (nhập khẩu từ Đan Mạch, phân phối độc quyền tại Việt Nam bởi Công ty Kỹ thuật Môi trường Tinh Tuệ).
+
+Viết bài blog SEO đầy đủ bằng tiếng Việt theo thông tin sau:
+${title ? `Tiêu đề: ${title}` : ''}
+${keyword ? `Từ khóa SEO chính: ${keyword}` : ''}
+${brief ? `Brief/Outline:\n${brief}` : ''}
+
+Yêu cầu:
+- Viết bằng Markdown, bắt đầu bằng # (H1) là tiêu đề bài
+- Dùng ## và ### cho các phần và tiêu đề phụ
+- Độ dài 800–1200 từ, đủ thông tin, đọc dễ hiểu
+- Tự nhiên, chuyên nghiệp, thuyết phục — không sáo rỗng
+- Lồng ghép tự nhiên từ khóa SEO (không nhồi nhét)
+- Kết thúc bằng CTA kêu gọi liên hệ hoặc mua hàng
+- Proof points có thể dùng: 145 quốc gia, 40 triệu người dùng, 9 giải thưởng quốc tế, tự kích hoạt trong 3–30 giây, 5 năm không bảo dưỡng, chứng nhận CE & ISO 9001:2015
+- Giá tham khảo: Techideas 1.4kg: 2.500.000 VNĐ | Lovingcare 0.4kg: 1.950.000 VNĐ
+- CHỈ xuất nội dung Markdown — không giải thích thêm`;
+
+    const completion = await openaiClient.chat.completions.create({
+      model: CHAT_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 3000,
+      temperature: 0.7
+    });
+
+    const content = completion.choices?.[0]?.message?.content || '';
+    if (!content) throw new Error('AI không trả về nội dung');
+    res.json({ content });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Publish to WordPress — hỗ trợ cả base64 (browser upload) và cms:filename (server folder)
+app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) => {
+  try {
+    const {
+      title, content, meta, status, date, slug, keyword, keywords, type,
+      // Base64 upload từ browser
+      featuredBase64, featuredName,
+      contentImagesB64,           // [{index, name, base64}]
+      // Legacy: đọc từ server folder
+      featuredFilename
+    } = req.body;
+    if (!title || !content) throw new Error('Thiếu title hoặc content');
+
+    // ── Plain text → HTML converter ──────────────────────────────────────────
+    function plainToHtml(text) {
+      // Replace image placeholders: [ảnh: upload:ID] → placeholder kept for later replacement
+      // First handle upload:INDEX replacements after image uploads
+      const blocks = text.split(/\n\n+/);
+      return blocks.map(block => {
+        block = block.trim();
+        if (!block) return '';
+        // Image placeholder line
+        if (block.match(/^\[ảnh:\s*upload:\d+\]$/)) return block; // handled below
+        // Short standalone line (heading candidate): all caps or < 80 chars, no sentence-ending punctuation
+        if (!block.includes('\n') && block.length <= 80 && !/[.!?,;]$/.test(block) && block === block.toUpperCase() && block.length > 3) {
+          return `<h2>${block}</h2>`;
+        }
+        // Multi-line list (lines starting with - or số.)
+        const lines = block.split('\n');
+        if (lines.length > 1 && lines.every(l => /^[-•\d]/.test(l.trim()))) {
+          return '<ul>' + lines.map(l => `<li>${l.replace(/^[-•]\s*/, '').replace(/^\d+\.\s*/, '')}</li>`).join('') + '</ul>';
+        }
+        return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
+      }).filter(Boolean).join('\n');
+    }
+
+    // Categories: 94 = Tin tức, điều chỉnh theo loại bài
+    const categories = type === 'product' ? [94, 95] : [94];
+    const tags       = [105, 103, 116, 108, 104, 114];
+
+    // ── Helper: parse data URI → {mime, buf} ─────────────────────────────────
+    function parseDataUri(dataUri) {
+      const m = dataUri.match(/^data:([^;]+);base64,(.+)$/);
+      if (!m) throw new Error('Invalid data URI');
+      return { mime: m[1], buf: Buffer.from(m[2], 'base64') };
+    }
+
+    // ── Upload content images (base64, từ browser) ───────────────────────────
+    const uploadedByIndex = {}; // index → URL
+    for (const img of (contentImagesB64 || [])) {
+      try {
+        const { mime, buf } = parseDataUri(img.base64);
+        const media = await cmsWpRequest('POST', '/wp-json/wp/v2/media', buf, {
+          'Content-Type': mime,
+          'Content-Disposition': `attachment; filename="${img.name}"`,
+          'Content-Length': buf.length
+        });
+        if (media.source_url) uploadedByIndex[img.index] = media.source_url;
+      } catch(e2) { console.error('[CMS] Content img upload failed:', e2.message); }
+    }
+
+    // ── Upload content images (legacy: cms:filename từ server folder) ─────────
+    const uploadedByName = {};
+    const cmsImgRegex = /!\[([^\]]*)\]\(cms:([^)]+)\)/g;
+    for (const m of [...content.matchAll(cmsImgRegex)]) {
+      const filename = m[2].trim();
+      if (uploadedByName[filename]) continue;
+      try {
+        const imgPath = path.join(CMS_IMAGES, filename);
+        if (!fs.existsSync(imgPath)) { uploadedByName[filename] = null; continue; }
+        const buf  = fs.readFileSync(imgPath);
+        const ext  = filename.split('.').pop().toLowerCase();
+        const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+        const media = await cmsWpRequest('POST', '/wp-json/wp/v2/media', buf, {
+          'Content-Type': mime,
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Length': buf.length
+        });
+        uploadedByName[filename] = media.source_url || null;
+      } catch(e2) { uploadedByName[filename] = null; }
+    }
+
+    // ── Thay placeholders trong content ──────────────────────────────────────
+    let processedContent = content
+      // [ảnh: upload:INDEX] — new plain text format
+      .replace(/\[ảnh:\s*upload:(\d+)\]/g, (match, idx) => {
+        const url = uploadedByIndex[parseInt(idx)];
+        return url ? `<img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:6px;margin:16px 0">` : '';
+      })
+      // upload:INDEX in markdown format (legacy)
+      .replace(/!\[([^\]]*)\]\(upload:(\d+)\)/g, (match, alt, idx) => {
+        const url = uploadedByIndex[parseInt(idx)];
+        return url ? `<img src="${url}" alt="${alt}" style="max-width:100%">` : '';
+      })
+      // cms:filename (server folder legacy)
+      .replace(cmsImgRegex, (match, alt, filename) => {
+        const url = uploadedByName[filename.trim()];
+        return url ? `![${alt}](${url})` : match;
+      });
+
+    // Convert plain text → HTML (nếu content không phải markdown)
+    // Detect nếu content có markdown syntax
+    const isMarkdown = /^#{1,3} |^\*\*|^- |\*\*[^*]+\*\*/m.test(processedContent);
+    const htmlContent = isMarkdown
+      ? cmsMdToHtml(processedContent.replace(/^# .+\n?/, '').trim())
+      : plainToHtml(processedContent);
+
+    // ── Upload ảnh đại diện ───────────────────────────────────────────────────
+    let mediaId = 0;
+
+    // Ưu tiên base64 từ browser
+    if (featuredBase64) {
+      try {
+        const { mime, buf } = parseDataUri(featuredBase64);
+        const filename = featuredName || 'featured.jpg';
+        const media = await cmsWpRequest('POST', '/wp-json/wp/v2/media', buf, {
+          'Content-Type': mime,
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Length': buf.length
+        });
+        if (media.id) {
+          mediaId = media.id;
+          await cmsWpRequest('POST', `/wp-json/wp/v2/media/${mediaId}`, { alt_text: keyword || title });
+        }
+      } catch(e2) { console.error('[CMS] Featured upload failed:', e2.message); }
+    } else if (featuredFilename) {
+      // Legacy: đọc từ server folder
+      try {
+        const imgPath = path.join(CMS_IMAGES, featuredFilename);
+        if (fs.existsSync(imgPath)) {
+          const buf  = fs.readFileSync(imgPath);
+          const ext  = featuredFilename.split('.').pop().toLowerCase();
+          const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+          const media = await cmsWpRequest('POST', '/wp-json/wp/v2/media', buf, {
+            'Content-Type': mime,
+            'Content-Disposition': `attachment; filename="${featuredFilename}"`,
+            'Content-Length': buf.length
+          });
+          if (media.id) {
+            mediaId = media.id;
+            await cmsWpRequest('POST', `/wp-json/wp/v2/media/${mediaId}`, { alt_text: keyword || title });
+          }
+        }
+      } catch(e2) { console.error('[CMS] Featured upload failed:', e2.message); }
+    }
+
+    // ── Tạo post ─────────────────────────────────────────────────────────────
+    const postPayload = {
+      title, content: htmlContent,
+      status: status || 'draft',
+      slug:   slug || '',
+      categories, tags,
+      meta: {
+        rank_math_focus_keyword: keyword || '',
+        rank_math_title:         title,
+        rank_math_description:   meta || ''
+      }
+    };
+    if (date)    postPayload.date            = new Date(date).toISOString().replace(/\.\d{3}Z$/, '');
+    if (mediaId) postPayload.featured_media  = mediaId;
+
+    const post = await cmsWpRequest('POST', '/wp-json/wp/v2/posts', postPayload);
+    if (!post.id) throw new Error(JSON.stringify(post).slice(0, 300));
+    res.json({ postId: post.id, url: `https://${WP_DOMAIN}/?p=${post.id}`, slug: post.slug, status: post.status });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Strip Markdown khỏi text — dùng cho outline + content trước khi trả về client
+function stripMarkdown(text) {
+  if (!text) return text;
+  return text
+    .replace(/^#{1,6}\s+(.+)$/gm, (_, t) => t.toUpperCase()) // ## Heading → HEADING
+    .replace(/\*\*(.+?)\*\*/gs, '$1')     // **bold** → bold
+    .replace(/\*(.+?)\*/gs, '$1')         // *italic* → italic
+    .replace(/`{3}[\s\S]*?`{3}/g, '')     // ```code block``` → xóa
+    .replace(/`(.+?)`/g, '$1')            // `inline code` → plain
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')   // [link](url) → link text
+    .replace(/^---+$/gm, '')              // --- horizontal rule → xóa
+    .replace(/^>\s*/gm, '')              // > blockquote → xóa dấu
+    .replace(/\n{3,}/g, '\n\n')          // 3+ dòng trống → 2 dòng
+    .trim();
+}
+
+// ── Generate outline (SEO Agent) ─────────────────────────────────────────────
+app.post('/api/cms/generate-outline', express.json({ limit: '1mb' }), async (req, res) => {
+  try {
+    const { topic, keyword, sourceUrls } = req.body;
+    if (!topic) throw new Error('Thiếu chủ đề (topic)');
+    if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY chưa được cấu hình');
+
+    const prompt = `Bạn là SEO Agent chuyên gia, nghiên cứu và tạo outline bài blog tối ưu cho sản phẩm bóng chữa cháy tự động Elide Fire (nhập khẩu Đan Mạch, phân phối độc quyền tại Việt Nam bởi Công ty Kỹ thuật Môi trường Tinh Tuệ).
+
+Nhiệm vụ: Tạo outline bài blog SEO chuyên nghiệp cho:
+- Chủ đề: ${topic}
+${keyword ? `- Từ khóa mục tiêu: ${keyword}` : ''}
+${sourceUrls && sourceUrls.length ? `- Nguồn tham khảo:\n${sourceUrls.map(u => '  - ' + u).join('\n')}` : ''}
+
+Quy chuẩn Elide Fire:
+- Sản phẩm: Techideas 1.4kg (2.500.000đ), Lovingcare 0.4kg (1.950.000đ)
+- Proof points: 145 quốc gia, 40 triệu người dùng, 9 giải thưởng quốc tế, tự kích hoạt 3-30 giây, 5 năm không bảo dưỡng, CE & ISO 9001:2015
+- Tone: chuyên nghiệp, tin tưởng, thuyết phục — không sáo rỗng
+- Mục tiêu 800-1200 từ
+
+Trả về CHÍNH XÁC theo format sau, không thêm bất kỳ text nào khác:
+TITLE: [tiêu đề H1 dưới 65 ký tự, có từ khóa chính, hấp dẫn]
+META: [meta description 130-155 ký tự, có từ khóa, có CTA nhẹ]
+SLUG: [url-slug-khong-dau-viet-thuong-ngan-gon]
+KEYWORD: [từ khóa SEO chính 2-5 từ tiếng Việt có dấu, thường dùng nhất trong bài]
+OUTLINE:
+[Nội dung outline dạng text thuần, 5-7 phần H2, mỗi phần có ghi chú số từ mục tiêu]`;
+
+    const completion = await openaiClient.chat.completions.create({
+      model: CHAT_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 2000, temperature: 0.6
+    });
+    const raw = completion.choices?.[0]?.message?.content || '';
+    if (!raw) throw new Error('AI không trả về outline');
+
+    // Parse delimiter-based (không dùng JSON — tránh lỗi multiline string)
+    const titleM   = raw.match(/^TITLE:\s*(.+)$/m);
+    const metaM    = raw.match(/^META:\s*(.+)$/m);
+    const slugM    = raw.match(/^SLUG:\s*(.+)$/m);
+    const keywordM = raw.match(/^KEYWORD:\s*(.+)$/m);
+    const outlineIdx = raw.indexOf('\nOUTLINE:');
+    const outlineRaw = outlineIdx >= 0
+      ? raw.slice(outlineIdx + '\nOUTLINE:'.length).trim()
+      : raw;
+
+    if (!titleM) throw new Error('AI không trả về đúng format — thử lại');
+
+    res.json({
+      title:   titleM[1].trim(),
+      meta:    metaM?.[1].trim()    || '',
+      slug:    (slugM?.[1].trim() || '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
+      keyword: keywordM?.[1].trim() || '',
+      outline: stripMarkdown(outlineRaw)
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Generate full content from approved outline (Content Agent) ───────────────
+app.post('/api/cms/generate-from-outline', express.json({ limit: '2mb' }), async (req, res) => {
+  try {
+    const { topic, keyword, outline } = req.body;
+    if (!outline) throw new Error('Thiếu outline');
+    if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY chưa được cấu hình');
+
+    const { title: outlineTitle, meta: outlineMeta, slug: outlineSlug } = req.body;
+    const prompt = `Bạn là Content Agent chuyên viết bài blog cho sản phẩm bóng chữa cháy tự động Elide Fire (nhập khẩu Đan Mạch, phân phối độc quyền tại Việt Nam bởi Công ty Kỹ thuật Môi trường Tinh Tuệ).
+
+Viết bài blog đầy đủ bằng tiếng Việt dựa trên outline đã được SEO Agent và Giám đốc duyệt:
+${keyword ? `- Từ khóa mục tiêu: ${keyword}` : ''}
+${topic ? `- Chủ đề: ${topic}` : ''}
+${outlineTitle ? `- Tiêu đề H1: ${outlineTitle}` : ''}
+
+OUTLINE ĐÃ DUYỆT:
+${outline}
+
+Yêu cầu viết bài:
+- Viết bằng TEXT THUẦN (plain text), KHÔNG dùng Markdown (#, ##, **, *, -)
+- Tiêu đề phần: viết IN HOA, đứng riêng một dòng, cách nhau bằng dòng trắng
+- Mỗi đoạn văn cách nhau bằng 1 dòng trắng
+- Độ dài 900-1200 từ
+- Bám sát cấu trúc outline, viết tự nhiên và dễ hiểu
+- Chuyên nghiệp, thuyết phục, không sáo rỗng
+- Proof points: 145 quốc gia, 40 triệu người dùng, 9 giải thưởng quốc tế, tự kích hoạt 3-30 giây, 5 năm không bảo dưỡng, CE & ISO 9001:2015
+- Giá: Techideas 1.4kg: 2.500.000đ | Lovingcare 0.4kg: 1.950.000đ
+- Kết bài bằng CTA rõ ràng
+
+SEO BẮT BUỘC (kiểm tra kỹ trước khi trả về):
+- Từ khóa "${keyword || 'Elide Fire'}" PHẢI xuất hiện trong đoạn mở đầu (paragraph 1)
+- Từ khóa phải xuất hiện trong ít nhất 2 tiêu đề phần (IN HOA)
+- Tần suất từ khóa: khoảng 1 lần mỗi 80-100 từ (mật độ ~1-1.5%), đề cập tự nhiên
+- Mỗi tiêu đề phần (IN HOA) phải mô tả rõ nội dung của phần đó
+
+Trả về CHÍNH XÁC theo format sau, không thêm bất kỳ text nào khác:
+TITLE: [tiêu đề H1 (giữ nguyên hoặc tinh chỉnh từ outline)]
+META: [meta description 130-155 ký tự, có từ khóa, có call-to-action nhẹ]
+SLUG: [url-slug-khong-dau-viet-thuong]
+CONTENT:
+[Toàn bộ nội dung bài viết dạng text thuần, bắt đầu ngay bằng đoạn mở đầu]`;
+
+    const completion = await openaiClient.chat.completions.create({
+      model: CHAT_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 4000, temperature: 0.7
+    });
+    const raw = completion.choices?.[0]?.message?.content || '';
+    if (!raw) throw new Error('AI không trả về nội dung');
+
+    // Parse delimiter-based (tránh lỗi JSON với nội dung dài)
+    const titleM   = raw.match(/^TITLE:\s*(.+)$/m);
+    const metaM    = raw.match(/^META:\s*(.+)$/m);
+    const slugM    = raw.match(/^SLUG:\s*(.+)$/m);
+    const contentIdx = raw.indexOf('\nCONTENT:');
+    const contentRaw = contentIdx >= 0 ? raw.slice(contentIdx + '\nCONTENT:'.length).trim() : raw;
+
+    if (!titleM) throw new Error('AI không trả về đúng format — thử lại');
+
+    res.json({
+      title:   titleM[1].trim(),
+      meta:    metaM?.[1].trim()    || outlineMeta  || '',
+      slug:    (slugM?.[1].trim() || outlineSlug || '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
+      content: stripMarkdown(contentRaw)
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Optimize SEO after publish ────────────────────────────────────────────────
+app.post('/api/cms/optimize-seo', express.json({ limit: '2mb' }), async (req, res) => {
+  try {
+    const { postId, keyword, title, content, meta } = req.body;
+    if (!postId) throw new Error('Thiếu postId');
+
+    let metaTitle = title || '';
+    let metaDesc  = meta  || '';  // dùng meta từ content step nếu có
+
+    // AI tạo meta description tối ưu (chỉ khi chưa có meta)
+    if (OPENROUTER_API_KEY && content && !metaDesc) {
+      try {
+        const prompt = `Từ nội dung bài blog bên dưới, tạo:
+1. Meta title SEO (tối đa 60 ký tự, có từ khóa "${keyword || ''}", hấp dẫn)
+2. Meta description SEO (130–155 ký tự, có từ khóa, có call-to-action nhẹ)
+
+Chỉ trả về JSON format:
+{"metaTitle": "...", "metaDesc": "..."}
+
+Nội dung bài:
+${content.slice(0, 2000)}`;
+
+        const comp = await openaiClient.chat.completions.create({
+          model: CHAT_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 300, temperature: 0.4
+        });
+        const raw = comp.choices?.[0]?.message?.content || '';
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.metaTitle) metaTitle = parsed.metaTitle;
+          if (parsed.metaDesc)  metaDesc  = parsed.metaDesc;
+        }
+      } catch(aiErr) { console.error('[SEO Opt] AI error:', aiErr.message); }
+    }
+
+    // Cập nhật Rank Math fields qua WP REST API
+    const payload = {
+      meta: {
+        rank_math_focus_keyword: keyword || '',
+        rank_math_title:         metaTitle,
+        rank_math_description:   metaDesc
+      }
+    };
+    const result = await cmsWpRequest('POST', `/wp-json/wp/v2/posts/${postId}`, payload);
+    if (!result.id) throw new Error(JSON.stringify(result).slice(0, 200));
+    res.json({ ok: true, postId: result.id, metaTitle, metaDesc });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Verify SEO — port inline của tools/verify-seo.js ─────────────────────────
+app.get('/api/cms/verify-seo/:postId', async (req, res) => {
+  try {
+    const post = await cmsWpRequest('GET', `/wp-json/wp/v2/posts/${req.params.postId}?context=edit`);
+    if (!post.id) throw new Error('Post không tồn tại');
+
+    const keyword  = (post.meta?.rank_math_focus_keyword || '').toLowerCase().trim();
+    const seoTitle = (post.meta?.rank_math_title || '').toLowerCase();
+    const seoDesc  = (post.meta?.rank_math_description || '').toLowerCase();
+    const slug     = post.slug || '';
+    const rawHtml  = post.content?.raw || '';
+    const stripH   = h => h.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&[a-z]+;/g,' ').replace(/\s+/g,' ').trim();
+    const plain    = stripH(rawHtml).toLowerCase();
+    const wc       = plain.split(/\s+/).filter(w => w.length > 0).length;
+    const mediaId  = post.featured_media;
+
+    if (!keyword) return res.json({ passed: 0, total: 0, pct: 0, noKeyword: true, results: [] });
+
+    const results = [];
+    const check = (label, ok) => results.push({ label, ok });
+
+    // 1. Keyword in SEO title
+    check('Keyword trong SEO title', seoTitle.includes(keyword));
+    // 2. Keyword in meta description
+    check('Keyword trong meta description', seoDesc.includes(keyword));
+    // 3. Keyword in slug
+    const kwParts = keyword.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').replace(/[^a-z0-9\s]/gi,'').trim().split(/\s+/).filter(p => p.length > 1);
+    check('Keyword trong URL slug', kwParts.every(p => slug.includes(p)));
+    // 4. Keyword in first 10%
+    const kwPos = plain.indexOf(keyword);
+    check('Keyword trong 10% đầu bài', kwPos >= 0 && kwPos <= Math.floor(plain.length * 0.1));
+    // 5. Keyword found in content
+    const kwCount = (plain.match(new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g')) || []).length;
+    check(`Keyword trong nội dung (${kwCount} lần)`, kwCount >= 1);
+    // 6. Word count
+    check(`Độ dài nội dung (${wc} từ)`, wc >= 600);
+    // 7. Keyword in H2/H3
+    const headings = [...rawHtml.matchAll(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi)].map(m => stripH(m[1]).toLowerCase());
+    check('Keyword trong H2/H3', headings.some(h => h.includes(keyword)));
+    // 8. Featured image
+    check('Ảnh đại diện (featured image)', !!mediaId);
+    // 9. Keyword density 0.5–2.5%
+    const density = wc > 0 ? (kwCount / wc * 100) : 0;
+    check(`Mật độ từ khóa ${density.toFixed(1)}% (0.5–2.5%)`, density >= 0.5 && density <= 2.5);
+    // 10. External links (not elidefire)
+    const extLinks = [...rawHtml.matchAll(/href="(https?:\/\/(?!(?:www\.)?elidefire)[^"]+)"/g)];
+    check('External links (nguồn uy tín)', extLinks.length >= 1);
+    // 11. Internal links
+    const intLinks = [...rawHtml.matchAll(/href="((?:https?:\/\/(?:www\.)?elidefire[^"]*|\/[^"#]+))"/g)];
+    check('Internal links', intLinks.length >= 1);
+
+    const passed = results.filter(r => r.ok).length;
+    const total  = results.length;
+    res.json({ passed, total, pct: Math.round(passed / total * 100), keyword, results });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.listen(PORT, () => {

@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content Publisher — Elide Fire</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap"></noscript>
+  <link rel="stylesheet" href="/design-system.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-family); background: var(--color-bg); color: var(--color-text); }
+
+    /* ── Toolbar ── */
+    .toolbar-wrap {
+      background: var(--color-surface);
+      border-bottom: 2px solid var(--color-divider);
+      position: sticky; top: 0; z-index: 60;
+    }
+    .toolbar {
+      max-width: 900px; margin: 0 auto; padding: 0 var(--space-6);
+      display: flex; align-items: center; gap: var(--space-3); height: 52px;
+    }
+    .platform-tabs { display: flex; gap: 4px; }
+    .platform-tab {
+      display: flex; align-items: center; gap: 6px; padding: 7px 16px;
+      border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); font-family: var(--font-family);
+      color: var(--color-text-muted); background: var(--color-surface);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .platform-tab:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .platform-tab.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+
+    /* ── Platform sections ── */
+    .platform-section { display: none; }
+    .platform-section.active { display: block; }
+
+    /* ── Step navigation (sticky below toolbar) ── */
+    .step-nav-wrap {
+      position: sticky; top: 52px; z-index: 50;
+      background: var(--color-bg);
+      padding: var(--space-4) 0 0;
+    }
+    .step-nav-inner { max-width: 900px; margin: 0 auto; padding: 0 var(--space-6); }
+    .step-nav {
+      display: flex; align-items: center;
+      background: var(--color-surface); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card); overflow: hidden;
+    }
+    .step-btn {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+      padding: 13px var(--space-3);
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); font-family: var(--font-family);
+      border: none; background: none; cursor: pointer; color: var(--color-text-muted);
+      border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .step-btn:disabled { cursor: not-allowed; opacity: 0.4; }
+    .step-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); background: var(--color-primary-light); }
+    .step-btn.done { color: var(--color-success); }
+    .step-btn.done:not(:disabled):hover { background: #f0faf4; }
+    .step-btn:not(:disabled):not(.active):not(.done):hover { color: var(--color-text); background: var(--color-surface-subtle); }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+      background: var(--color-divider); color: var(--color-text-muted);
+      font-size: var(--text-xs); font-weight: var(--weight-bold);
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .step-btn.active .step-num { background: var(--color-primary); color: #fff; }
+    .step-btn.done .step-num  { background: var(--color-success); color: #fff; }
+    .step-sep { color: var(--color-divider); font-size: 20px; line-height: 1; flex-shrink: 0; padding: 0 2px; }
+
+    /* ── Status bar (below step-nav) ── */
+    .status-bar-wrap {
+      max-width: 900px; margin: 0 auto; padding: var(--space-3) var(--space-6) 0;
+    }
+    .status-bar {
+      min-height: 36px; display: flex; align-items: center; gap: var(--space-2);
+      padding: 7px var(--space-4);
+      background: var(--color-primary-light); border-left: 3px solid var(--color-primary);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.5;
+      transition: all 0.2s;
+    }
+    .status-bar.ok  { background: #f0faf4; border-left-color: var(--color-success); color: #2e7d32; }
+    .status-bar.err { background: #fff5f5; border-left-color: var(--color-error);   color: #c00; }
+    .status-bar.idle { visibility: hidden; }
+
+    /* ── Container ── */
+    .container { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-6) 80px; }
+
+    /* ── Wizard sections ── */
+    .wizard-section { display: none; }
+    .wizard-section.active { display: block; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--color-surface); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card); padding: var(--space-6) var(--space-7);
+      margin-bottom: var(--space-5);
+    }
+    .card-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      font-size: var(--text-sm); font-weight: var(--weight-bold);
+      color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: var(--space-6); padding-bottom: 12px;
+      border-bottom: 1.5px solid var(--color-divider);
+    }
+    .card-icon { color: var(--color-primary); flex-shrink: 0; }
+    .badge-agent {
+      margin-left: auto; font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      padding: 3px 10px; border-radius: 20px; text-transform: none; letter-spacing: 0;
+    }
+    .badge-seo     { background: #e8f5e9; color: #2e7d32; }
+    .badge-content { background: #e3f2fd; color: #1565c0; }
+
+    /* ── Form fields ── */
+    .row { display: flex; gap: var(--space-5); }
+    .row .field { flex: 1; }
+    .field { margin-bottom: var(--space-5); }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block; font-size: var(--text-sm); font-weight: var(--weight-semibold);
+      color: var(--color-text-secondary); margin-bottom: 7px;
+    }
+    .field label small { font-weight: var(--weight-normal); color: var(--color-text-subtle); font-size: var(--text-xs); }
+    .field input[type="text"],
+    .field input[type="url"],
+    .field input[type="datetime-local"],
+    .field select,
+    .field textarea {
+      width: 100%; padding: 10px var(--space-4);
+      border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      font-size: var(--text-base); font-family: var(--font-family);
+      color: var(--color-text); background: var(--color-surface);
+      transition: border-color 0.15s; line-height: 1.6;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none; border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-focus);
+    }
+    .field textarea { resize: vertical; }
+    .field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; cursor: pointer; }
+
+    /* ── Content type cards ── */
+    .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+    .type-option {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: var(--space-4) var(--space-5); border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-lg); cursor: pointer; transition: all 0.15s;
+      background: var(--color-surface);
+    }
+    .type-option:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+    .type-option.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
+    .type-option input[type="radio"] { display: none; }
+    .type-icon {
+      width: 40px; height: 40px; border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .type-news    .type-icon { background: #e3f2fd; color: #1565c0; }
+    .type-product .type-icon { background: #f3e5f5; color: #6a1b9a; }
+    .type-label { font-size: var(--text-base); font-weight: var(--weight-semibold); color: var(--color-text); }
+    .type-sublabel { font-size: var(--text-sm); color: var(--color-text-muted); margin-top: 2px; }
+
+    /* ── Ref / brochure list ── */
+    .add-row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+    .add-row input[type="url"],
+    .add-row input[type="text"] {
+      flex: 1; padding: 9px var(--space-3); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md); font-size: var(--text-base); font-family: var(--font-family);
+      color: var(--color-text); background: var(--color-surface);
+    }
+    .add-row input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
+    .btn-add {
+      padding: 9px var(--space-4); background: var(--color-primary); color: #fff;
+      border: none; border-radius: var(--radius-md); font-size: var(--text-sm);
+      font-weight: var(--weight-semibold); font-family: var(--font-family);
+      cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 0.15s;
+    }
+    .btn-add:hover { background: var(--color-primary-dark); }
+    .btn-file-pick {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px var(--space-4); background: var(--color-surface);
+      border: 1.5px dashed var(--color-border); border-radius: var(--radius-md);
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); font-family: var(--font-family);
+      color: var(--color-text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-file-pick:hover { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-light); }
+    .item-list { display: flex; flex-direction: column; gap: 4px; }
+    .list-item {
+      display: flex; align-items: center; gap: var(--space-2);
+      background: var(--color-surface-subtle); border-radius: var(--radius-sm);
+      padding: 6px var(--space-3); font-size: var(--text-sm); color: var(--color-text-secondary);
+    }
+    .list-item-icon { flex-shrink: 0; color: var(--color-primary); }
+    .list-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .list-item-del {
+      background: none; border: none; color: var(--color-text-muted); cursor: pointer;
+      font-size: 18px; line-height: 1; padding: 0 2px; flex-shrink: 0; transition: color 0.15s;
+    }
+    .list-item-del:hover { color: var(--color-error); }
+
+    /* ── Image upload grid (2 fixed-width cols) ── */
+    .img-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5);
+      align-items: start;
+    }
+    .img-grid > div { min-width: 0; }
+    .img-col-label {
+      display: block; font-size: var(--text-sm); font-weight: var(--weight-semibold);
+      color: var(--color-text-secondary); margin-bottom: 7px;
+    }
+    .img-col-label small { font-weight: var(--weight-normal); color: var(--color-text-subtle); font-size: var(--text-xs); }
+
+    /* Featured image */
+    .featured-wrap { position: relative; }
+    .upload-zone {
+      height: 180px;
+      border: 1.5px dashed var(--color-border); border-radius: var(--radius-md);
+      background: var(--color-surface-subtle); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; transition: border-color 0.15s;
+      position: relative;
+    }
+    .upload-zone:hover { border-color: var(--color-primary); }
+    .upload-empty {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      color: var(--color-text-muted); padding: var(--space-4); text-align: center;
+    }
+    .upload-empty span  { font-size: var(--text-sm); }
+    .upload-empty small { font-size: var(--text-xs); color: var(--color-text-subtle); }
+    .upload-preview {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .img-del-overlay {
+      position: absolute; top: 7px; right: 7px;
+      width: 26px; height: 26px; border-radius: 50%;
+      background: rgba(0,0,0,0.55); color: #fff; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.15s; z-index: 2;
+    }
+    .featured-wrap:hover .img-del-overlay,
+    .img-del-overlay.visible { opacity: 1; }
+    .img-del-overlay:hover { background: rgba(192,0,2,0.85); }
+
+    /* Content images carousel */
+    .carousel-wrap { position: relative; }
+    .carousel-viewport {
+      height: 180px; border-radius: var(--radius-md);
+      background: var(--color-surface-subtle); border: 1.5px dashed var(--color-border);
+      overflow-x: scroll; overflow-y: hidden;
+      scroll-behavior: smooth;
+      -ms-overflow-style: none; scrollbar-width: none;
+    }
+    .carousel-viewport::-webkit-scrollbar { display: none; }
+    .carousel-viewport.has-images { border-style: solid; border-color: var(--color-border-light); }
+    .carousel-empty {
+      height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px; color: var(--color-text-muted); cursor: pointer;
+    }
+    .carousel-empty:hover { color: var(--color-primary); }
+    .carousel-empty span { font-size: var(--text-sm); }
+    .carousel-empty small { font-size: var(--text-xs); color: var(--color-text-subtle); }
+    .carousel-track {
+      display: flex; height: 100%; gap: 4px; padding: 4px;
+      width: max-content;
+    }
+    .carousel-item {
+      flex: 0 0 160px; height: 100%; position: relative;
+    }
+    .carousel-item img {
+      width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm);
+      cursor: pointer; border: 2px solid transparent; transition: all 0.15s; display: block;
+    }
+    .carousel-item img:hover { border-color: var(--color-primary); }
+    .carousel-item-del {
+      position: absolute; top: 4px; right: 4px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(0,0,0,0.55); color: #fff; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.15s; z-index: 2;
+    }
+    .carousel-item:hover .carousel-item-del { opacity: 1; }
+    .carousel-item-del:hover { background: rgba(192,0,2,0.85); }
+    .carousel-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 30px; height: 30px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); color: #fff; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s; z-index: 5;
+    }
+    .carousel-arrow:hover { background: rgba(0,0,0,0.75); }
+    .carousel-prev { left: 6px; }
+    .carousel-next { right: 6px; }
+    .carousel-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+    .carousel-count { font-size: var(--text-xs); color: var(--color-text-muted); }
+    .btn-add-images {
+      font-size: var(--text-xs); color: var(--color-primary); background: none; border: none;
+      cursor: pointer; font-family: var(--font-family); font-weight: var(--weight-semibold);
+      padding: 0; text-decoration: underline; text-underline-offset: 2px;
+    }
+    .btn-add-images:hover { color: var(--color-primary-dark); }
+
+    /* ── Mono textarea ── */
+    .mono-textarea {
+      width: 100%; padding: var(--space-4);
+      border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      font-size: 13px; font-family: 'Consolas', 'Monaco', monospace;
+      line-height: 1.75; color: var(--color-text); background: var(--color-surface-subtle);
+      resize: vertical; transition: all 0.15s;
+    }
+    .mono-textarea:focus { outline: none; border-color: var(--color-primary); background: var(--color-surface); box-shadow: 0 0 0 3px var(--color-primary-focus); }
+    .word-count { margin-top: 6px; font-size: var(--text-xs); color: var(--color-text-subtle); text-align: right; }
+
+    /* ── AI note ── */
+    .ai-note {
+      background: var(--color-primary-light); border-left: 3px solid var(--color-primary);
+      padding: var(--space-3) var(--space-4); border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      font-size: var(--text-sm); color: var(--color-text-secondary);
+      margin-bottom: var(--space-5); line-height: 1.6;
+    }
+
+    /* ── Buttons ── */
+    .form-actions { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; margin-top: var(--space-6); }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 11px 24px; background: var(--color-primary); color: #fff;
+      border: none; border-radius: var(--radius-md);
+      font-size: var(--text-base); font-weight: var(--weight-bold); font-family: var(--font-family);
+      cursor: pointer; transition: background 0.15s; white-space: nowrap;
+    }
+    .btn-primary:hover    { background: var(--color-primary-dark); }
+    .btn-primary:disabled { background: var(--color-border); cursor: not-allowed; }
+    .btn-primary.lg       { padding: 13px 32px; font-size: var(--text-md); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 11px 20px; background: var(--color-surface); color: var(--color-text-secondary);
+      border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+      font-size: var(--text-base); font-weight: var(--weight-semibold); font-family: var(--font-family);
+      cursor: pointer; transition: all 0.15s; white-space: nowrap; text-decoration: none;
+    }
+    .btn-secondary:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Ref blocks (Tài liệu + Link web) ── */
+    .ref-row { display: flex; gap: var(--space-4); margin-top: var(--space-4); }
+    .ref-block {
+      flex: 1; min-width: 0;
+      border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-surface-subtle);
+    }
+    .ref-block-header {
+      display: flex; align-items: center; gap: 7px;
+      margin-bottom: var(--space-3); padding-bottom: var(--space-2);
+      border-bottom: 1px solid var(--color-divider);
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text-secondary);
+    }
+    .ref-block-header svg { flex-shrink: 0; color: var(--color-primary); }
+    .ref-block-header small { color: var(--color-text-subtle); font-weight: var(--weight-normal); font-size: var(--text-xs); }
+    .ref-pick-btn {
+      margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; font-size: 11px; font-weight: var(--weight-semibold); font-family: var(--font-family);
+      background: var(--color-surface); border: 1.5px dashed var(--color-border);
+      border-radius: var(--radius-sm); color: var(--color-text-muted); cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ref-pick-btn:hover { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-light); }
+    .ref-block .add-row { margin-bottom: 0; }
+    .ref-block .add-row input { flex: 1; padding: 8px var(--space-3); font-size: var(--text-sm); }
+    .ref-block .btn-add { padding: 8px var(--space-3); font-size: var(--text-sm); }
+
+    /* ── Publish options (chế độ đăng — 3 cột) ── */
+    .publish-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin-bottom: var(--space-6); }
+    .pub-card {
+      border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+      padding: var(--space-4) var(--space-3); background: var(--color-surface);
+      cursor: pointer; transition: all 0.15s; user-select: none;
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; gap: var(--space-2);
+    }
+    .pub-card:not(.pub-datetime):hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+    .pub-card.selected { border-color: var(--color-primary); background: var(--color-primary-light); }
+    .pub-card-icon {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--color-surface-subtle);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-muted); transition: all 0.15s;
+    }
+    .pub-card.selected .pub-card-icon { background: var(--color-primary); color: #fff; }
+    .pub-card:not(.selected):not(.pub-datetime):hover .pub-card-icon { color: var(--color-primary); }
+    .pub-card-label { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text); }
+    .pub-card-sub { font-size: var(--text-xs); color: var(--color-text-muted); }
+    .pub-datetime { cursor: default; align-items: flex-start; text-align: left; padding: var(--space-3) var(--space-4); }
+    .pub-datetime:hover { border-color: var(--color-border); background: var(--color-surface); }
+    .pub-datetime .pub-card-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-muted); margin-bottom: 4px; }
+    .pub-datetime input[type="datetime-local"] {
+      width: 100%; padding: 9px 10px; font-size: var(--text-sm); font-family: var(--font-family);
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-surface); color: var(--color-text); color-scheme: light;
+      transition: border-color 0.15s;
+    }
+    .pub-datetime input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
+
+    @media (max-width: 620px) { .publish-options { grid-template-columns: 1fr; } }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 0.9s linear infinite; display: inline-block; line-height: 0; }
+
+    /* ── Product placeholder ── */
+    .product-placeholder {
+      text-align: center; padding: var(--space-8) var(--space-6);
+      color: var(--color-text-muted);
+    }
+    .product-placeholder svg { margin-bottom: var(--space-4); color: var(--color-border); }
+    .product-placeholder h4 { font-size: var(--text-base); color: var(--color-text-secondary); margin-bottom: 6px; }
+    .product-placeholder p { font-size: var(--text-sm); }
+
+    /* ── Facebook placeholder ── */
+    .coming-soon {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: var(--space-4);
+      color: var(--color-text-muted); padding: 80px 0;
+    }
+    .coming-soon h3 { font-size: var(--text-lg); color: var(--color-text-secondary); }
+    .coming-soon p  { font-size: var(--text-sm); }
+
+    @media (max-width: 620px) {
+      .img-grid { grid-template-columns: 1fr; }
+      .row { flex-direction: column; gap: 0; }
+      .type-grid { grid-template-columns: 1fr; }
+      .ref-row { flex-direction: column; }
+      .publish-options { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Toolbar ── -->
+<div class="toolbar-wrap">
+  <div class="toolbar">
+    <div class="platform-tabs">
+      <button class="platform-tab active" onclick="switchPlatform('wordpress')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+        WordPress
+      </button>
+      <button class="platform-tab" onclick="switchPlatform('facebook')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+        Facebook
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ WORDPRESS ══════════ -->
+<div id="section-wordpress" class="platform-section active">
+
+  <!-- Step navigation (sticky) -->
+  <div class="step-nav-wrap">
+    <div class="step-nav-inner">
+      <div class="step-nav">
+        <button class="step-btn active" id="step-btn-1" onclick="navToStep(1)">
+          <span class="step-num" id="sn-1">1</span>
+          <span>Thiết lập</span>
+        </button>
+        <div class="step-sep">›</div>
+        <button class="step-btn" id="step-btn-2" onclick="navToStep(2)" disabled>
+          <span class="step-num" id="sn-2">2</span>
+          <span>Duyệt Outline</span>
+        </button>
+        <div class="step-sep">›</div>
+        <button class="step-btn" id="step-btn-3" onclick="navToStep(3)" disabled>
+          <span class="step-num" id="sn-3">3</span>
+          <span>Duyệt Content</span>
+        </button>
+        <div class="step-sep">›</div>
+        <button class="step-btn" id="step-btn-4" onclick="navToStep(4)" disabled>
+          <span class="step-num" id="sn-4">4</span>
+          <span>Đăng bài</span>
+        </button>
+      </div>
+    </div>
+    <!-- Status bar -->
+    <div class="status-bar-wrap">
+      <div id="status-bar" class="status-bar idle">Sẵn sàng</div>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- ════ STEP 1: Thiết lập ════ -->
+    <div class="wizard-section active" id="ws-1">
+
+      <!-- Block: Loại nội dung -->
+      <div class="card">
+        <div class="card-header">
+          <svg class="card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Loại nội dung
+        </div>
+        <div class="type-grid">
+          <label class="type-option type-news selected" id="ctype-news" onclick="selectContentType('news')">
+            <input type="radio" name="content-type" value="news" checked>
+            <div class="type-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+            </div>
+            <div>
+              <div class="type-label">Tin tức / Blog</div>
+              <div class="type-sublabel">Kiến thức, hướng dẫn, review</div>
+            </div>
+          </label>
+          <label class="type-option type-product" id="ctype-product" onclick="selectContentType('product')">
+            <input type="radio" name="content-type" value="product">
+            <div class="type-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            </div>
+            <div>
+              <div class="type-label">Trang sản phẩm</div>
+              <div class="type-sublabel">Techideas, Lovingcare...</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Block: Tin tức fields -->
+      <div id="news-fields">
+        <!-- Mục tiêu nội dung -->
+        <div class="card">
+          <div class="card-header">
+            <svg class="card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            Mục tiêu nội dung
+          </div>
+
+          <div class="field">
+            <label>Chủ đề bài viết <small>— nhập prompt tổng bao gồm chủ đề, từ khóa mục tiêu và ghi chú cho bài</small></label>
+            <textarea id="wp-topic" rows="4" placeholder="Ví dụ: Viết bài blog về bóng chữa cháy tự động Elide Fire cho xe ô tô. Từ khóa mục tiêu: bóng chữa cháy ô tô, phòng cháy ô tô tự động. Lưu ý: nhấn mạnh tính tự động không cần người vận hành, phù hợp mọi dòng xe..."></textarea>
+          </div>
+
+          <!-- Tài liệu tham khảo + Link web: 2 blocks đều nhau -->
+          <div class="ref-row">
+            <div class="ref-block">
+              <div class="ref-block-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Tài liệu tham khảo <small>PDF · Word</small>
+                <button class="ref-pick-btn" onclick="document.getElementById('brochure-input').click()">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Chọn file
+                </button>
+                <input type="file" id="brochure-input" accept=".pdf,.doc,.docx" multiple style="display:none" onchange="addBrochures(this)">
+              </div>
+              <div class="item-list" id="brochure-list"></div>
+            </div>
+
+            <div class="ref-block">
+              <div class="ref-block-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Link web tham khảo
+              </div>
+              <div class="add-row">
+                <input type="url" id="ref-url-input" placeholder="https://...">
+                <button class="btn-add" onclick="addRefLink()">+ Thêm</button>
+              </div>
+              <div class="item-list" id="ref-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button id="btn-outline" class="btn-primary lg" onclick="generateOutline(this)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Tạo Outline
+          </button>
+        </div>
+      </div><!-- /news-fields -->
+
+      <!-- Block: Sản phẩm placeholder -->
+      <div id="product-fields" style="display:none">
+        <div class="card">
+          <div class="product-placeholder">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            <h4>Trang sản phẩm — Đang phát triển</h4>
+            <p>Tính năng tạo nội dung cho trang sản phẩm sẽ được bổ sung trong phiên bản tiếp theo.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /ws-1 -->
+
+    <!-- ════ STEP 2: Duyệt Outline ════ -->
+    <div class="wizard-section" id="ws-2">
+      <div class="card">
+        <div class="card-header">
+          <svg class="card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Duyệt Outline
+          <span class="badge-agent badge-seo">SEO Agent</span>
+        </div>
+        <div class="ai-note">SEO Agent đã phân tích và đề xuất cấu trúc bài tối ưu. Kiểm tra và hiệu chỉnh trực tiếp, sau đó nhấn <strong>Duyệt &amp; Tạo Nội Dung</strong>.</div>
+
+        <div class="field">
+          <label>Tiêu đề (H1)</label>
+          <input type="text" id="ol-title" placeholder="Tiêu đề bài viết...">
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Meta description</label>
+            <input type="text" id="ol-meta" placeholder="Mô tả meta ~155 ký tự...">
+          </div>
+          <div class="field" style="max-width:220px">
+            <label>URL Slug</label>
+            <input type="text" id="ol-slug" placeholder="url-slug-bai-viet">
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Nội dung Outline</label>
+          <textarea id="wp-outline" class="mono-textarea" rows="18" placeholder="Outline sẽ được điền sau khi AI tạo xong..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button id="btn-approve-outline" class="btn-primary" onclick="approveOutline()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Duyệt &amp; Tạo Nội Dung
+          </button>
+          <button id="btn-rewrite-outline" class="btn-secondary" onclick="generateOutline(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Viết lại
+          </button>
+          <button class="btn-secondary" onclick="navToStep(1)" style="margin-left:auto">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Quay lại
+          </button>
+        </div>
+      </div>
+    </div><!-- /ws-2 -->
+
+    <!-- ════ STEP 3: Duyệt Content ════ -->
+    <div class="wizard-section" id="ws-3">
+
+      <!-- Hình ảnh (dời từ Bước 1) -->
+      <div class="card">
+        <div class="card-header">
+          <svg class="card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Hình ảnh
+        </div>
+
+        <div class="img-grid">
+          <!-- Featured image -->
+          <div>
+            <span class="img-col-label">Ảnh đại diện</span>
+            <div class="featured-wrap">
+              <div class="upload-zone" id="featured-zone" onclick="document.getElementById('fi-input').click()">
+                <div class="upload-empty" id="fi-empty">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <span>Click để chọn ảnh đại diện</span>
+                  <small>.jpg · .png · .webp</small>
+                </div>
+                <img id="fi-preview" class="upload-preview" style="display:none" alt="Ảnh đại diện">
+              </div>
+              <button class="img-del-overlay" id="fi-del" style="display:none" onclick="clearFeatured()" title="Xóa ảnh">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <input type="file" id="fi-input" accept="image/*" style="display:none" onchange="handleFeaturedFile(this)">
+          </div>
+
+          <!-- Content images carousel -->
+          <div>
+            <span class="img-col-label">Ảnh nội dung <small>— click ảnh để chèn vào bài viết</small></span>
+            <div class="carousel-wrap" id="carousel-wrap">
+              <div class="carousel-viewport" id="carousel-vp">
+                <div class="carousel-empty" id="carousel-empty" onclick="document.getElementById('ci-input').click()">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="21 15 16 10 5 21"/><line x1="12" y1="3" x2="12" y2="9"/><line x1="9" y1="6" x2="15" y2="6"/></svg>
+                  <span>Click để thêm ảnh nội dung</span>
+                  <small>Có thể chọn nhiều file</small>
+                </div>
+                <div class="carousel-track" id="carousel-track" style="display:none"></div>
+              </div>
+              <button class="carousel-arrow carousel-prev" id="carousel-prev" style="display:none" onclick="carouselScroll(-1)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <button class="carousel-arrow carousel-next" id="carousel-next" style="display:none" onclick="carouselScroll(1)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+            <div class="carousel-footer">
+              <span class="carousel-count" id="carousel-count"></span>
+              <button class="btn-add-images" onclick="document.getElementById('ci-input').click()" style="display:none" id="btn-add-more">+ Thêm ảnh</button>
+            </div>
+            <input type="file" id="ci-input" accept="image/*" multiple style="display:none" onchange="handleContentFiles(this)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Content editor -->
+      <div class="card">
+        <div class="card-header">
+          <svg class="card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Duyệt Content
+          <span class="badge-agent badge-content">Content Agent</span>
+        </div>
+        <div class="ai-note">Content Agent đã viết bài theo outline đã duyệt. Đọc lại và hiệu chỉnh tại đây — click ảnh nội dung bên trên để chèn vào vị trí con trỏ.</div>
+
+        <div class="field" style="margin-bottom:0">
+          <label>Nội dung bài viết</label>
+          <textarea id="wp-content" class="mono-textarea" rows="28" placeholder="Nội dung bài viết sẽ được điền sau khi AI tạo xong..."></textarea>
+          <div class="word-count" id="word-count">0 từ · 0 ký tự</div>
+        </div>
+
+        <div class="form-actions">
+          <button id="btn-approve-content" class="btn-primary" onclick="approveContent()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Duyệt &amp; Sang Bước Đăng bài
+          </button>
+          <button id="btn-rewrite-content" class="btn-secondary" onclick="approveOutline()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Viết lại
+          </button>
+          <button class="btn-secondary" onclick="navToStep(2)" style="margin-left:auto">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Quay lại Outline
+          </button>
+        </div>
+      </div>
+    </div><!-- /ws-3 -->
+
+    <!-- ════ STEP 4: Đăng bài ════ -->
+    <div class="wizard-section" id="ws-4">
+      <div class="card">
+        <div class="card-header">
+          <svg class="card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Thông tin đăng bài
+        </div>
+
+        <div class="publish-options">
+          <!-- Lưu nháp -->
+          <div class="pub-card selected" id="status-draft" onclick="selectStatus('draft')">
+            <div class="pub-card-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div class="pub-card-label">Lưu nháp</div>
+            <div class="pub-card-sub">Chỉ mình thấy</div>
+          </div>
+          <!-- Công khai ngay -->
+          <div class="pub-card" id="status-publish" onclick="selectStatus('publish')">
+            <div class="pub-card-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            </div>
+            <div class="pub-card-label">Công khai ngay</div>
+            <div class="pub-card-sub">Hiển thị trên web</div>
+          </div>
+          <!-- Ngày giờ đăng -->
+          <div class="pub-card pub-datetime">
+            <div class="pub-card-label">Ngày và giờ đăng</div>
+            <input type="datetime-local" id="wp-date">
+          </div>
+        </div>
+        <input type="hidden" id="wp-status" value="draft">
+
+        <div class="form-actions">
+          <button id="btn-publish" class="btn-primary lg" onclick="publishPost()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Đăng lên WordPress
+          </button>
+          <button class="btn-secondary" onclick="navToStep(3)" style="margin-left:auto">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Quay lại Content
+          </button>
+        </div>
+      </div>
+    </div><!-- /ws-4 -->
+
+  </div><!-- /container -->
+</div><!-- /section-wordpress -->
+
+<!-- ══════════ FACEBOOK ══════════ -->
+<div id="section-facebook" class="platform-section">
+  <div class="container">
+    <div class="coming-soon">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-border)"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      <h3>Facebook — Sắp ra mắt</h3>
+      <p>Tính năng đăng bài Facebook đang được phát triển.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
+const API          = '/api/cms';
+let currentStep    = 1;
+let unlockedUpTo   = 1;
+
+let brochures      = [];
+let refLinks       = [];
+let featuredFile   = null;
+let contentFiles   = [];
+let ciIdCounter    = 0;
+let publishedPostId = null;
+let publishedUrl    = null;
+let selectedContentType = 'news';
+let focusKeyword   = '';
+
+/* ═══════════════════════════════════════════════════
+   STATUS BAR
+═══════════════════════════════════════════════════ */
+function setStatus(msg, cls) {
+  const el = document.getElementById('status-bar');
+  el.textContent = msg || '';
+  el.className   = 'status-bar' + (cls ? ' ' + cls : '') + (!msg ? ' idle' : '');
+}
+
+/* ═══════════════════════════════════════════════════
+   CONTENT TYPE TOGGLE
+═══════════════════════════════════════════════════ */
+function selectContentType(type) {
+  selectedContentType = type;
+  document.getElementById('ctype-news').classList.toggle('selected', type === 'news');
+  document.getElementById('ctype-product').classList.toggle('selected', type === 'product');
+  document.getElementById('news-fields').style.display    = type === 'news'    ? '' : 'none';
+  document.getElementById('product-fields').style.display = type === 'product' ? '' : 'none';
+}
+
+/* ═══════════════════════════════════════════════════
+   STEP NAVIGATION
+═══════════════════════════════════════════════════ */
+function navToStep(n) {
+  if (n > unlockedUpTo) return;
+  currentStep = n;
+  document.querySelectorAll('.wizard-section').forEach((s, i) =>
+    s.classList.toggle('active', i + 1 === n)
+  );
+  for (let i = 1; i <= 4; i++) {
+    const btn = document.getElementById('step-btn-' + i);
+    const num = document.getElementById('sn-' + i);
+    btn.classList.remove('active', 'done');
+    btn.disabled = i > unlockedUpTo;
+    if (i < n) {
+      btn.classList.add('done');
+      num.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    } else {
+      num.textContent = i;
+      if (i === n) btn.classList.add('active');
+    }
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function unlockStep(n) {
+  if (n > unlockedUpTo) unlockedUpTo = n;
+  navToStep(n);
+}
+
+/* ═══════════════════════════════════════════════════
+   PLATFORM SWITCH
+═══════════════════════════════════════════════════ */
+function switchPlatform(p) {
+  document.querySelectorAll('.platform-tab').forEach(t =>
+    t.classList.toggle('active', t.getAttribute('onclick').includes("'" + p + "'"))
+  );
+  document.querySelectorAll('.platform-section').forEach(s =>
+    s.classList.toggle('active', s.id === 'section-' + p)
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   STATUS SELECT
+═══════════════════════════════════════════════════ */
+function selectStatus(val) {
+  document.getElementById('wp-status').value = val;
+  document.getElementById('status-draft').classList.toggle('selected', val === 'draft');
+  document.getElementById('status-publish').classList.toggle('selected', val === 'publish');
+  // Sync icon background
+  ['status-draft','status-publish'].forEach(id => {
+    const icon = document.querySelector('#' + id + ' .pub-card-icon');
+    if (icon) icon.style.background = '';
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   BROCHURES
+═══════════════════════════════════════════════════ */
+function addBrochures(input) {
+  Array.from(input.files).forEach(f => brochures.push(f));
+  renderBrochures();
+  input.value = '';
+}
+function removeBrochure(i) {
+  brochures.splice(i, 1);
+  renderBrochures();
+}
+function renderBrochures() {
+  document.getElementById('brochure-list').innerHTML = brochures.map((f, i) => `
+    <div class="list-item">
+      <svg class="list-item-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span title="${escHtml(f.name)}">${escHtml(f.name)}</span>
+      <button class="list-item-del" onclick="removeBrochure(${i})" title="Xóa">×</button>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════
+   REF LINKS
+═══════════════════════════════════════════════════ */
+function addRefLink() {
+  const input = document.getElementById('ref-url-input');
+  const url   = input.value.trim();
+  if (!url) return;
+  refLinks.push(url);
+  input.value = '';
+  renderRefList();
+}
+document.getElementById('ref-url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addRefLink(); }
+});
+function removeRefLink(i) {
+  refLinks.splice(i, 1);
+  renderRefList();
+}
+function renderRefList() {
+  document.getElementById('ref-list').innerHTML = refLinks.map((u, i) => `
+    <div class="list-item">
+      <svg class="list-item-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span title="${escHtml(u)}">${escHtml(u)}</span>
+      <button class="list-item-del" onclick="removeRefLink(${i})" title="Xóa">×</button>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════
+   FEATURED IMAGE
+═══════════════════════════════════════════════════ */
+function handleFeaturedFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  featuredFile = file;
+  const url  = URL.createObjectURL(file);
+  const prev = document.getElementById('fi-preview');
+  prev.src = url;
+  prev.style.display = 'block';
+  document.getElementById('fi-empty').style.display = 'none';
+  document.getElementById('fi-del').style.display   = 'flex';
+  setStatus('Đã chọn ảnh đại diện: ' + file.name);
+  input.value = '';
+}
+function clearFeatured() {
+  if (featuredFile) URL.revokeObjectURL(document.getElementById('fi-preview').src);
+  featuredFile = null;
+  document.getElementById('fi-preview').style.display = 'none';
+  document.getElementById('fi-empty').style.display   = 'flex';
+  document.getElementById('fi-del').style.display     = 'none';
+}
+
+/* ═══════════════════════════════════════════════════
+   CONTENT IMAGES CAROUSEL
+═══════════════════════════════════════════════════ */
+function handleContentFiles(input) {
+  Array.from(input.files).forEach(file => {
+    contentFiles.push({ id: ciIdCounter++, file, objUrl: URL.createObjectURL(file) });
+  });
+  renderCarousel();
+  setStatus('Đã thêm ảnh nội dung: ' + contentFiles.length + ' file');
+  input.value = '';
+}
+function removeContentImg(id) {
+  const cf = contentFiles.find(c => c.id === id);
+  if (cf) URL.revokeObjectURL(cf.objUrl);
+  contentFiles = contentFiles.filter(c => c.id !== id);
+  renderCarousel();
+}
+function renderCarousel() {
+  const vp      = document.getElementById('carousel-vp');
+  const track   = document.getElementById('carousel-track');
+  const empty   = document.getElementById('carousel-empty');
+  const prev    = document.getElementById('carousel-prev');
+  const next    = document.getElementById('carousel-next');
+  const count   = document.getElementById('carousel-count');
+  const addMore = document.getElementById('btn-add-more');
+
+  if (!contentFiles.length) {
+    vp.classList.remove('has-images');
+    empty.style.display   = 'flex';
+    track.style.display   = 'none';
+    prev.style.display    = 'none';
+    next.style.display    = 'none';
+    count.textContent     = '';
+    addMore.style.display = 'none';
+    return;
+  }
+
+  vp.classList.add('has-images');
+  empty.style.display   = 'none';
+  track.style.display   = 'flex';
+  prev.style.display    = 'flex';
+  next.style.display    = 'flex';
+  count.textContent     = contentFiles.length + ' ảnh';
+  addMore.style.display = 'inline';
+
+  track.innerHTML = contentFiles.map(cf => `
+    <div class="carousel-item">
+      <img src="${cf.objUrl}" alt="${escHtml(cf.file.name)}" title="${escHtml(cf.file.name)}" onclick="insertContentImg(${cf.id})">
+      <button class="carousel-item-del" onclick="removeContentImg(${cf.id})" title="Xóa ảnh">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>`).join('');
+}
+function carouselScroll(dir) {
+  const vp = document.getElementById('carousel-vp');
+  const itemW = 164; // carousel-item width + gap
+  vp.scrollBy({ left: dir * itemW * 2, behavior: 'smooth' });
+}
+function insertContentImg(id) {
+  const cf = contentFiles.find(c => c.id === id);
+  if (!cf) return;
+  const ta  = document.getElementById('wp-content');
+  const s   = ta.selectionStart, e = ta.selectionEnd;
+  const tag = `\n[ảnh: upload:${id}]\n`;
+  ta.value  = ta.value.slice(0, s) + tag + ta.value.slice(e);
+  ta.selectionStart = ta.selectionEnd = s + tag.length;
+  ta.focus();
+  updateWordCount();
+  setStatus('Đã đánh dấu chèn ảnh: ' + cf.file.name);
+}
+
+/* ═══════════════════════════════════════════════════
+   WORD COUNT
+═══════════════════════════════════════════════════ */
+document.getElementById('wp-content').addEventListener('input', updateWordCount);
+function updateWordCount() {
+  const t = document.getElementById('wp-content').value;
+  const w = t.trim() ? t.trim().split(/\s+/).length : 0;
+  document.getElementById('word-count').textContent =
+    `${w.toLocaleString()} từ · ${t.length.toLocaleString()} ký tự`;
+}
+
+/* ═══════════════════════════════════════════════════
+   FILE → BASE64
+═══════════════════════════════════════════════════ */
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   STEP 1 → 2: GENERATE OUTLINE
+   callerBtn: the button element that was clicked
+═══════════════════════════════════════════════════ */
+async function generateOutline(callerBtn) {
+  const topic = document.getElementById('wp-topic').value.trim();
+  if (!topic) { setStatus('Vui lòng nhập chủ đề bài viết', 'err'); return; }
+
+  // Use caller button if provided (supports both Step 1 and Step 2 "Viết lại")
+  const btn  = callerBtn || document.getElementById('btn-outline');
+  const orig = btn.innerHTML;
+  btn.innerHTML = spinnerHtml('SEO Agent đang nghiên cứu...');
+  btn.disabled  = true;
+  setStatus('SEO Agent đang phân tích và tạo outline tối ưu...');
+
+  try {
+    const r = await fetch(API + '/generate-outline', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, keyword: '', sourceUrls: refLinks })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+
+    document.getElementById('ol-title').value   = d.title   || '';
+    document.getElementById('ol-meta').value    = d.meta    || '';
+    document.getElementById('ol-slug').value    = d.slug    || '';
+    document.getElementById('wp-outline').value = d.outline || '';
+    if (d.keyword) focusKeyword = d.keyword;
+
+    unlockStep(2);
+    setStatus('Outline đã sẵn sàng — kiểm tra và duyệt', 'ok');
+  } catch(e) {
+    setStatus('Lỗi tạo outline: ' + e.message, 'err');
+  } finally {
+    btn.innerHTML = orig;
+    btn.disabled  = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   STEP 2 → 3: APPROVE OUTLINE, GENERATE CONTENT
+═══════════════════════════════════════════════════ */
+async function approveOutline() {
+  const outline = document.getElementById('wp-outline').value.trim();
+  const title   = document.getElementById('ol-title').value.trim();
+  const meta    = document.getElementById('ol-meta').value.trim();
+  const slug    = document.getElementById('ol-slug').value.trim();
+  const topic   = document.getElementById('wp-topic').value.trim();
+  if (!outline) { setStatus('Outline trống — tạo outline trước', 'err'); return; }
+
+  const btn  = document.getElementById('btn-approve-outline');
+  const orig = btn.innerHTML;
+  btn.innerHTML = spinnerHtml('Content Agent đang viết bài...');
+  btn.disabled  = true;
+
+  // Also disable Viết lại button
+  const rewriteBtn = document.getElementById('btn-rewrite-outline');
+  if (rewriteBtn) rewriteBtn.disabled = true;
+
+  setStatus('Content Agent đang viết bài theo outline đã duyệt...');
+
+  try {
+    const r = await fetch(API + '/generate-from-outline', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, keyword: '', title, meta, slug, outline })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+
+    document.getElementById('wp-content').value = d.content || '';
+    updateWordCount();
+
+    unlockStep(3);
+    setStatus('Nội dung đã sẵn sàng — đọc lại và hiệu chỉnh', 'ok');
+  } catch(e) {
+    setStatus('Lỗi tạo nội dung: ' + e.message, 'err');
+  } finally {
+    btn.innerHTML = orig;
+    btn.disabled  = false;
+    if (rewriteBtn) rewriteBtn.disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   STEP 3 → 4: APPROVE CONTENT
+═══════════════════════════════════════════════════ */
+function approveContent() {
+  const content = document.getElementById('wp-content').value.trim();
+  if (!content) {
+    setStatus('Nội dung bài viết không được để trống', 'err');
+    return;
+  }
+  unlockStep(4);
+  setStatus('Sẵn sàng đăng bài — kiểm tra thông tin và xác nhận', 'ok');
+}
+
+/* ═══════════════════════════════════════════════════
+   STEP 4: PUBLISH
+═══════════════════════════════════════════════════ */
+async function publishPost() {
+  const title   = document.getElementById('ol-title').value.trim();
+  const meta    = document.getElementById('ol-meta').value.trim();
+  const slug    = document.getElementById('ol-slug').value.trim();
+  const content = document.getElementById('wp-content').value.trim();
+  const status  = document.getElementById('wp-status').value;
+  const date    = document.getElementById('wp-date').value || null;
+
+  if (!title)   { setStatus('Tiêu đề bài viết bị trống (lấy từ Outline)', 'err'); return; }
+  if (!content) { setStatus('Nội dung bài viết bị trống', 'err'); return; }
+
+  const btn = document.getElementById('btn-publish');
+  btn.disabled  = true;
+  btn.innerHTML = spinnerHtml('Đang đăng bài...');
+  setStatus('Đang upload ảnh và tạo bài trên WordPress...');
+
+  try {
+    const featuredBase64 = featuredFile ? await fileToBase64(featuredFile) : null;
+    const featuredName   = featuredFile ? featuredFile.name : null;
+    const contentImagesB64 = await Promise.all(
+      contentFiles.map(async cf => ({
+        index: cf.id,
+        name:  cf.file.name,
+        base64: await fileToBase64(cf.file)
+      }))
+    );
+
+    const r = await fetch(API + '/publish', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title, content, meta, slug, status, date,
+        keyword: focusKeyword || title.split(' ').slice(0, 4).join(' '),
+        type: selectedContentType,
+        featuredBase64, featuredName, contentImagesB64
+      })
+    });
+    const rawText = await r.text();
+    let d;
+    try { d = JSON.parse(rawText); }
+    catch(pe) { throw new Error(`Server phản hồi không hợp lệ (HTTP ${r.status}): ${rawText.slice(0, 200)}`); }
+    if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+
+    publishedPostId = d.postId;
+    publishedUrl    = d.url;
+
+    const statusLabel = d.status === 'publish' ? 'Công khai' : 'Nháp';
+    setStatus(`Đã đăng (ID: ${d.postId} · ${statusLabel}) — đang tối ưu SEO & verify...`);
+
+    // Auto optimize SEO với focus keyword từ outline
+    const kw = focusKeyword || document.getElementById('ol-slug').value.replace(/-/g, ' ');
+    await optimizeSEO(d.postId, kw, title, content, meta);
+
+  } catch(e) {
+    setStatus('Lỗi đăng bài: ' + e.message, 'err');
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Đăng lại`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   AUTO OPTIMIZE SEO + VERIFY (called after publish)
+═══════════════════════════════════════════════════ */
+async function optimizeSEO(postId, keyword, title, content, meta) {
+  try {
+    // 1. Set Rank Math metadata
+    const r = await fetch(API + '/optimize-seo', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId, keyword, title, content, meta })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'optimize-seo thất bại');
+
+    // 2. Verify 11 tiêu chí SEO
+    try {
+      const vr = await fetch(API + '/verify-seo/' + postId);
+      const vd = await vr.json();
+      if (vd.total) {
+        const pct   = vd.pct;
+        const emoji = pct === 100 ? '●' : pct >= 80 ? '●' : '●';
+        const cls   = pct >= 80 ? 'ok' : 'err';
+        const failed = vd.results.filter(x => !x.ok).map(x => x.label).join(' · ');
+        const msg = pct >= 80
+          ? `Hoàn thành · ID: ${postId} · SEO ${vd.passed}/${vd.total} tiêu chí đạt (${pct}%)`
+          : `Đăng xong · ID: ${postId} · SEO ${vd.passed}/${vd.total} (${pct}%) — cần fix: ${failed}`;
+        setStatus(msg, cls);
+      } else {
+        setStatus(`Hoàn thành · ID: ${postId} · SEO đã tối ưu (keyword: ${keyword})`, 'ok');
+      }
+    } catch(ve) {
+      setStatus(`Hoàn thành · ID: ${postId} · SEO đã tối ưu`, 'ok');
+    }
+  } catch(e) {
+    setStatus(`Đã đăng (ID: ${postId}) · SEO lỗi: ${e.message}`, 'err');
+    console.warn('[SEO opt]', e.message);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════ */
+function spinnerHtml(label) {
+  return `<span class="spin"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></span> ${label}`;
+}
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

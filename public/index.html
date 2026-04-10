@@ -402,6 +402,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .app-loading-text { font-size: 15px; color: #666; font-family: 'Be Vietnam Pro', sans-serif; }
     .app-loading-retry { display: none; margin-top: 8px; padding: 10px 24px; background: #FA0F0F; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-family: 'Be Vietnam Pro', sans-serif; cursor: pointer; }
+
   </style>
 </head>
 <body>
@@ -423,6 +424,7 @@
 <div class="tab-nav">
   <button class="tab-btn active" onclick="switchTab('bao-gia')">📋 Báo giá</button>
   <button class="tab-btn" onclick="switchTab('hop-dong')">📄 Hợp đồng</button>
+  <button class="tab-btn" onclick="switchTab('content')">📝 Content</button>
 </div>
 
 <!-- ===== TAB BÁO GIÁ ===== -->
@@ -777,6 +779,16 @@
   </form>
 </div>
 </div><!-- end section-hop-dong -->
+
+<!-- ===== TAB CONTENT PUBLISHER ===== -->
+<div id="section-content" class="tab-section">
+  <iframe
+    src="/content.html"
+    id="content-frame"
+    style="width:100%; height:calc(100vh - 90px); border:none; display:block;"
+    title="Content Publisher">
+  </iframe>
+</div><!-- end section-content -->
 
 <!-- Modal: Lấy từ báo giá -->
 <div class="modal-overlay" id="hdFromQuoteModal">
@@ -1268,7 +1280,8 @@
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
     document.querySelector(`.tab-btn[onclick*="${tab}"]`).classList.add('active');
-    document.getElementById(`section-${tab}`).classList.add('active');
+    const section = document.getElementById(`section-${tab}`);
+    section.classList.add('active');
   }
 
   // ============================================================
@@ -2277,6 +2290,7 @@ function toggleVoice() {
   };
   voiceRecog.start();
 }
+
 </script>
 </body>
 </html>
