@@ -85,6 +85,10 @@ function loadSkill(filename) {
 const SKILL_SEO     = loadSkill('skill-seo.md');
 const SKILL_CONTENT = loadSkill('skill-content.md');
 
+// Log để xác nhận skill files đã được đọc
+console.log(`[CMS] skill-seo.md: ${SKILL_SEO.length} ký tự`);
+console.log(`[CMS] skill-content.md: ${SKILL_CONTENT.length} ký tự`);
+
 // KB_BRAND: thông tin sản phẩm thực tế — dùng chung cho cả 2 route
 const KB_BRAND = `
 === THÔNG TIN SẢN PHẨM ELIDE FIRE (NGUỒN DUY NHẤT — KHÔNG ĐƯỢC SÁNG TÁC) ===
@@ -1972,18 +1976,23 @@ NHIỆM VỤ: Tạo OUTLINE (khung bài) SEO theo yêu cầu của user.
 Áp dụng đúng theo skill và knowledge base ở trên.
 Luôn trả về đúng format được yêu cầu — không thêm lời giải thích hay markdown.`;
 
+    const now = new Date();
+    const currentDate = `tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
+
     const userPrompt = `Tạo OUTLINE (khung bài) SEO cho:
 Chủ đề: ${topic}
 ${keyword ? `Từ khóa mục tiêu: ${keyword}` : ''}
 ${sourceUrls && sourceUrls.length ? `Nguồn tham khảo:\n${sourceUrls.map(u => '  ' + u).join('\n')}` : ''}
+Ngày hiện tại: ${currentDate} — dùng cho freshness signal, KHÔNG ghi năm cũ hơn ${now.getFullYear()} trong bài
 
 OUTLINE = KHUNG BÀI, không phải nội dung. Mỗi phần chỉ gồm:
 - Tiêu đề H2 + số từ mục tiêu (ví dụ: "200 từ")
 - 3-5 bullet point ngắn nói RÕ sẽ viết về GÌ (không viết nội dung thật)
+- Mỗi bullet tối đa 10 từ
 
 Cấu trúc bắt buộc:
-MỞ BÀI (100-150 từ): [1 dòng mô tả góc hook] | từ khóa xuất hiện trong câu đầu
-H2 1: [tiêu đề dạng câu hỏi khi phù hợp] (200-250 từ)
+MỞ BÀI (100-150 từ): [1 dòng mô tả góc hook] | từ khóa xuất hiện trong câu đầu | freshness "Cập nhật: ${currentDate}"
+H2 1: [tiêu đề dạng câu hỏi] (200-250 từ)
   - [bullet: điểm sẽ cover]
   - [bullet: điểm sẽ cover]
   - [bullet: điểm sẽ cover]
@@ -1991,17 +2000,21 @@ H2 2: ... (200-250 từ)
 H2 3: ... (200-250 từ)
 H2 4: ... (200-250 từ)
 H2 FAQ: Câu hỏi thường gặp về [chủ đề] (150 từ)
-  - Q: [câu hỏi] | A: [1 dòng trả lời ngắn]
-  - Q: [câu hỏi] | A: [1 dòng trả lời ngắn]
-KẾT BÀI + CTA: [1 dòng mô tả] (75-100 từ)
+  - Q: [câu hỏi] | A: [1 dòng]
+  - Q: [câu hỏi] | A: [1 dòng]
+KẾT BÀI + CTA Elide Fire (75-100 từ):
+  - Tóm tắt lợi ích chính
+  - CTA: "Mua ngay — miễn phí giao hàng" hoặc "Nhận tư vấn qua Zalo"
+  - Link đến LOVINGCARE hoặc TECHIDEAS tùy chủ đề
 
 QUAN TRỌNG:
 - Không viết paragraph hay câu hoàn chỉnh trong outline
-- Không viết "Answer block" hay "Nội dung chi tiết" — đó là việc của bước viết content
-- Mỗi bullet tối đa 10 từ, mô tả ý cần cover
+- Không viết "Answer block" hay nội dung thật — đó là bước 3 (viết content)
+- TITLE không được chứa năm (không dùng "2024", "2025", "2026")
+- Tiêu đề phải súc tích, hấp dẫn, tập trung vào lợi ích hoặc câu hỏi của người dùng
 
 Trả về CHÍNH XÁC format sau (không thêm bất kỳ text nào khác):
-TITLE: [tiêu đề H1 ≤65 ký tự, có từ khóa, hấp dẫn]
+TITLE: [tiêu đề H1 ≤65 ký tự, có từ khóa, không có năm]
 META: [meta description 130-155 ký tự, chứa từ khóa nguyên văn, có CTA nhẹ]
 SLUG: [slug-khong-dau-viet-thuong]
 KEYWORD: [từ khóa chính 2-5 từ tiếng Việt có dấu]
