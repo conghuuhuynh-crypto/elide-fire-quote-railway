@@ -235,7 +235,8 @@
     .upload-empty span  { font-size: var(--text-sm); }
     .upload-empty small { font-size: var(--text-xs); color: var(--color-text-subtle); }
     .upload-preview {
-      position: absolute; inset: 6px;
+      position: absolute; top: 6px; left: 6px;
+      width: calc(100% - 12px); height: calc(100% - 12px);
       object-fit: cover; border-radius: calc(var(--radius-md) - 4px);
     }
     .img-del-overlay {
