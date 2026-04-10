@@ -69,6 +69,71 @@ const openaiClient = new OpenAI({
 });
 if (!OPENROUTER_API_KEY) console.warn('⚠️  OPENROUTER_API_KEY chưa được set — Chat AI sẽ không hoạt động');
 
+// ── Knowledge Base — inject vào AI prompts ──────────────────────────────────
+const KB_BRAND = `
+=== BRAND ELIDE FIRE ===
+Slogan: "Sự sống trong tầm tay". Thương hiệu bóng chữa cháy tự động số 1 thế giới.
+Sản xuất: Thái Lan. Patent 145 quốc gia. 40 triệu người dùng. 9 giải thưởng quốc tế.
+Phân phối độc quyền VN: Công ty Cổ phần Kỹ thuật Môi trường Tinh Tuệ.
+
+SẢN PHẨM:
+- Elide Fire TECHIDEAS 1.4kg: 2.500.000đ — nhà xưởng, kho, tủ điện công nghiệp, máy móc CNC
+- Elide Fire LOVINGCARE 0.4kg: 1.950.000đ — gia đình, xe ô tô, tủ điện, văn phòng, tủ server
+Kích hoạt: 3–30 giây tự động | 5 năm không bảo dưỡng | Bảo hành 2 năm | Miễn phí giao hàng
+Chứng nhận: CE · ISO 9001:2015 · EN615 · NIH · GOST-R · BSI
+Giải thưởng: Huy chương Vàng WIPO, Eureka, Tokyo Cup, KIPA (9 giải thưởng quốc tế)
+Cách hoạt động: Tự kích hoạt khi tiếp xúc lửa (bị động) HOẶC ném vào đám cháy (chủ động)
+Dập được: Vật liệu rắn, chất lỏng dễ cháy, khí gas, chập điện, hóa chất
+
+PROOF POINTS BẮT BUỘC (dùng ít nhất 3 trong mỗi bài):
+145 quốc gia · 40 triệu người dùng · 9 giải thưởng quốc tế · tự kích hoạt 3–30 giây · 5 năm không bảo dưỡng · CE & ISO 9001:2015
+
+=== GIỌNG ĐIỆU (TONE OF VOICE) ===
+THƯƠNG HIỆU = chuyên gia an toàn đáng tin cậy — quan tâm thực sự đến sự an toàn của khách hàng.
+✅ Chuyên nghiệp: số liệu cụ thể, chứng nhận rõ ràng, ngôn ngữ chính xác
+✅ Đáng tin cậy: nhất quán, không phóng đại, thừa nhận giới hạn sản phẩm
+✅ Quan tâm: đặt an toàn khách hàng lên đầu, viết từ góc độ của họ
+✅ Tự tin: khẳng định bằng bằng chứng — không kiêu ngạo
+❌ KHÔNG dùng: "rẻ"/"giá tốt" → thay bằng "đầu tư xứng đáng"
+❌ KHÔNG dùng: "tốt nhất" nếu không có dẫn chứng, "đảm bảo 100%", "không bao giờ cháy"
+❌ KHÔNG so sánh tên thương hiệu đối thủ cụ thể — chỉ so sánh "bình chữa cháy truyền thống"
+
+THUẬT NGỮ ĐÚNG:
+- "bóng chữa cháy" (KHÔNG phải "bình chữa cháy" hay "quả cầu")
+- "kích hoạt tự động" (KHÔNG phải "phát nổ")
+- "lắp đặt" (KHÔNG phải "cài đặt")
+- "phòng ngừa hỏa hoạn" (không phải "chống cháy")
+- "đầu tư xứng đáng" (không phải "giá rẻ")
+
+=== KHÁCH HÀNG MỤC TIÊU ===
+B2C: 30-55 tuổi, lo hỏa hoạn khi vắng nhà, có người già/trẻ nhỏ, cần giải pháp đơn giản + tự động
+B2B: Chủ nhà xưởng/kho (bảo vệ tài sản 24/7), Kỹ sư điện (tủ điện/server), BQL tòa nhà chung cư
+
+TÂM LÝ NGƯỜI MUA:
+- Loss aversion: frame xung quanh điều họ sẽ MẤT nếu không hành động (không phải lợi ích)
+  ✅ "Đám cháy lúc 3 giờ sáng — không có ai kịp xử lý"  ❌ "Bảo vệ gia đình với Elide Fire"
+- Jobs-to-be-Done: viết về KẾT QUẢ, không phải sản phẩm
+  B2C: "Yên tâm khi không có nhà"  |  B2B: "Bảo vệ tài sản 24/7 không cần thêm nhân viên"
+- Social proof: "145 quốc gia tin dùng" tốt hơn "được tin dùng toàn thế giới"
+- Present bias: "Lắp ngay hôm nay — bảo vệ bắt đầu từ phút đầu tiên"
+
+=== QUY TẮC VIẾT BÀI BLOG ===
+CẤU TRÚC MỞ BÀI (100-150 chữ): hook bằng tình huống thực tế/số liệu → dẫn vào chủ đề → từ khóa chính phải xuất hiện trong 100 từ đầu
+ANSWER BLOCK BẮT BUỘC: Mỗi tiêu đề phần BẮT ĐẦU bằng đoạn 40-60 chữ trả lời thẳng vào tiêu đề (để Google AI Overview trích dẫn được)
+ĐOẠN VĂN: 2-4 câu, thể chủ động, có ít nhất 1 số liệu hoặc ví dụ cụ thể mỗi phần
+KẾT BÀI: tóm tắt + CTA rõ ràng ("Mua ngay — miễn phí giao hàng" / "Nhận tư vấn qua Zalo" / "Bảo hành 2 năm")
+
+=== 5 LỖI CHẾT — KIỂM TRA TRƯỚC KHI TRẢ VỀ ===
+1. Meta description PHẢI chứa cụm từ khóa chính NGUYÊN VĂN (copy-paste để kiểm tra)
+2. Ít nhất 1 tiêu đề phần (H2/IN HOA) PHẢI chứa cụm từ khóa chính NGUYÊN VĂN
+3. Từ khóa PHẢI xuất hiện trong 100 từ đầu bài
+4. Mật độ keyword ~1%: bài 1.000 từ → dùng từ khóa ≥ 10 lần (không quá 25 lần)
+5. Nội dung PHẢI đề cập nguồn tham khảo từ Cục PCCC (pccc.gov.vn) hoặc số liệu thống kê uy tín
+
+=== CTA CHUẨN ELIDE FIRE ===
+"Mua ngay — miễn phí giao hàng toàn quốc" | "Nhận tư vấn miễn phí qua Zalo" | "Bảo hành 2 năm — đổi trả trong 30 ngày"
+`.trim();
+
 // Cảnh báo sớm nếu thiếu biến bắt buộc
 if (!NOCODB_TOKEN) console.warn('⚠️  NOCODB_TOKEN chưa được set — NocoDB calls sẽ thất bại');
 
@@ -1615,6 +1680,7 @@ function cmsWpRequest(method, endpoint, body, extraHeaders = {}) {
       let d = ''; res.on('data', c => d += c);
       res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { reject(new Error(d.slice(0, 300))); } });
     });
+    req.setTimeout(25000, () => { req.destroy(new Error('WP API timeout (25s)')); });
     req.on('error', reject);
     if (data) req.write(data);
     req.end();
@@ -1813,9 +1879,19 @@ app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) =
     // Convert plain text → HTML (nếu content không phải markdown)
     // Detect nếu content có markdown syntax
     const isMarkdown = /^#{1,3} |^\*\*|^- |\*\*[^*]+\*\*/m.test(processedContent);
-    const htmlContent = isMarkdown
+    let htmlContent = isMarkdown
       ? cmsMdToHtml(processedContent.replace(/^# .+\n?/, '').trim())
       : plainToHtml(processedContent);
+
+    // ── Auto-inject SEO links nếu chưa có ────────────────────────────────────
+    // Internal links — bắt buộc theo quy chuẩn SEO
+    if (!htmlContent.includes('elidefire.com.vn/san-pham/')) {
+      htmlContent += '\n<p><strong>Xem sản phẩm phù hợp:</strong> <a href="https://elidefire.com.vn/san-pham/bong-chua-chay-elide-fire-lovingcare">Bóng chữa cháy Elide Fire LOVINGCARE 0.4kg</a> (cho gia đình, xe ô tô, văn phòng) | <a href="https://elidefire.com.vn/san-pham/bong-chua-chay-elide-fire-techideas">Bóng chữa cháy Elide Fire TECHIDEAS 1.4kg</a> (cho nhà xưởng, kho, công nghiệp).</p>';
+    }
+    // External dofollow link — nguồn uy tín PCCC
+    if (!htmlContent.includes('pccc.gov.vn')) {
+      htmlContent += '\n<p><em>Nguồn tham khảo: <a href="https://www.pccc.gov.vn">Cục Cảnh sát Phòng cháy, chữa cháy và Cứu nạn cứu hộ</a> — cơ quan quản lý nhà nước về PCCC tại Việt Nam.</em></p>';
+    }
 
     // ── Upload ảnh đại diện ───────────────────────────────────────────────────
     let mediaId = 0;
@@ -1902,26 +1978,31 @@ app.post('/api/cms/generate-outline', express.json({ limit: '1mb' }), async (req
     if (!topic) throw new Error('Thiếu chủ đề (topic)');
     if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY chưa được cấu hình');
 
-    const prompt = `Bạn là SEO Agent chuyên gia, nghiên cứu và tạo outline bài blog tối ưu cho sản phẩm bóng chữa cháy tự động Elide Fire (nhập khẩu Đan Mạch, phân phối độc quyền tại Việt Nam bởi Công ty Kỹ thuật Môi trường Tinh Tuệ).
+    const prompt = `Bạn là SEO Agent chuyên gia của thương hiệu Elide Fire Vietnam. Nhiệm vụ: tạo outline bài blog SEO chất lượng cao.
 
-Nhiệm vụ: Tạo outline bài blog SEO chuyên nghiệp cho:
-- Chủ đề: ${topic}
-${keyword ? `- Từ khóa mục tiêu: ${keyword}` : ''}
-${sourceUrls && sourceUrls.length ? `- Nguồn tham khảo:\n${sourceUrls.map(u => '  - ' + u).join('\n')}` : ''}
+${KB_BRAND}
 
-Quy chuẩn Elide Fire:
-- Sản phẩm: Techideas 1.4kg (2.500.000đ), Lovingcare 0.4kg (1.950.000đ)
-- Proof points: 145 quốc gia, 40 triệu người dùng, 9 giải thưởng quốc tế, tự kích hoạt 3-30 giây, 5 năm không bảo dưỡng, CE & ISO 9001:2015
-- Tone: chuyên nghiệp, tin tưởng, thuyết phục — không sáo rỗng
-- Mục tiêu 800-1200 từ
+=== YÊU CẦU OUTLINE ===
+Chủ đề: ${topic}
+${keyword ? `Từ khóa mục tiêu: ${keyword}` : ''}
+${sourceUrls && sourceUrls.length ? `Nguồn tham khảo (nghiên cứu nội dung từ các URL này):\n${sourceUrls.map(u => '  - ' + u).join('\n')}` : ''}
+
+TIÊU CHUẨN OUTLINE:
+- Số phần H2: đúng với yêu cầu trong chủ đề (mặc định 4-5 phần nếu không có yêu cầu cụ thể)
+- Mỗi phần H2: ghi rõ mục tiêu số từ (200-250 từ/phần) + gợi ý H3 nếu cần
+- Phần mở bài: 100-150 từ, hook mạnh bằng tình huống/số liệu, từ khóa trong 100 từ đầu
+- Cần có phần FAQ hoặc câu hỏi thường gặp để được Google "People Also Ask" trích dẫn
+- Đề xuất internal links phù hợp (Lovingcare/Techideas page)
+- Kết bài: CTA rõ ràng + đề xuất sản phẩm phù hợp với chủ đề
+- AI SEO: mỗi H2 nên là câu hỏi khi phù hợp (để AI Overview của Google trích dẫn)
 
 Trả về CHÍNH XÁC theo format sau, không thêm bất kỳ text nào khác:
-TITLE: [tiêu đề H1 dưới 65 ký tự, có từ khóa chính, hấp dẫn]
-META: [meta description 130-155 ký tự, có từ khóa, có CTA nhẹ]
-SLUG: [url-slug-khong-dau-viet-thuong-ngan-gon]
-KEYWORD: [từ khóa SEO chính 2-5 từ tiếng Việt có dấu, thường dùng nhất trong bài]
+TITLE: [tiêu đề H1 dưới 65 ký tự, có từ khóa chính ở đầu, hấp dẫn, dạng benefit hoặc câu hỏi]
+META: [meta description 130-155 ký tự, PHẢI chứa cụm từ khóa nguyên văn, có CTA nhẹ]
+SLUG: [url-slug-khong-dau-viet-thuong-ngan-gon-moi-am-tiet-cach-nhau-bang-gach-ngang]
+KEYWORD: [từ khóa SEO chính 2-5 từ tiếng Việt CÓ DẤU, thường dùng nhất trong bài]
 OUTLINE:
-[Nội dung outline dạng text thuần — số phần H2 phải đúng với yêu cầu trong chủ đề (nếu không có yêu cầu cụ thể thì dùng 4-5 phần), mỗi phần có ghi chú số từ mục tiêu]`;
+[Outline dạng text thuần — liệt kê đầy đủ từng phần H2 với mô tả nội dung + số từ mục tiêu]`;
 
     const completion = await openaiClient.chat.completions.create({
       model: CHAT_MODEL,
@@ -1961,40 +2042,53 @@ app.post('/api/cms/generate-from-outline', express.json({ limit: '2mb' }), async
     if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY chưa được cấu hình');
 
     const { title: outlineTitle, meta: outlineMeta, slug: outlineSlug } = req.body;
-    const prompt = `Bạn là Content Agent chuyên viết bài blog cho sản phẩm bóng chữa cháy tự động Elide Fire (nhập khẩu Đan Mạch, phân phối độc quyền tại Việt Nam bởi Công ty Kỹ thuật Môi trường Tinh Tuệ).
+    const prompt = `Bạn là Content Agent chuyên viết bài blog cho thương hiệu Elide Fire Vietnam. Viết theo đúng quy chuẩn thương hiệu và SEO.
 
-Viết bài blog đầy đủ bằng tiếng Việt dựa trên outline đã được SEO Agent và Giám đốc duyệt:
-${keyword ? `- Từ khóa mục tiêu: ${keyword}` : ''}
-${topic ? `- Chủ đề: ${topic}` : ''}
-${outlineTitle ? `- Tiêu đề H1: ${outlineTitle}` : ''}
+${KB_BRAND}
 
-OUTLINE ĐÃ DUYỆT:
+=== NHIỆM VỤ VIẾT BÀI ===
+Từ khóa mục tiêu: ${keyword || '(xem outline)'}
+${topic ? `Chủ đề: ${topic}` : ''}
+${outlineTitle ? `Tiêu đề H1: ${outlineTitle}` : ''}
+
+OUTLINE ĐÃ ĐƯỢC DUYỆT:
 ${outline}
 
-Yêu cầu viết bài:
+=== QUY TẮC VIẾT (BẮT BUỘC TUÂN THỦ) ===
+FORMAT:
 - Viết bằng TEXT THUẦN (plain text), KHÔNG dùng Markdown (#, ##, **, *, -)
-- Tiêu đề phần: viết IN HOA, đứng riêng một dòng, cách nhau bằng dòng trắng
+- Tiêu đề phần: viết IN HOA toàn bộ, đứng riêng một dòng, cách bằng dòng trắng
 - Mỗi đoạn văn cách nhau bằng 1 dòng trắng
-- NGHIÊM CẤM tự thêm phần/section ngoài những gì có trong OUTLINE ĐÃ DUYỆT — bài viết có bao nhiêu phần là do outline quyết định, không phải do AI quyết định
-- Độ dài: tùy theo số phần trong outline (khoảng 180-250 từ mỗi phần), không được cắt bớt nội dung chỉ để đủ từ
-- Bám sát cấu trúc outline, viết tự nhiên và dễ hiểu
-- Chuyên nghiệp, thuyết phục, không sáo rỗng
-- Proof points: 145 quốc gia, 40 triệu người dùng, 9 giải thưởng quốc tế, tự kích hoạt 3-30 giây, 5 năm không bảo dưỡng, CE & ISO 9001:2015
-- Giá: Techideas 1.4kg: 2.500.000đ | Lovingcare 0.4kg: 1.950.000đ
-- Kết bài bằng CTA rõ ràng
+- NGHIÊM CẤM tự thêm phần ngoài OUTLINE ĐÃ DUYỆT
 
-SEO BẮT BUỘC (kiểm tra kỹ trước khi trả về):
-- Từ khóa "${keyword || 'Elide Fire'}" PHẢI xuất hiện trong đoạn mở đầu (paragraph 1)
-- Từ khóa phải xuất hiện trong ít nhất 2 tiêu đề phần (IN HOA)
-- Tần suất từ khóa: khoảng 1 lần mỗi 80-100 từ (mật độ ~1-1.5%), đề cập tự nhiên
-- Mỗi tiêu đề phần (IN HOA) phải mô tả rõ nội dung của phần đó
+CẤU TRÚC MỖI PHẦN (bắt buộc):
+1. TIÊU ĐỀ PHẦN IN HOA
+(dòng trắng)
+[ANSWER BLOCK: 40-60 chữ trả lời thẳng vào tiêu đề, tự đứng độc lập không cần đọc cả bài — để Google AI Overview trích dẫn]
+(dòng trắng)
+[Nội dung chi tiết 200-250 từ: ví dụ cụ thể, số liệu, proof points]
+
+ĐỘ DÀI: tùy số phần trong outline (~200-250 từ/phần), không cắt bớt nội dung
+
+SEO BẮT BUỘC:
+- Từ khóa "${keyword || 'từ khóa chính'}" PHẢI xuất hiện trong đoạn mở đầu (100 từ đầu)
+- Từ khóa PHẢI xuất hiện trong ít nhất 2 tiêu đề phần (IN HOA)
+- Mật độ ~1%: bài 1.000 từ → từ khóa xuất hiện ≥ 10 lần, tự nhiên
+- Mỗi tiêu đề phần (IN HOA) mô tả rõ nội dung, nên viết dạng câu hỏi khi phù hợp
+
+KIỂM TRA TRƯỚC KHI TRẢ VỀ (5 lỗi chết):
+□ Meta description có cụm từ khóa nguyên văn?
+□ Ít nhất 1 tiêu đề IN HOA có từ khóa nguyên văn?
+□ Từ khóa trong 100 từ đầu?
+□ Mật độ ~1%?
+□ Bài có đề cập nguồn PCCC uy tín không?
 
 Trả về CHÍNH XÁC theo format sau, không thêm bất kỳ text nào khác:
-TITLE: [tiêu đề H1 (giữ nguyên hoặc tinh chỉnh từ outline)]
-META: [meta description 130-155 ký tự, có từ khóa, có call-to-action nhẹ]
-SLUG: [url-slug-khong-dau-viet-thuong]
+TITLE: [tiêu đề H1 — giữ nguyên hoặc tinh chỉnh từ outline, từ khóa ở đầu]
+META: [meta description 130-155 ký tự, PHẢI chứa cụm từ khóa nguyên văn, có CTA nhẹ]
+SLUG: [url-slug-khong-dau-viet-thuong-moi-am-tiet-cach-nhau-bang-gach-ngang]
 CONTENT:
-[Toàn bộ nội dung bài viết dạng text thuần, bắt đầu ngay bằng đoạn mở đầu]`;
+[Toàn bộ nội dung dạng text thuần, bắt đầu ngay bằng đoạn mở đầu — không có lời giải thích thêm]`;
 
     const completion = await openaiClient.chat.completions.create({
       model: CHAT_MODEL,
@@ -2073,10 +2167,11 @@ ${content.slice(0, 2000)}`;
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Verify SEO — port inline của tools/verify-seo.js ─────────────────────────
+// ── Verify SEO — 14 tiêu chí Rank Math (đồng bộ với tools/verify-seo.js) ─────
 app.get('/api/cms/verify-seo/:postId', async (req, res) => {
   try {
-    const post = await cmsWpRequest('GET', `/wp-json/wp/v2/posts/${req.params.postId}?context=edit`);
+    const postId = req.params.postId;
+    const post = await cmsWpRequest('GET', `/wp-json/wp/v2/posts/${postId}?context=edit`);
     if (!post.id) throw new Error('Post không tồn tại');
 
     const keyword  = (post.meta?.rank_math_focus_keyword || '').toLowerCase().trim();
@@ -2091,38 +2186,67 @@ app.get('/api/cms/verify-seo/:postId', async (req, res) => {
 
     if (!keyword) return res.json({ passed: 0, total: 0, pct: 0, noKeyword: true, results: [] });
 
-    const results = [];
-    const check = (label, ok) => results.push({ label, ok });
+    // Fetch media alt text (nếu có featured image)
+    let mediaAlt = '';
+    if (mediaId) {
+      try {
+        const media = await cmsWpRequest('GET', `/wp-json/wp/v2/media/${mediaId}`);
+        mediaAlt = (media.alt_text || '').toLowerCase();
+      } catch(e2) { /* ignore — sẽ fail criterion 8 */ }
+    }
 
-    // 1. Keyword in SEO title
+    // Fetch tất cả post khác để check keyword uniqueness (tối đa 50)
+    let otherPosts = [];
+    try {
+      const others = await cmsWpRequest('GET', `/wp-json/wp/v2/posts?per_page=50&status=publish,draft&exclude=${postId}`);
+      if (Array.isArray(others)) otherPosts = others;
+    } catch(e2) { /* ignore — sẽ skip criterion 14 */ }
+
+    const results = [];
+    const check = (label, ok, detail) => results.push({ label, ok, detail: detail || '' });
+
+    // 1. Keyword trong SEO title
     check('Keyword trong SEO title', seoTitle.includes(keyword));
-    // 2. Keyword in meta description
+    // 2. Keyword trong meta description
     check('Keyword trong meta description', seoDesc.includes(keyword));
-    // 3. Keyword in slug
+    // 3. Keyword trong URL slug
     const kwParts = keyword.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').replace(/[^a-z0-9\s]/gi,'').trim().split(/\s+/).filter(p => p.length > 1);
     check('Keyword trong URL slug', kwParts.every(p => slug.includes(p)));
-    // 4. Keyword in first 10%
+    // 4. URL slug ≤ 75 ký tự
+    check(`URL slug ≤75 ký tự (${slug.length} ký tự)`, slug.length <= 75);
+    // 5. Keyword trong 10% đầu bài
     const kwPos = plain.indexOf(keyword);
     check('Keyword trong 10% đầu bài', kwPos >= 0 && kwPos <= Math.floor(plain.length * 0.1));
-    // 5. Keyword found in content
+    // 6. Keyword tìm thấy trong nội dung
     const kwCount = (plain.match(new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g')) || []).length;
     check(`Keyword trong nội dung (${kwCount} lần)`, kwCount >= 1);
-    // 6. Word count
+    // 7. Độ dài nội dung ≥ 600 từ
     check(`Độ dài nội dung (${wc} từ)`, wc >= 600);
-    // 7. Keyword in H2/H3
+    // 8. Keyword trong H2/H3
     const headings = [...rawHtml.matchAll(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi)].map(m => stripH(m[1]).toLowerCase());
     check('Keyword trong H2/H3', headings.some(h => h.includes(keyword)));
-    // 8. Featured image
-    check('Ảnh đại diện (featured image)', !!mediaId);
-    // 9. Keyword density 0.5–2.5%
+    // 9. Alt text ảnh đại diện chứa keyword
+    if (mediaId) {
+      check('Alt text ảnh đại diện chứa keyword', mediaAlt.includes(keyword), mediaAlt ? `"${mediaAlt.slice(0,60)}"` : 'Alt text đang trống');
+    } else {
+      check('Ảnh đại diện (featured image)', false, 'Chưa set featured image');
+    }
+    // 10. Mật độ từ khóa 0.5–2.5%
     const density = wc > 0 ? (kwCount / wc * 100) : 0;
     check(`Mật độ từ khóa ${density.toFixed(1)}% (0.5–2.5%)`, density >= 0.5 && density <= 2.5);
-    // 10. External links (not elidefire)
-    const extLinks = [...rawHtml.matchAll(/href="(https?:\/\/(?!(?:www\.)?elidefire)[^"]+)"/g)];
-    check('External links (nguồn uy tín)', extLinks.length >= 1);
-    // 11. Internal links
-    const intLinks = [...rawHtml.matchAll(/href="((?:https?:\/\/(?:www\.)?elidefire[^"]*|\/[^"#]+))"/g)];
-    check('Internal links', intLinks.length >= 1);
+    // 11. External links ≥ 1
+    const extLinks = [...rawHtml.matchAll(/href="(https?:\/\/(?!(?:www\.)?elidefire)[^"]+)"/g)].map(m => m[1]);
+    check(`External links (${extLinks.length} link)`, extLinks.length >= 1);
+    // 12. External links là dofollow (không có nofollow)
+    const nofollowLinks = [...rawHtml.matchAll(/href="(https?:\/\/(?!(?:www\.)?elidefire)[^"]+)"[^>]*rel="[^"]*nofollow[^"]*"/g)];
+    const dofollowOk = extLinks.length >= 1 && nofollowLinks.length === 0;
+    check('External links là dofollow', dofollowOk, nofollowLinks.length ? `${nofollowLinks.length} nofollow link` : extLinks.length ? 'Tất cả dofollow ✓' : 'Không có external link');
+    // 13. Internal links ≥ 1
+    const intLinks = [...rawHtml.matchAll(/href="((?:https?:\/\/(?:www\.)?elidefire[^"]*|\/[^"#]+))"/g)].map(m => m[1]);
+    check(`Internal links (${intLinks.length} link)`, intLinks.length >= 1);
+    // 14. Keyword chưa dùng ở bài khác
+    const duplicate = otherPosts.find(p => (p.meta?.rank_math_focus_keyword || '').toLowerCase().trim() === keyword);
+    check('Keyword chưa dùng ở bài khác', !duplicate, duplicate ? `Trùng với post ID ${duplicate.id}` : 'Unique ✓');
 
     const passed = results.filter(r => r.ok).length;
     const total  = results.length;

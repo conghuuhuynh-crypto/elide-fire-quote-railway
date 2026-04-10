@@ -1332,35 +1332,60 @@ async function publishPost() {
    AUTO OPTIMIZE SEO + VERIFY (called after publish)
 ═══════════════════════════════════════════════════ */
 async function optimizeSEO(postId, keyword, title, content, meta) {
-  try {
-    // 1. Set Rank Math metadata
-    const r = await fetch(API + '/optimize-seo', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ postId, keyword, title, content, meta })
-    });
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.error || 'optimize-seo thất bại');
+  // Bài đã được đăng thành công tại đây — SEO optimize là bonus, không block
+  setStatus(spinnerHtml(`Đã đăng · ID: ${postId} · Đang tối ưu SEO...`));
 
-    // 2. Verify 11 tiêu chí SEO
+  try {
+    // 1. Set Rank Math metadata (timeout 30s)
+    const ctrl1 = new AbortController();
+    const t1 = setTimeout(() => ctrl1.abort(), 30000);
+    let optimizeOk = false;
     try {
-      const vr = await fetch(API + '/verify-seo/' + postId);
+      const r = await fetch(API + '/optimize-seo', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, keyword, title, content, meta }),
+        signal: ctrl1.signal
+      });
+      clearTimeout(t1);
+      const d = await r.json();
+      optimizeOk = !!d.ok;
+    } catch(optErr) {
+      clearTimeout(t1);
+      console.warn('[SEO opt] optimize-seo:', optErr.message);
+    }
+
+    if (!optimizeOk) {
+      // Optimize thất bại / timeout — vẫn báo thành công vì bài đã được đăng
+      setStatus(`Đăng bài thành công · ID: ${postId} · (SEO optimize chưa xong — dùng verify-seo sau)`, 'ok');
+      return;
+    }
+
+    // 2. Verify 14 tiêu chí SEO (timeout 45s — vì cần fetch media + all posts)
+    try {
+      const ctrl2 = new AbortController();
+      const t2 = setTimeout(() => ctrl2.abort(), 45000);
+      const vr = await fetch(API + '/verify-seo/' + postId, { signal: ctrl2.signal });
+      clearTimeout(t2);
       const vd = await vr.json();
       if (vd.total) {
-        const pct   = vd.pct;
-        const emoji = pct === 100 ? '●' : pct >= 80 ? '●' : '●';
+        const pct = vd.pct;
         const cls = pct >= 80 ? 'ok' : 'err';
+        const failedItems = vd.results ? vd.results.filter(r => !r.ok).map(r => r.label) : [];
+        const failNote = failedItems.length ? ` · Cần fix: ${failedItems.slice(0,2).join(', ')}${failedItems.length > 2 ? '...' : ''}` : '';
         const msg = pct >= 80
-          ? `Đăng bài thành công · ID: ${postId} · SEO ${pct}%`
-          : `Đăng xong · ID: ${postId} · SEO ${pct}% — cần tối ưu thêm`;
+          ? `Đăng bài thành công · ID: ${postId} · SEO ${pct}%/100% (${vd.passed}/${vd.total} tiêu chí)${failNote}`
+          : `Đăng xong · ID: ${postId} · SEO ${pct}% (${vd.passed}/${vd.total})${failNote}`;
         setStatus(msg, cls);
       } else {
-        setStatus(`Đăng bài thành công · ID: ${postId}`);
+        setStatus(`Đăng bài thành công · ID: ${postId} · SEO đã tối ưu`, 'ok');
       }
     } catch(ve) {
-      setStatus(`Đăng bài thành công · ID: ${postId}`);
+      // Verify timeout hoặc lỗi — bài đã đăng thành công
+      setStatus(`Đăng bài thành công · ID: ${postId} · SEO đã set (verify timeout)`, 'ok');
     }
   } catch(e) {
-    setStatus(`Đăng bài thất bại: ${e.message}`, 'err');
+    // Bất kỳ lỗi nào — bài đã đăng, chỉ SEO chưa xong
+    setStatus(`Đăng bài thành công · ID: ${postId} · (SEO: ${e.message})`, 'ok');
     console.warn('[SEO opt]', e.message);
   }
 }
