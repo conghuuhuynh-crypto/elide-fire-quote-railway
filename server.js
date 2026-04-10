@@ -1794,8 +1794,8 @@ app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) =
 
     // ── Thay placeholders trong content ──────────────────────────────────────
     let processedContent = content
-      // [ảnh: upload:INDEX] — new plain text format
-      .replace(/\[ảnh:\s*upload:(\d+)\]/g, (match, idx) => {
+      // [ảnh: upload:INDEX] or [ảnh: upload:INDEX — filename.jpg] — plain text format
+      .replace(/\[ảnh:\s*upload:(\d+)[^\]]*\]/g, (match, idx) => {
         const url = uploadedByIndex[parseInt(idx)];
         return url ? `<img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:6px;margin:16px 0">` : '';
       })

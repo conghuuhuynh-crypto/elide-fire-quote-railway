@@ -249,8 +249,9 @@
 
     /* Content images carousel */
     .carousel-wrap { position: relative; }
+    .carousel-hint { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: 6px; display: none; }
     .carousel-viewport {
-      height: 180px; border-radius: var(--radius-md);
+      height: 210px; border-radius: var(--radius-md);
       background: var(--color-surface-subtle); border: 1.5px dashed var(--color-border);
       overflow-x: scroll; overflow-y: hidden;
       scroll-behavior: smooth;
@@ -266,14 +267,15 @@
     .carousel-empty span { font-size: var(--text-sm); }
     .carousel-empty small { font-size: var(--text-xs); color: var(--color-text-subtle); }
     .carousel-track {
-      display: flex; height: 100%; gap: 4px; padding: 4px;
+      display: flex; height: 100%; gap: 6px; padding: 6px;
       width: max-content;
     }
     .carousel-item {
-      flex: 0 0 160px; height: 100%; position: relative;
+      flex: 0 0 150px; height: 100%; position: relative;
+      display: flex; flex-direction: column; gap: 3px;
     }
     .carousel-item img {
-      width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm);
+      width: 100%; flex: 1; object-fit: cover; border-radius: var(--radius-sm);
       cursor: pointer; border: 2px solid transparent; transition: all 0.15s; display: block;
     }
     .carousel-item img:hover { border-color: var(--color-primary); }
@@ -286,8 +288,16 @@
     }
     .carousel-item:hover .carousel-item-del { opacity: 1; }
     .carousel-item-del:hover { background: rgba(192,0,2,0.85); }
+    .carousel-item-insert {
+      width: 100%; height: 26px; flex-shrink: 0;
+      background: var(--color-primary); color: #fff; border: none;
+      border-radius: var(--radius-sm); cursor: pointer;
+      font-size: 11px; font-weight: var(--weight-semibold); font-family: var(--font-family);
+      transition: background 0.15s;
+    }
+    .carousel-item-insert:hover { background: var(--color-primary-dark); }
     .carousel-arrow {
-      position: absolute; top: 50%; transform: translateY(-50%);
+      position: absolute; top: calc(50% - 13px); transform: translateY(-50%);
       width: 30px; height: 30px; border-radius: 50%;
       background: rgba(0,0,0,0.5); color: #fff; border: none; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -318,9 +328,10 @@
 
     /* ── AI note ── */
     .ai-note {
-      background: var(--color-primary-light); border-left: 3px solid var(--color-primary);
-      padding: var(--space-3) var(--space-4); border-radius: 0 var(--radius-md) var(--radius-md) 0;
-      font-size: var(--text-sm); color: var(--color-text-secondary);
+      background: var(--color-surface-subtle); border: 1px solid var(--color-divider);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      font-size: var(--text-sm); color: var(--color-text-muted);
       margin-bottom: var(--space-5); line-height: 1.6;
     }
 
@@ -362,17 +373,11 @@
     }
     .ref-block-header svg { flex-shrink: 0; color: var(--color-primary); }
     .ref-block-header small { color: var(--color-text-subtle); font-weight: var(--weight-normal); font-size: var(--text-xs); }
-    .ref-pick-btn {
-      margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
-      padding: 4px 10px; font-size: 11px; font-weight: var(--weight-semibold); font-family: var(--font-family);
-      background: var(--color-surface); border: 1.5px dashed var(--color-border);
-      border-radius: var(--radius-sm); color: var(--color-text-muted); cursor: pointer;
-      transition: all 0.15s;
-    }
-    .ref-pick-btn:hover { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-light); }
-    .ref-block .add-row { margin-bottom: 0; }
+    .ref-block .add-row { margin-bottom: var(--space-2); }
     .ref-block .add-row input { flex: 1; padding: 8px var(--space-3); font-size: var(--text-sm); }
     .ref-block .btn-add { padding: 8px var(--space-3); font-size: var(--text-sm); }
+    .ref-block .btn-file-pick { width: 100%; justify-content: center; padding: 8px var(--space-3); font-size: var(--text-sm); }
+    .ref-block .list-item { background: var(--color-surface); border: 1px solid var(--color-divider); }
 
     /* ── Publish options (chế độ đăng — 3 cột) ── */
     .publish-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin-bottom: var(--space-6); }
@@ -546,12 +551,14 @@
               <div class="ref-block-header">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 Tài liệu tham khảo <small>PDF · Word</small>
-                <button class="ref-pick-btn" onclick="document.getElementById('brochure-input').click()">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </div>
+              <div class="add-row">
+                <button class="btn-file-pick" onclick="document.getElementById('brochure-input').click()">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   Chọn file
                 </button>
-                <input type="file" id="brochure-input" accept=".pdf,.doc,.docx" multiple style="display:none" onchange="addBrochures(this)">
               </div>
+              <input type="file" id="brochure-input" accept=".pdf,.doc,.docx" multiple style="display:none" onchange="addBrochures(this)">
               <div class="item-list" id="brochure-list"></div>
             </div>
 
@@ -668,7 +675,8 @@
 
           <!-- Content images carousel -->
           <div>
-            <span class="img-col-label">Ảnh nội dung <small>— click ảnh để chèn vào bài viết</small></span>
+            <span class="img-col-label">Ảnh nội dung</span>
+            <p class="carousel-hint" id="carousel-hint">Click <strong>Chèn</strong> để đưa ảnh vào vị trí con trỏ trong nội dung bài viết.</p>
             <div class="carousel-wrap" id="carousel-wrap">
               <div class="carousel-viewport" id="carousel-vp">
                 <div class="carousel-empty" id="carousel-empty" onclick="document.getElementById('ci-input').click()">
@@ -978,6 +986,8 @@ function renderCarousel() {
   const count   = document.getElementById('carousel-count');
   const addMore = document.getElementById('btn-add-more');
 
+  const hint = document.getElementById('carousel-hint');
+
   if (!contentFiles.length) {
     vp.classList.remove('has-images');
     empty.style.display   = 'flex';
@@ -986,6 +996,7 @@ function renderCarousel() {
     next.style.display    = 'none';
     count.textContent     = '';
     addMore.style.display = 'none';
+    if (hint) hint.style.display = 'none';
     return;
   }
 
@@ -996,6 +1007,7 @@ function renderCarousel() {
   next.style.display    = 'flex';
   count.textContent     = contentFiles.length + ' ảnh';
   addMore.style.display = 'inline';
+  if (hint) hint.style.display = 'block';
 
   track.innerHTML = contentFiles.map(cf => `
     <div class="carousel-item">
@@ -1003,6 +1015,7 @@ function renderCarousel() {
       <button class="carousel-item-del" onclick="removeContentImg(${cf.id})" title="Xóa ảnh">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
+      <button class="carousel-item-insert" onclick="insertContentImg(${cf.id})">Chèn</button>
     </div>`).join('');
 }
 function carouselScroll(dir) {
@@ -1015,12 +1028,12 @@ function insertContentImg(id) {
   if (!cf) return;
   const ta  = document.getElementById('wp-content');
   const s   = ta.selectionStart, e = ta.selectionEnd;
-  const tag = `\n[ảnh: upload:${id}]\n`;
+  const tag = `\n[ảnh: upload:${id} — ${cf.file.name}]\n`;
   ta.value  = ta.value.slice(0, s) + tag + ta.value.slice(e);
   ta.selectionStart = ta.selectionEnd = s + tag.length;
   ta.focus();
   updateWordCount();
-  setStatus('Đã đánh dấu chèn ảnh: ' + cf.file.name);
+  setStatus('Đã chèn ảnh: ' + cf.file.name);
 }
 
 /* ═══════════════════════════════════════════════════
