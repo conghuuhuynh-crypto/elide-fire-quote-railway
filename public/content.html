@@ -9,7 +9,6 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap"></noscript>
   <link rel="stylesheet" href="/design-system.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: var(--font-family); background: var(--color-bg); color: var(--color-text); }
@@ -219,7 +218,7 @@
     /* Featured image */
     .featured-wrap { position: relative; }
     .upload-zone {
-      height: 180px;
+      height: 210px;
       border: 1.5px dashed var(--color-border); border-radius: var(--radius-md);
       background: var(--color-surface-subtle); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -408,20 +407,85 @@
     .pub-datetime { cursor: default; align-items: flex-start; text-align: left; padding: var(--space-3) var(--space-4); }
     .pub-datetime:hover { border-color: var(--color-border); background: var(--color-surface); }
     .pub-datetime .pub-card-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-muted); margin-bottom: 4px; }
-    .pub-datetime input[type="text"] {
-      width: 100%; padding: 9px 10px; font-size: var(--text-sm); font-family: var(--font-family);
-      border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+    /* ── Custom Date-Time Picker ── */
+    .dt-picker { position: relative; width: 100%; }
+    .dt-field {
+      display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer;
+      border: 1.5px solid var(--color-border); border-radius: var(--radius-sm);
       background: var(--color-surface); color: var(--color-text);
-      transition: border-color 0.15s; cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s; user-select: none;
     }
-    .pub-datetime input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
-    /* Flatpickr overrides */
-    .flatpickr-calendar { font-family: var(--font-family) !important; border-radius: var(--radius-lg) !important; box-shadow: var(--shadow-card) !important; border: 1px solid var(--color-border) !important; }
-    .flatpickr-day.selected, .flatpickr-day.selected:hover { background: var(--color-primary) !important; border-color: var(--color-primary) !important; }
-    .flatpickr-day:hover { background: var(--color-primary-light) !important; }
-    .flatpickr-months .flatpickr-month { background: var(--color-primary) !important; color: #fff !important; border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important; }
-    .flatpickr-current-month .flatpickr-monthDropdown-months, .flatpickr-current-month input.cur-year { color: #fff !important; }
-    .numInputWrapper:hover { background: rgba(255,255,255,0.1) !important; }
+    .dt-field:hover { border-color: var(--color-primary); }
+    .dt-field.open { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
+    .dt-field-icon { color: var(--color-text-muted); flex-shrink: 0; }
+    .dt-field-text { flex: 1; font-size: var(--text-sm); color: var(--color-text); }
+    .dt-field-text.placeholder { color: var(--color-text-muted); }
+    .dt-field-arrow { color: var(--color-text-muted); flex-shrink: 0; transition: transform 0.2s; }
+    .dt-field.open .dt-field-arrow { transform: rotate(180deg); }
+    .dt-panel {
+      display: none; position: absolute; top: calc(100% + 6px); right: 0; z-index: 200;
+      background: var(--color-surface); border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-lg); box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+      padding: 16px; width: 264px;
+    }
+    .dt-panel.open { display: block; }
+    .dt-cal-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+    }
+    .dt-cal-nav {
+      width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--color-border);
+      background: var(--color-surface); cursor: pointer; font-size: 15px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-secondary); transition: all 0.15s; font-family: var(--font-family);
+    }
+    .dt-cal-nav:hover { background: var(--color-primary-light); color: var(--color-primary); border-color: var(--color-primary); }
+    .dt-cal-title { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text); }
+    .dt-weekdays {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      text-align: center; margin-bottom: 4px;
+    }
+    .dt-weekdays span {
+      font-size: 10px; font-weight: var(--weight-bold); color: var(--color-text-muted);
+      padding: 3px 0; text-transform: uppercase;
+    }
+    .dt-days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .dt-day {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      font-size: 12px; border-radius: 50%; cursor: pointer;
+      color: var(--color-text); border: none; background: none;
+      font-family: var(--font-family); transition: all 0.1s;
+    }
+    .dt-day:hover:not([disabled]):not(.dt-day-empty) { background: var(--color-primary-light); color: var(--color-primary); }
+    .dt-day.dt-day-selected { background: var(--color-primary) !important; color: #fff !important; font-weight: var(--weight-bold); }
+    .dt-day.dt-day-today:not(.dt-day-selected) { border: 1.5px solid var(--color-primary); color: var(--color-primary); font-weight: var(--weight-semibold); }
+    .dt-day[disabled] { color: var(--color-divider); cursor: default; }
+    .dt-day.dt-day-empty { cursor: default; pointer-events: none; }
+    .dt-time-row {
+      border-top: 1px solid var(--color-divider); margin-top: 10px; padding-top: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .dt-time-label { font-size: var(--text-xs); color: var(--color-text-muted); font-weight: var(--weight-semibold); }
+    .dt-time-controls { display: flex; align-items: center; gap: 5px; }
+    .dt-time-btn {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 1.5px solid var(--color-border); background: var(--color-surface);
+      cursor: pointer; font-size: 13px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-secondary); transition: all 0.1s; font-family: var(--font-family);
+    }
+    .dt-time-btn:hover { background: var(--color-primary-light); color: var(--color-primary); border-color: var(--color-primary); }
+    .dt-time-val {
+      font-size: var(--text-sm); font-weight: var(--weight-bold);
+      min-width: 22px; text-align: center; color: var(--color-text);
+    }
+    .dt-time-sep { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--color-text-muted); }
+    .dt-confirm-btn {
+      width: 100%; margin-top: 12px; padding: 8px 0;
+      background: var(--color-primary); color: #fff; border: none;
+      border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm);
+      font-weight: var(--weight-semibold); font-family: var(--font-family); transition: opacity 0.15s;
+    }
+    .dt-confirm-btn:hover { opacity: 0.88; }
 
     @media (max-width: 620px) { .publish-options { grid-template-columns: 1fr; } }
 
@@ -773,7 +837,38 @@
           <!-- Ngày giờ đăng -->
           <div class="pub-card pub-datetime">
             <div class="pub-card-label">Ngày và giờ đăng</div>
-            <input type="text" id="wp-date" placeholder="Chọn ngày &amp; giờ..." readonly>
+            <div class="dt-picker" id="dt-picker">
+              <div class="dt-field" id="dt-field" onclick="dtToggle(event)">
+                <svg class="dt-field-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span class="dt-field-text placeholder" id="dt-field-text">Chọn ngày &amp; giờ...</span>
+                <svg class="dt-field-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="dt-panel" id="dt-panel">
+                <div class="dt-cal-header">
+                  <button class="dt-cal-nav" onclick="dtNav(-1);event.stopPropagation()">&#8249;</button>
+                  <span class="dt-cal-title" id="dt-cal-title"></span>
+                  <button class="dt-cal-nav" onclick="dtNav(1);event.stopPropagation()">&#8250;</button>
+                </div>
+                <div class="dt-weekdays">
+                  <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+                </div>
+                <div class="dt-days-grid" id="dt-days-grid"></div>
+                <div class="dt-time-row">
+                  <span class="dt-time-label">Giờ đăng</span>
+                  <div class="dt-time-controls">
+                    <button class="dt-time-btn" onclick="dtStepH(-1);event.stopPropagation()">&#8722;</button>
+                    <span class="dt-time-val" id="dt-hour">09</span>
+                    <button class="dt-time-btn" onclick="dtStepH(1);event.stopPropagation()">&#43;</button>
+                    <span class="dt-time-sep">:</span>
+                    <button class="dt-time-btn" onclick="dtStepM(-1);event.stopPropagation()">&#8722;</button>
+                    <span class="dt-time-val" id="dt-min">00</span>
+                    <button class="dt-time-btn" onclick="dtStepM(1);event.stopPropagation()">&#43;</button>
+                  </div>
+                </div>
+                <button class="dt-confirm-btn" onclick="dtConfirm();event.stopPropagation()">Xác nhận</button>
+              </div>
+            </div>
+            <input type="hidden" id="wp-date">
           </div>
         </div>
         <input type="hidden" id="wp-status" value="draft">
@@ -1277,18 +1372,96 @@ function escHtml(str) {
 }
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
 <script>
-  flatpickr('#wp-date', {
-    enableTime: true,
-    locale: 'vn',
-    dateFormat: 'Y-m-d H:i',
-    time_24hr: true,
-    minDate: 'today',
-    disableMobile: true,
-    allowInput: false
+/* ── Custom Date-Time Picker ── */
+(function() {
+  const VN_MONTHS = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
+                     'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  const now = new Date();
+  const st = { year: now.getFullYear(), month: now.getMonth(), day: null, hour: 9, minute: 0 };
+
+  function dtToggle(e) {
+    const panel = document.getElementById('dt-panel');
+    const field = document.getElementById('dt-field');
+    if (panel.classList.contains('open')) {
+      panel.classList.remove('open'); field.classList.remove('open');
+    } else {
+      dtRender();
+      panel.classList.add('open'); field.classList.add('open');
+    }
+    e.stopPropagation();
+  }
+  window.dtToggle = dtToggle;
+
+  function dtNav(delta) {
+    st.month += delta;
+    if (st.month < 0)  { st.month = 11; st.year--; }
+    if (st.month > 11) { st.month = 0;  st.year++; }
+    dtRender();
+  }
+  window.dtNav = dtNav;
+
+  function dtRender() {
+    document.getElementById('dt-cal-title').textContent = VN_MONTHS[st.month] + ', ' + st.year;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const firstDow = new Date(st.year, st.month, 1).getDay(); // 0=Sun
+    const startOffset = (firstDow + 6) % 7; // Mon-based
+    const daysInMonth = new Date(st.year, st.month + 1, 0).getDate();
+    let html = '';
+    for (let i = 0; i < startOffset; i++) html += '<button class="dt-day dt-day-empty" disabled></button>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(st.year, st.month, d);
+      const isToday    = date.getTime() === today.getTime();
+      const isSelected = st.day === d;
+      const isPast     = date < today;
+      let cls = 'dt-day';
+      if (isToday)    cls += ' dt-day-today';
+      if (isSelected) cls += ' dt-day-selected';
+      html += `<button class="${cls}" ${isPast ? 'disabled' : ''} onclick="dtSelectDay(${d});event.stopPropagation()">${d}</button>`;
+    }
+    document.getElementById('dt-days-grid').innerHTML = html;
+    document.getElementById('dt-hour').textContent = String(st.hour).padStart(2,'0');
+    document.getElementById('dt-min').textContent  = String(st.minute).padStart(2,'0');
+  }
+
+  function dtSelectDay(d) { st.day = d; dtRender(); }
+  window.dtSelectDay = dtSelectDay;
+
+  function dtStepH(delta) {
+    st.hour = (st.hour + delta + 24) % 24;
+    document.getElementById('dt-hour').textContent = String(st.hour).padStart(2,'0');
+  }
+  window.dtStepH = dtStepH;
+
+  function dtStepM(delta) {
+    st.minute = (st.minute + delta * 5 + 60) % 60;
+    document.getElementById('dt-min').textContent = String(st.minute).padStart(2,'0');
+  }
+  window.dtStepM = dtStepM;
+
+  function dtConfirm() {
+    if (!st.day) { return; }
+    const m   = String(st.month + 1).padStart(2,'0');
+    const d   = String(st.day).padStart(2,'0');
+    const h   = String(st.hour).padStart(2,'0');
+    const min = String(st.minute).padStart(2,'0');
+    document.getElementById('wp-date').value = `${st.year}-${m}-${d} ${h}:${min}`;
+    const txt = document.getElementById('dt-field-text');
+    txt.textContent = `${d}/${m}/${st.year} — ${h}:${min}`;
+    txt.classList.remove('placeholder');
+    document.getElementById('dt-panel').classList.remove('open');
+    document.getElementById('dt-field').classList.remove('open');
+  }
+  window.dtConfirm = dtConfirm;
+
+  document.addEventListener('click', function(e) {
+    const picker = document.getElementById('dt-picker');
+    if (picker && !picker.contains(e.target)) {
+      document.getElementById('dt-panel').classList.remove('open');
+      document.getElementById('dt-field').classList.remove('open');
+    }
   });
+})();
 </script>
 </body>
 </html>
