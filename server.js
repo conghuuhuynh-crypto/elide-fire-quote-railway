@@ -1978,35 +1978,39 @@ app.post('/api/cms/generate-outline', express.json({ limit: '1mb' }), async (req
     if (!topic) throw new Error('Thiếu chủ đề (topic)');
     if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY chưa được cấu hình');
 
-    const prompt = `Bạn là SEO Agent chuyên gia của thương hiệu Elide Fire Vietnam. Nhiệm vụ: tạo outline bài blog SEO chất lượng cao.
+    const systemPrompt = `Bạn là SEO Agent chuyên gia của thương hiệu Elide Fire Vietnam.
 
 ${KB_BRAND}
 
-=== YÊU CẦU OUTLINE ===
+NHIỆM VỤ CỦA BẠN: Tạo outline bài blog SEO chất lượng cao theo yêu cầu của user.
+Luôn trả về đúng format được yêu cầu — không thêm lời giải thích hay markdown.`;
+
+    const userPrompt = `Tạo outline SEO cho:
 Chủ đề: ${topic}
 ${keyword ? `Từ khóa mục tiêu: ${keyword}` : ''}
-${sourceUrls && sourceUrls.length ? `Nguồn tham khảo (nghiên cứu nội dung từ các URL này):\n${sourceUrls.map(u => '  - ' + u).join('\n')}` : ''}
+${sourceUrls && sourceUrls.length ? `Nguồn tham khảo:\n${sourceUrls.map(u => '  ' + u).join('\n')}` : ''}
 
-TIÊU CHUẨN OUTLINE:
-- Số phần H2: đúng với yêu cầu trong chủ đề (mặc định 4-5 phần nếu không có yêu cầu cụ thể)
-- Mỗi phần H2: ghi rõ mục tiêu số từ (200-250 từ/phần) + gợi ý H3 nếu cần
-- Phần mở bài: 100-150 từ, hook mạnh bằng tình huống/số liệu, từ khóa trong 100 từ đầu
-- Cần có phần FAQ hoặc câu hỏi thường gặp để được Google "People Also Ask" trích dẫn
-- Đề xuất internal links phù hợp (Lovingcare/Techideas page)
-- Kết bài: CTA rõ ràng + đề xuất sản phẩm phù hợp với chủ đề
-- AI SEO: mỗi H2 nên là câu hỏi khi phù hợp (để AI Overview của Google trích dẫn)
+Yêu cầu outline:
+- 4-5 phần H2 (hoặc đúng số phần được yêu cầu trong chủ đề)
+- Mỗi phần ghi rõ số từ mục tiêu (200-250 từ/phần)
+- Phần FAQ hoặc câu hỏi thường gặp (để được Google PAA trích dẫn)
+- H2 dạng câu hỏi khi phù hợp (tăng AI Overview)
+- Mở bài: 100-150 từ, hook mạnh, từ khóa trong 100 từ đầu
 
-Trả về CHÍNH XÁC theo format sau, không thêm bất kỳ text nào khác:
-TITLE: [tiêu đề H1 dưới 65 ký tự, có từ khóa chính ở đầu, hấp dẫn, dạng benefit hoặc câu hỏi]
-META: [meta description 130-155 ký tự, PHẢI chứa cụm từ khóa nguyên văn, có CTA nhẹ]
-SLUG: [url-slug-khong-dau-viet-thuong-ngan-gon-moi-am-tiet-cach-nhau-bang-gach-ngang]
-KEYWORD: [từ khóa SEO chính 2-5 từ tiếng Việt CÓ DẤU, thường dùng nhất trong bài]
+Trả về CHÍNH XÁC format sau (không thêm bất kỳ text nào khác):
+TITLE: [tiêu đề H1 ≤65 ký tự, có từ khóa, hấp dẫn]
+META: [meta description 130-155 ký tự, chứa từ khóa nguyên văn, có CTA nhẹ]
+SLUG: [slug-khong-dau-viet-thuong]
+KEYWORD: [từ khóa chính 2-5 từ tiếng Việt có dấu]
 OUTLINE:
-[Outline dạng text thuần — liệt kê đầy đủ từng phần H2 với mô tả nội dung + số từ mục tiêu]`;
+[outline text thuần, không markdown]`;
 
     const completion = await openaiClient.chat.completions.create({
       model: CHAT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt }
+      ],
       max_tokens: 2000, temperature: 0.6
     });
     const raw = completion.choices?.[0]?.message?.content || '';
@@ -2042,57 +2046,49 @@ app.post('/api/cms/generate-from-outline', express.json({ limit: '2mb' }), async
     if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY chưa được cấu hình');
 
     const { title: outlineTitle, meta: outlineMeta, slug: outlineSlug } = req.body;
-    const prompt = `Bạn là Content Agent chuyên viết bài blog cho thương hiệu Elide Fire Vietnam. Viết theo đúng quy chuẩn thương hiệu và SEO.
+
+    const systemPrompt2 = `Bạn là Content Agent chuyên viết bài blog cho thương hiệu Elide Fire Vietnam.
 
 ${KB_BRAND}
 
-=== NHIỆM VỤ VIẾT BÀI ===
-Từ khóa mục tiêu: ${keyword || '(xem outline)'}
+QUY TẮC FORMAT BẮT BUỘC:
+- Viết TEXT THUẦN (plain text), KHÔNG dùng Markdown (#, ##, **, *, -)
+- Tiêu đề phần: IN HOA toàn bộ, đứng riêng một dòng
+- Mỗi đoạn văn cách nhau 1 dòng trắng
+- NGHIÊM CẤM tự thêm phần ngoài OUTLINE ĐÃ DUYỆT
+- Mỗi phần BẮT ĐẦU bằng ANSWER BLOCK: 40-60 chữ trả lời thẳng tiêu đề (để Google AI Overview trích dẫn)
+- Kết thúc bằng CHÍNH XÁC format được yêu cầu — không thêm lời giải thích`;
+
+    const userPrompt2 = `Viết bài blog hoàn chỉnh dựa trên outline đã duyệt.
+
+Từ khóa: ${keyword || '(xem outline)'}
 ${topic ? `Chủ đề: ${topic}` : ''}
 ${outlineTitle ? `Tiêu đề H1: ${outlineTitle}` : ''}
 
-OUTLINE ĐÃ ĐƯỢC DUYỆT:
+OUTLINE ĐÃ DUYỆT:
 ${outline}
 
-=== QUY TẮC VIẾT (BẮT BUỘC TUÂN THỦ) ===
-FORMAT:
-- Viết bằng TEXT THUẦN (plain text), KHÔNG dùng Markdown (#, ##, **, *, -)
-- Tiêu đề phần: viết IN HOA toàn bộ, đứng riêng một dòng, cách bằng dòng trắng
-- Mỗi đoạn văn cách nhau bằng 1 dòng trắng
-- NGHIÊM CẤM tự thêm phần ngoài OUTLINE ĐÃ DUYỆT
+SEO BẮT BUỘC (kiểm tra trước khi trả về):
+- Từ khóa "${keyword || 'từ khóa chính'}" trong 100 từ đầu
+- Từ khóa trong ≥2 tiêu đề phần (IN HOA)
+- Mật độ ~1%: bài 1.000 từ → từ khóa ≥10 lần
+- Đề cập số liệu từ nguồn PCCC uy tín
 
-CẤU TRÚC MỖI PHẦN (bắt buộc):
-1. TIÊU ĐỀ PHẦN IN HOA
-(dòng trắng)
-[ANSWER BLOCK: 40-60 chữ trả lời thẳng vào tiêu đề, tự đứng độc lập không cần đọc cả bài — để Google AI Overview trích dẫn]
-(dòng trắng)
-[Nội dung chi tiết 200-250 từ: ví dụ cụ thể, số liệu, proof points]
+Độ dài: ~200-250 từ/phần, không cắt bớt
 
-ĐỘ DÀI: tùy số phần trong outline (~200-250 từ/phần), không cắt bớt nội dung
-
-SEO BẮT BUỘC:
-- Từ khóa "${keyword || 'từ khóa chính'}" PHẢI xuất hiện trong đoạn mở đầu (100 từ đầu)
-- Từ khóa PHẢI xuất hiện trong ít nhất 2 tiêu đề phần (IN HOA)
-- Mật độ ~1%: bài 1.000 từ → từ khóa xuất hiện ≥ 10 lần, tự nhiên
-- Mỗi tiêu đề phần (IN HOA) mô tả rõ nội dung, nên viết dạng câu hỏi khi phù hợp
-
-KIỂM TRA TRƯỚC KHI TRẢ VỀ (5 lỗi chết):
-□ Meta description có cụm từ khóa nguyên văn?
-□ Ít nhất 1 tiêu đề IN HOA có từ khóa nguyên văn?
-□ Từ khóa trong 100 từ đầu?
-□ Mật độ ~1%?
-□ Bài có đề cập nguồn PCCC uy tín không?
-
-Trả về CHÍNH XÁC theo format sau, không thêm bất kỳ text nào khác:
-TITLE: [tiêu đề H1 — giữ nguyên hoặc tinh chỉnh từ outline, từ khóa ở đầu]
-META: [meta description 130-155 ký tự, PHẢI chứa cụm từ khóa nguyên văn, có CTA nhẹ]
-SLUG: [url-slug-khong-dau-viet-thuong-moi-am-tiet-cach-nhau-bang-gach-ngang]
+Trả về CHÍNH XÁC (không thêm bất kỳ text nào khác):
+TITLE: [tiêu đề H1, từ khóa ở đầu]
+META: [130-155 ký tự, chứa từ khóa nguyên văn, có CTA]
+SLUG: [slug-khong-dau]
 CONTENT:
-[Toàn bộ nội dung dạng text thuần, bắt đầu ngay bằng đoạn mở đầu — không có lời giải thích thêm]`;
+[toàn bộ nội dung text thuần, bắt đầu ngay bằng đoạn mở đầu]`;
 
     const completion = await openaiClient.chat.completions.create({
       model: CHAT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        { role: 'system', content: systemPrompt2 },
+        { role: 'user',   content: userPrompt2 }
+      ],
       max_tokens: 4000, temperature: 0.7
     });
     const raw = completion.choices?.[0]?.message?.content || '';
