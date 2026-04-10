@@ -9,6 +9,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap"></noscript>
   <link rel="stylesheet" href="/design-system.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: var(--font-family); background: var(--color-bg); color: var(--color-text); }
@@ -84,7 +85,7 @@
       font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.5;
       transition: all 0.2s;
     }
-    .status-bar.ok  { background: #f0faf4; border-left-color: var(--color-success); color: #2e7d32; }
+    .status-bar.ok  { background: var(--color-primary-light); border-left-color: var(--color-primary); color: var(--color-primary); }
     .status-bar.err { background: #fff5f5; border-left-color: var(--color-error);   color: #c00; }
     .status-bar.idle { visibility: hidden; }
 
@@ -210,9 +211,10 @@
     .img-grid > div { min-width: 0; }
     .img-col-label {
       display: block; font-size: var(--text-sm); font-weight: var(--weight-semibold);
-      color: var(--color-text-secondary); margin-bottom: 7px;
+      color: var(--color-text-secondary); margin-bottom: 3px;
     }
     .img-col-label small { font-weight: var(--weight-normal); color: var(--color-text-subtle); font-size: var(--text-xs); }
+    .img-col-hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 8px; }
 
     /* Featured image */
     .featured-wrap { position: relative; }
@@ -272,30 +274,33 @@
     }
     .carousel-item {
       flex: 0 0 150px; height: 100%; position: relative;
-      display: flex; flex-direction: column; gap: 3px;
+      display: block; border-radius: var(--radius-sm); overflow: hidden;
     }
     .carousel-item img {
-      width: 100%; flex: 1; object-fit: cover; border-radius: var(--radius-sm);
-      cursor: pointer; border: 2px solid transparent; transition: all 0.15s; display: block;
+      width: 100%; height: 100%; object-fit: cover;
+      cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; display: block;
     }
-    .carousel-item img:hover { border-color: var(--color-primary); }
+    .carousel-item:hover img { border-color: var(--color-primary); }
     .carousel-item-del {
       position: absolute; top: 4px; right: 4px;
       width: 22px; height: 22px; border-radius: 50%;
       background: rgba(0,0,0,0.55); color: #fff; border: none; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity 0.15s; z-index: 2;
+      opacity: 0; transition: opacity 0.15s; z-index: 4;
     }
     .carousel-item:hover .carousel-item-del { opacity: 1; }
     .carousel-item-del:hover { background: rgba(192,0,2,0.85); }
     .carousel-item-insert {
-      width: 100%; height: 26px; flex-shrink: 0;
-      background: var(--color-primary); color: #fff; border: none;
-      border-radius: var(--radius-sm); cursor: pointer;
-      font-size: 11px; font-weight: var(--weight-semibold); font-family: var(--font-family);
-      transition: background 0.15s;
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 5px 18px; border-radius: 999px;
+      background: rgba(255,255,255,0.92); color: var(--color-primary);
+      border: none; cursor: pointer; white-space: nowrap;
+      font-size: 12px; font-weight: var(--weight-bold); font-family: var(--font-family);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+      transition: all 0.15s; z-index: 3;
     }
-    .carousel-item-insert:hover { background: var(--color-primary-dark); }
+    .carousel-item-insert:hover { background: var(--color-primary); color: #fff; }
     .carousel-arrow {
       position: absolute; top: calc(50% - 13px); transform: translateY(-50%);
       width: 30px; height: 30px; border-radius: 50%;
@@ -403,13 +408,20 @@
     .pub-datetime { cursor: default; align-items: flex-start; text-align: left; padding: var(--space-3) var(--space-4); }
     .pub-datetime:hover { border-color: var(--color-border); background: var(--color-surface); }
     .pub-datetime .pub-card-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-muted); margin-bottom: 4px; }
-    .pub-datetime input[type="datetime-local"] {
+    .pub-datetime input[type="text"] {
       width: 100%; padding: 9px 10px; font-size: var(--text-sm); font-family: var(--font-family);
       border: 1px solid var(--color-border); border-radius: var(--radius-sm);
-      background: var(--color-surface); color: var(--color-text); color-scheme: light;
-      transition: border-color 0.15s;
+      background: var(--color-surface); color: var(--color-text);
+      transition: border-color 0.15s; cursor: pointer;
     }
     .pub-datetime input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
+    /* Flatpickr overrides */
+    .flatpickr-calendar { font-family: var(--font-family) !important; border-radius: var(--radius-lg) !important; box-shadow: var(--shadow-card) !important; border: 1px solid var(--color-border) !important; }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover { background: var(--color-primary) !important; border-color: var(--color-primary) !important; }
+    .flatpickr-day:hover { background: var(--color-primary-light) !important; }
+    .flatpickr-months .flatpickr-month { background: var(--color-primary) !important; color: #fff !important; border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important; }
+    .flatpickr-current-month .flatpickr-monthDropdown-months, .flatpickr-current-month input.cur-year { color: #fff !important; }
+    .numInputWrapper:hover { background: rgba(255,255,255,0.1) !important; }
 
     @media (max-width: 620px) { .publish-options { grid-template-columns: 1fr; } }
 
@@ -656,6 +668,7 @@
           <!-- Featured image -->
           <div>
             <span class="img-col-label">Ảnh đại diện</span>
+            <p class="img-col-hint">Chọn ảnh đại diện cho bài viết</p>
             <div class="featured-wrap">
               <div class="upload-zone" id="featured-zone" onclick="document.getElementById('fi-input').click()">
                 <div class="upload-empty" id="fi-empty">
@@ -760,7 +773,7 @@
           <!-- Ngày giờ đăng -->
           <div class="pub-card pub-datetime">
             <div class="pub-card-label">Ngày và giờ đăng</div>
-            <input type="datetime-local" id="wp-date">
+            <input type="text" id="wp-date" placeholder="Chọn ngày &amp; giờ..." readonly>
           </div>
         </div>
         <input type="hidden" id="wp-status" value="draft">
@@ -1121,7 +1134,7 @@ async function approveOutline() {
   try {
     const r = await fetch(API + '/generate-from-outline', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, keyword: '', title, meta, slug, outline })
+      body: JSON.stringify({ topic, keyword: focusKeyword, title, meta, slug, outline })
     });
     const d = await r.json();
     if (d.error) throw new Error(d.error);
@@ -1236,20 +1249,19 @@ async function optimizeSEO(postId, keyword, title, content, meta) {
       if (vd.total) {
         const pct   = vd.pct;
         const emoji = pct === 100 ? '●' : pct >= 80 ? '●' : '●';
-        const cls   = pct >= 80 ? 'ok' : 'err';
-        const failed = vd.results.filter(x => !x.ok).map(x => x.label).join(' · ');
+        const cls = pct >= 80 ? 'ok' : 'err';
         const msg = pct >= 80
-          ? `Hoàn thành · ID: ${postId} · SEO ${vd.passed}/${vd.total} tiêu chí đạt (${pct}%)`
-          : `Đăng xong · ID: ${postId} · SEO ${vd.passed}/${vd.total} (${pct}%) — cần fix: ${failed}`;
+          ? `Đăng bài thành công · ID: ${postId} · SEO ${pct}%`
+          : `Đăng xong · ID: ${postId} · SEO ${pct}% — cần tối ưu thêm`;
         setStatus(msg, cls);
       } else {
-        setStatus(`Hoàn thành · ID: ${postId} · SEO đã tối ưu (keyword: ${keyword})`, 'ok');
+        setStatus(`Đăng bài thành công · ID: ${postId}`);
       }
     } catch(ve) {
-      setStatus(`Hoàn thành · ID: ${postId} · SEO đã tối ưu`, 'ok');
+      setStatus(`Đăng bài thành công · ID: ${postId}`);
     }
   } catch(e) {
-    setStatus(`Đã đăng (ID: ${postId}) · SEO lỗi: ${e.message}`, 'err');
+    setStatus(`Đăng bài thất bại: ${e.message}`, 'err');
     console.warn('[SEO opt]', e.message);
   }
 }
@@ -1263,6 +1275,20 @@ function spinnerHtml(label) {
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
+<script>
+  flatpickr('#wp-date', {
+    enableTime: true,
+    locale: 'vn',
+    dateFormat: 'Y-m-d H:i',
+    time_24hr: true,
+    minDate: 'today',
+    disableMobile: true,
+    allowInput: false
+  });
 </script>
 </body>
 </html>
