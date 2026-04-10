@@ -58,7 +58,8 @@ const TABLE_CHAT   = process.env.NOCODB_TABLE_CHAT || 'muy359ghdcu7vo2'; // Chat
 // AI Chat config
 const { OpenAI } = require('openai');
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const CHAT_MODEL = process.env.CHAT_MODEL || 'anthropic/claude-haiku-4.5'; // set CHAT_MODEL=anthropic/claude-sonnet-4.5 trên Railway để upgrade
+const CHAT_MODEL = process.env.CHAT_MODEL || 'anthropic/claude-haiku-4.5'; // Chat bot báo giá — giữ Haiku để tiết kiệm
+const CMS_MODEL  = process.env.CMS_MODEL  || 'anthropic/claude-sonnet-4-5'; // Outline/Content generation — cần Sonnet để follow KB phức tạp
 const openaiClient = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: OPENROUTER_API_KEY || 'sk-placeholder',
@@ -79,7 +80,7 @@ Phân phối độc quyền VN: Công ty Cổ phần Kỹ thuật Môi trường
 SẢN PHẨM:
 - Elide Fire TECHIDEAS 1.4kg: 2.500.000đ — nhà xưởng, kho, tủ điện công nghiệp, máy móc CNC
 - Elide Fire LOVINGCARE 0.4kg: 1.950.000đ — gia đình, xe ô tô, tủ điện, văn phòng, tủ server
-Kích hoạt: 3–30 giây tự động | 5 năm không bảo dưỡng | Bảo hành 2 năm | Miễn phí giao hàng
+Kích hoạt: 3–30 giây tự động | 5 năm không bảo dưỡng | Bảo hành 2 năm | Miễn phí giao hàng toàn quốc
 Chứng nhận: CE · ISO 9001:2015 · EN615 · NIH · GOST-R · BSI
 Giải thưởng: Huy chương Vàng WIPO, Eureka, Tokyo Cup, KIPA (9 giải thưởng quốc tế)
 Cách hoạt động: Tự kích hoạt khi tiếp xúc lửa (bị động) HOẶC ném vào đám cháy (chủ động)
@@ -98,37 +99,79 @@ THƯƠNG HIỆU = chuyên gia an toàn đáng tin cậy — quan tâm thực s�
 ❌ KHÔNG dùng: "tốt nhất" nếu không có dẫn chứng, "đảm bảo 100%", "không bao giờ cháy"
 ❌ KHÔNG so sánh tên thương hiệu đối thủ cụ thể — chỉ so sánh "bình chữa cháy truyền thống"
 
-THUẬT NGỮ ĐÚNG:
-- "bóng chữa cháy" (KHÔNG phải "bình chữa cháy" hay "quả cầu")
-- "kích hoạt tự động" (KHÔNG phải "phát nổ")
+THUẬT NGỮ ĐÚNG (bắt buộc):
+- "bóng chữa cháy" (KHÔNG phải "bình chữa cháy" hay "quả cầu chữa cháy")
+- "kích hoạt tự động" (KHÔNG phải "phát nổ" hay "kích nổ")
 - "lắp đặt" (KHÔNG phải "cài đặt")
 - "phòng ngừa hỏa hoạn" (không phải "chống cháy")
 - "đầu tư xứng đáng" (không phải "giá rẻ")
 
 === KHÁCH HÀNG MỤC TIÊU ===
-B2C: 30-55 tuổi, lo hỏa hoạn khi vắng nhà, có người già/trẻ nhỏ, cần giải pháp đơn giản + tự động
+B2C: 30–55 tuổi, lo hỏa hoạn khi vắng nhà, có người già/trẻ nhỏ, cần giải pháp đơn giản + tự động
 B2B: Chủ nhà xưởng/kho (bảo vệ tài sản 24/7), Kỹ sư điện (tủ điện/server), BQL tòa nhà chung cư
 
-TÂM LÝ NGƯỜI MUA:
-- Loss aversion: frame xung quanh điều họ sẽ MẤT nếu không hành động (không phải lợi ích)
-  ✅ "Đám cháy lúc 3 giờ sáng — không có ai kịp xử lý"  ❌ "Bảo vệ gia đình với Elide Fire"
-- Jobs-to-be-Done: viết về KẾT QUẢ, không phải sản phẩm
-  B2C: "Yên tâm khi không có nhà"  |  B2B: "Bảo vệ tài sản 24/7 không cần thêm nhân viên"
-- Social proof: "145 quốc gia tin dùng" tốt hơn "được tin dùng toàn thế giới"
-- Present bias: "Lắp ngay hôm nay — bảo vệ bắt đầu từ phút đầu tiên"
+JOBS-TO-BE-DONE (viết về kết quả, KHÔNG phải sản phẩm):
+- B2C gia đình: "Yên tâm khi không có mặt ở nhà"
+- B2C xe ô tô: "Tự bảo vệ khi xe đỗ nơi vắng, không có người"
+- B2B nhà xưởng: "Bảo vệ tài sản 24/7 mà không cần thêm nhân viên"
+- B2B tủ điện: "Loại bỏ rủi ro cháy gây ngừng sản xuất"
+
+TÂM LÝ NGƯỜI MUA — ÁP DỤNG VÀO MỌI BÀI:
+1. Loss Aversion (mất mát đau gấp đôi lợi ích) — frame xung quanh điều họ sẽ MẤT:
+   ✅ "Đám cháy lúc 3 giờ sáng — không có ai kịp xử lý"
+   ✅ "Một vụ chập điện có thể xóa sổ cả xưởng sản xuất"
+   ❌ "Bảo vệ gia đình với Elide Fire" ← quá nhạt
+2. Social Proof — số cụ thể, không tính từ trừu tượng:
+   ✅ "145 quốc gia tin dùng" · "40 triệu người dùng" · "9 giải thưởng quốc tế"
+   ❌ "được tin dùng toàn thế giới" · "phổ biến toàn cầu"
+3. Present Bias — lợi ích ngay lập tức:
+   ✅ "Lắp ngay hôm nay — bảo vệ bắt đầu từ phút đầu tiên"
+   ❌ "Đầu tư dài hạn cho sự an toàn gia đình"
+
+=== TỪ KHÓA MỤC TIÊU (SEO) ===
+Mua hàng (high intent):
+- bóng chữa cháy elide fire | bóng chữa cháy tự động | mua bóng chữa cháy
+- bóng chữa cháy giá bao nhiêu | bóng chữa cháy nhà xưởng | bóng chữa cháy tủ điện
+- bóng chữa cháy xe ô tô | bóng chữa cháy gia đình | thiết bị pccc tự động
+
+Thông tin (consideration):
+- bóng chữa cháy là gì | bóng chữa cháy có hiệu quả không
+- so sánh bóng chữa cháy và bình chữa cháy | cách phòng cháy chữa cháy tại nhà
+- nguyên nhân cháy nhà phổ biến | thiết bị pccc bắt buộc cho nhà xưởng | cháy tủ điện phải làm gì
+
+=== INTERNAL LINKS BẮT BUỘC (thêm vào mọi bài) ===
+LOVINGCARE: https://elidefire.com.vn/san-pham/bong-chua-chay-elide-fire-lovingcare
+TECHIDEAS:  https://elidefire.com.vn/san-pham/bong-chua-chay-elide-fire-techideas
+EXTERNAL:   https://www.pccc.gov.vn (Cục Cảnh sát Phòng cháy chữa cháy và Cứu nạn cứu hộ)
+
+=== QUY TẮC URL SLUG (tiếng Việt) ===
+Mỗi âm tiết cách nhau bằng dấu gạch ngang, bỏ dấu thanh và dấu phụ:
+- "ô tô" → "o-to" (KHÔNG phải "oto")
+- "thiết bị" → "thiet-bi" | "gia đình" → "gia-dinh" | "tủ điện" → "tu-dien"
+- "chống cháy" → "chong-chay" | "nhà xưởng" → "nha-xuong"
 
 === QUY TẮC VIẾT BÀI BLOG ===
-CẤU TRÚC MỞ BÀI (100-150 chữ): hook bằng tình huống thực tế/số liệu → dẫn vào chủ đề → từ khóa chính phải xuất hiện trong 100 từ đầu
-ANSWER BLOCK BẮT BUỘC: Mỗi tiêu đề phần BẮT ĐẦU bằng đoạn 40-60 chữ trả lời thẳng vào tiêu đề (để Google AI Overview trích dẫn được)
-ĐOẠN VĂN: 2-4 câu, thể chủ động, có ít nhất 1 số liệu hoặc ví dụ cụ thể mỗi phần
-KẾT BÀI: tóm tắt + CTA rõ ràng ("Mua ngay — miễn phí giao hàng" / "Nhận tư vấn qua Zalo" / "Bảo hành 2 năm")
+MỞ BÀI (100–150 chữ): hook bằng tình huống thực tế/số liệu → dẫn vào chủ đề → từ khóa trong 100 từ đầu
+FRESHNESS: Dòng "Cập nhật: tháng M/YYYY" ngay sau đoạn mở (tín hiệu freshness cho Google)
+ANSWER BLOCK: Mỗi tiêu đề phần BẮT ĐẦU bằng đoạn 40–60 chữ trả lời thẳng vào tiêu đề (để Google AI Overview trích dẫn — đoạn này tự đứng độc lập, không cần đọc cả bài vẫn hiểu)
+ĐOẠN VĂN: 2–4 câu, thể chủ động, có ít nhất 1 số liệu hoặc ví dụ cụ thể mỗi phần
+H2 DẠNG CÂU HỎI: Khi phù hợp → viết H2 thành câu hỏi để tăng AI Overview và PAA
+KẾT BÀI: tóm tắt + CTA rõ ràng
+
+CÔNG THỨC HOOK (câu mở đầu — chọn 1):
+- Số liệu: "Mỗi ngày Việt Nam xảy ra hàng chục vụ cháy — phần lớn bắt nguồn từ chập điện."
+- Tình huống: "Bạn đang ở công ty. Ở nhà, bếp gas đang bật. Không ai có mặt để xử lý kịp thời."
+- Câu hỏi: "Nếu hỏa hoạn xảy ra lúc 3 giờ sáng, gia đình bạn có kịp phản ứng không?"
 
 === 5 LỖI CHẾT — KIỂM TRA TRƯỚC KHI TRẢ VỀ ===
-1. Meta description PHẢI chứa cụm từ khóa chính NGUYÊN VĂN (copy-paste để kiểm tra)
-2. Ít nhất 1 tiêu đề phần (H2/IN HOA) PHẢI chứa cụm từ khóa chính NGUYÊN VĂN
+1. Meta description PHẢI chứa cụm từ khóa chính NGUYÊN VĂN
+   ✅ "Bóng chữa cháy xe máy điện — Elide Fire kích hoạt trong 3–30 giây..."
+   ❌ "Giải pháp bảo vệ xe khỏi hỏa hoạn với công nghệ tiên tiến"
+2. Ít nhất 1 H2 PHẢI chứa cụm từ khóa chính NGUYÊN VĂN
+   ✅ "BÓng chữa cháy xe máy điện có hiệu quả không?" ❌ "Hiệu quả thực tế"
 3. Từ khóa PHẢI xuất hiện trong 100 từ đầu bài
-4. Mật độ keyword ~1%: bài 1.000 từ → dùng từ khóa ≥ 10 lần (không quá 25 lần)
-5. Nội dung PHẢI đề cập nguồn tham khảo từ Cục PCCC (pccc.gov.vn) hoặc số liệu thống kê uy tín
+4. Mật độ keyword ~1%: bài 1.000 từ → từ khóa ≥ 10 lần, không quá 25 lần
+5. Nội dung PHẢI đề cập nguồn từ Cục PCCC (pccc.gov.vn) hoặc số liệu thống kê uy tín
 
 === CTA CHUẨN ELIDE FIRE ===
 "Mua ngay — miễn phí giao hàng toàn quốc" | "Nhận tư vấn miễn phí qua Zalo" | "Bảo hành 2 năm — đổi trả trong 30 ngày"
@@ -2006,7 +2049,7 @@ OUTLINE:
 [outline text thuần, không markdown]`;
 
     const completion = await openaiClient.chat.completions.create({
-      model: CHAT_MODEL,
+      model: CMS_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userPrompt }
@@ -2084,7 +2127,7 @@ CONTENT:
 [toàn bộ nội dung text thuần, bắt đầu ngay bằng đoạn mở đầu]`;
 
     const completion = await openaiClient.chat.completions.create({
-      model: CHAT_MODEL,
+      model: CMS_MODEL,
       messages: [
         { role: 'system', content: systemPrompt2 },
         { role: 'user',   content: userPrompt2 }
