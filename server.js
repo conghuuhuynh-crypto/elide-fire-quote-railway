@@ -1921,7 +1921,7 @@ META: [meta description 130-155 ký tự, có từ khóa, có CTA nhẹ]
 SLUG: [url-slug-khong-dau-viet-thuong-ngan-gon]
 KEYWORD: [từ khóa SEO chính 2-5 từ tiếng Việt có dấu, thường dùng nhất trong bài]
 OUTLINE:
-[Nội dung outline dạng text thuần, 5-7 phần H2, mỗi phần có ghi chú số từ mục tiêu]`;
+[Nội dung outline dạng text thuần — số phần H2 phải đúng với yêu cầu trong chủ đề (nếu không có yêu cầu cụ thể thì dùng 4-5 phần), mỗi phần có ghi chú số từ mục tiêu]`;
 
     const completion = await openaiClient.chat.completions.create({
       model: CHAT_MODEL,
@@ -1975,7 +1975,8 @@ Yêu cầu viết bài:
 - Viết bằng TEXT THUẦN (plain text), KHÔNG dùng Markdown (#, ##, **, *, -)
 - Tiêu đề phần: viết IN HOA, đứng riêng một dòng, cách nhau bằng dòng trắng
 - Mỗi đoạn văn cách nhau bằng 1 dòng trắng
-- Độ dài 900-1200 từ
+- NGHIÊM CẤM tự thêm phần/section ngoài những gì có trong OUTLINE ĐÃ DUYỆT — bài viết có bao nhiêu phần là do outline quyết định, không phải do AI quyết định
+- Độ dài: tùy theo số phần trong outline (khoảng 180-250 từ mỗi phần), không được cắt bớt nội dung chỉ để đủ từ
 - Bám sát cấu trúc outline, viết tự nhiên và dễ hiểu
 - Chuyên nghiệp, thuyết phục, không sáo rỗng
 - Proof points: 145 quốc gia, 40 triệu người dùng, 9 giải thưởng quốc tế, tự kích hoạt 3-30 giây, 5 năm không bảo dưỡng, CE & ISO 9001:2015

@@ -226,6 +226,7 @@
       position: relative;
     }
     .upload-zone:hover { border-color: var(--color-primary); }
+    .upload-zone.has-image { border-style: solid; border-color: var(--color-border-light); }
     .upload-empty {
       position: relative; z-index: 1;
       display: flex; flex-direction: column; align-items: center; gap: 6px;
@@ -1055,6 +1056,7 @@ function handleFeaturedFile(input) {
   prev.style.display = 'block';
   document.getElementById('fi-empty').style.display = 'none';
   document.getElementById('fi-del').style.display   = 'flex';
+  document.getElementById('featured-zone').classList.add('has-image');
   setStatus('Đã chọn ảnh đại diện: ' + file.name);
   input.value = '';
 }
@@ -1064,6 +1066,7 @@ function clearFeatured() {
   document.getElementById('fi-preview').style.display = 'none';
   document.getElementById('fi-empty').style.display   = 'flex';
   document.getElementById('fi-del').style.display     = 'none';
+  document.getElementById('featured-zone').classList.remove('has-image');
 }
 
 /* ═══════════════════════════════════════════════════
