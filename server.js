@@ -2028,17 +2028,33 @@ ${KB_BRAND}
 NHIỆM VỤ CỦA BẠN: Tạo outline bài blog SEO chất lượng cao theo yêu cầu của user.
 Luôn trả về đúng format được yêu cầu — không thêm lời giải thích hay markdown.`;
 
-    const userPrompt = `Tạo outline SEO cho:
+    const userPrompt = `Tạo OUTLINE (khung bài) SEO cho:
 Chủ đề: ${topic}
 ${keyword ? `Từ khóa mục tiêu: ${keyword}` : ''}
 ${sourceUrls && sourceUrls.length ? `Nguồn tham khảo:\n${sourceUrls.map(u => '  ' + u).join('\n')}` : ''}
 
-Yêu cầu outline:
-- 4-5 phần H2 (hoặc đúng số phần được yêu cầu trong chủ đề)
-- Mỗi phần ghi rõ số từ mục tiêu (200-250 từ/phần)
-- Phần FAQ hoặc câu hỏi thường gặp (để được Google PAA trích dẫn)
-- H2 dạng câu hỏi khi phù hợp (tăng AI Overview)
-- Mở bài: 100-150 từ, hook mạnh, từ khóa trong 100 từ đầu
+OUTLINE = KHUNG BÀI, không phải nội dung. Mỗi phần chỉ gồm:
+- Tiêu đề H2 + số từ mục tiêu (ví dụ: "200 từ")
+- 3-5 bullet point ngắn nói RÕ sẽ viết về GÌ (không viết nội dung thật)
+
+Cấu trúc bắt buộc:
+MỞ BÀI (100-150 từ): [1 dòng mô tả góc hook] | từ khóa xuất hiện trong câu đầu
+H2 1: [tiêu đề dạng câu hỏi khi phù hợp] (200-250 từ)
+  - [bullet: điểm sẽ cover]
+  - [bullet: điểm sẽ cover]
+  - [bullet: điểm sẽ cover]
+H2 2: ... (200-250 từ)
+H2 3: ... (200-250 từ)
+H2 4: ... (200-250 từ)
+H2 FAQ: Câu hỏi thường gặp về [chủ đề] (150 từ)
+  - Q: [câu hỏi] | A: [1 dòng trả lời ngắn]
+  - Q: [câu hỏi] | A: [1 dòng trả lời ngắn]
+KẾT BÀI + CTA: [1 dòng mô tả] (75-100 từ)
+
+QUAN TRỌNG:
+- Không viết paragraph hay câu hoàn chỉnh trong outline
+- Không viết "Answer block" hay "Nội dung chi tiết" — đó là việc của bước viết content
+- Mỗi bullet tối đa 10 từ, mô tả ý cần cover
 
 Trả về CHÍNH XÁC format sau (không thêm bất kỳ text nào khác):
 TITLE: [tiêu đề H1 ≤65 ký tự, có từ khóa, hấp dẫn]
@@ -2054,7 +2070,7 @@ OUTLINE:
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userPrompt }
       ],
-      max_tokens: 2000, temperature: 0.6
+      max_tokens: 2500, temperature: 0.6
     });
     const raw = completion.choices?.[0]?.message?.content || '';
     if (!raw) throw new Error('AI không trả về outline');
