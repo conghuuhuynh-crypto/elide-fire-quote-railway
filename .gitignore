@@ -1,18 +1,7 @@
-# Dependencies
 node_modules/
-
-# Environment — KHÔNG bao giờ commit
 .env
-.env.local
-.env.*.local
-
-# Output files
 outputs/
+server.log
+server-test.log
 *.pdf
-
-# Docx output (không ignore templates/)
-assets/**/*.docx
-
-# OS
-.DS_Store
-Thumbs.db
+*.docx.tmp

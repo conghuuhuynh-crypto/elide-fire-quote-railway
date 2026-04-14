@@ -59,16 +59,21 @@ const TABLE_CHAT   = process.env.NOCODB_TABLE_CHAT || 'muy359ghdcu7vo2'; // Chat
 const { OpenAI } = require('openai');
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const CHAT_MODEL = process.env.CHAT_MODEL || 'anthropic/claude-haiku-4.5'; // Chat bot báo giá — giữ Haiku để tiết kiệm
-const CMS_MODEL  = process.env.CMS_MODEL  || 'anthropic/claude-sonnet-4-5'; // Outline/Content generation — cần Sonnet để follow KB phức tạp
 const openaiClient = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: OPENROUTER_API_KEY || 'sk-placeholder',
   defaultHeaders: {
-    'HTTP-Referer': process.env.APP_URL || 'https://elide-fire-quote-railway-production.up.railway.app',
-    'X-Title': 'Elide Fire Quote App'
+    'HTTP-Referer': process.env.APP_URL || 'https://app.elidefire.com.vn',
+    'X-Title': 'Elide Fire App'
   }
 });
 if (!OPENROUTER_API_KEY) console.warn('⚠️  OPENROUTER_API_KEY chưa được set — Chat AI sẽ không hoạt động');
+
+// ── Claude Code CLI — Content & SEO Agent (chất lượng tương đương chạy /seo /content thật) ──
+const ANTHROPIC_API_KEY  = process.env.ANTHROPIC_API_KEY || '';
+const CLAUDE_PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || path.join(__dirname, '..'); // thư mục chứa CLAUDE.md
+if (!ANTHROPIC_API_KEY)  console.warn('⚠️  ANTHROPIC_API_KEY chưa được set — Content/SEO Agent sẽ không hoạt động');
+if (!fs.existsSync(path.join(CLAUDE_PROJECT_DIR, 'CLAUDE.md'))) console.warn('⚠️  CLAUDE.md không tìm thấy tại CLAUDE_PROJECT_DIR — Claude CLI thiếu context');
 
 // ── Knowledge Base — đọc từ skill files thật lúc startup ────────────────────
 const KNOWLEDGE_DIR = path.join(__dirname, 'knowledge');
@@ -1616,6 +1621,35 @@ const CMS_IMAGES  = path.join(CMS_ROOT, 'outputs', 'images');
 const WP_DOMAIN   = 'elidefire.com.vn';
 const WP_AUTH     = Buffer.from('admin.tech@tinhtue.vn:ovxA ptuO XFnn yfK5 ayd9 9WML').toString('base64');
 
+// ── Claude Code CLI runner — chạy SEO/Content Agent thật với full context ────
+const { spawn } = require('child_process');
+
+function runClaudeAgent(prompt) {
+  return new Promise((resolve, reject) => {
+    if (!ANTHROPIC_API_KEY) return reject(new Error('ANTHROPIC_API_KEY chưa được set'));
+
+    const proc = spawn('claude', ['--print', prompt, '--no-stream'], {
+      cwd: CLAUDE_PROJECT_DIR,
+      env: { ...process.env, ANTHROPIC_API_KEY },
+      timeout: 180000
+    });
+
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', d => stdout += d.toString());
+    proc.stderr.on('data', d => stderr += d.toString());
+
+    proc.on('close', code => {
+      if (code === 0 && stdout.trim()) resolve(stdout.trim());
+      else reject(new Error(stderr.trim() || `Claude CLI thoát với code ${code}`));
+    });
+    proc.on('error', err => reject(new Error(`Không thể chạy Claude CLI: ${err.message}`)));
+
+    // Timeout safety
+    setTimeout(() => { proc.kill(); reject(new Error('Claude CLI timeout sau 180s')); }, 180000);
+  });
+}
+
 function cmsParseFrontmatter(raw) {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) return { meta: {}, body: raw };
@@ -1962,9 +1996,12 @@ app.post('/api/cms/generate-outline', express.json({ limit: '1mb' }), async (req
   try {
     const { topic, keyword, sourceUrls } = req.body;
     if (!topic) throw new Error('Thiếu chủ đề (topic)');
-    if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY chưa được cấu hình');
 
-    const systemPrompt = `${SKILL_SEO}
+    const now = new Date();
+    const currentDate = `tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
+
+    // Prompt gửi thẳng cho Claude CLI — CLI tự load CLAUDE.md + memory + context đầy đủ
+    const prompt = `${SKILL_SEO}
 
 ---
 
@@ -1972,65 +2009,38 @@ ${KB_BRAND}
 
 ---
 
-NHIỆM VỤ: Tạo OUTLINE (khung bài) SEO theo yêu cầu của user.
-Áp dụng đúng theo skill và knowledge base ở trên.
-Luôn trả về đúng format được yêu cầu — không thêm lời giải thích hay markdown.`;
+NHIỆM VỤ: Tạo OUTLINE (khung bài) SEO cho bài blog Elide Fire Vietnam.
 
-    const now = new Date();
-    const currentDate = `tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
-
-    const userPrompt = `Tạo OUTLINE (khung bài) SEO cho:
 Chủ đề: ${topic}
 ${keyword ? `Từ khóa mục tiêu: ${keyword}` : ''}
 ${sourceUrls && sourceUrls.length ? `Nguồn tham khảo:\n${sourceUrls.map(u => '  ' + u).join('\n')}` : ''}
-Ngày hiện tại: ${currentDate} — dùng cho freshness signal, KHÔNG ghi năm cũ hơn ${now.getFullYear()} trong bài
+Ngày hiện tại: ${currentDate}
 
-OUTLINE = KHUNG BÀI, không phải nội dung. Mỗi phần chỉ gồm:
-- Tiêu đề H2 + số từ mục tiêu (ví dụ: "200 từ")
-- 3-5 bullet point ngắn nói RÕ sẽ viết về GÌ (không viết nội dung thật)
-- Mỗi bullet tối đa 10 từ
+OUTLINE = KHUNG BÀI. Mỗi phần gồm:
+- Tiêu đề H2 + số từ mục tiêu
+- 3-5 bullet ngắn nói rõ sẽ viết về gì (không viết nội dung thật)
 
 Cấu trúc bắt buộc:
-MỞ BÀI (100-150 từ): [1 dòng mô tả góc hook] | từ khóa xuất hiện trong câu đầu | freshness "Cập nhật: ${currentDate}"
-H2 1: [tiêu đề dạng câu hỏi] (200-250 từ)
-  - [bullet: điểm sẽ cover]
-  - [bullet: điểm sẽ cover]
-  - [bullet: điểm sẽ cover]
-H2 2: ... (200-250 từ)
-H2 3: ... (200-250 từ)
-H2 4: ... (200-250 từ)
-H2 FAQ: Câu hỏi thường gặp về [chủ đề] (150 từ)
-  - Q: [câu hỏi] | A: [1 dòng]
-  - Q: [câu hỏi] | A: [1 dòng]
-KẾT BÀI + CTA Elide Fire (75-100 từ):
-  - Tóm tắt lợi ích chính
-  - CTA: "Mua ngay — miễn phí giao hàng" hoặc "Nhận tư vấn qua Zalo"
-  - Link đến LOVINGCARE hoặc TECHIDEAS tùy chủ đề
+MỞ BÀI (100-150 từ): hook + từ khóa câu đầu + freshness "Cập nhật: ${currentDate}"
+H2 1: [câu hỏi] (200-250 từ) → 3-5 bullet
+H2 2: [câu hỏi] (200-250 từ) → 3-5 bullet
+H2 3: [câu hỏi] (200-250 từ) → 3-5 bullet
+H2 4: [câu hỏi] (200-250 từ) → 3-5 bullet
+H2 FAQ: Câu hỏi thường gặp về [chủ đề] (150 từ) → Q/A pairs
+KẾT BÀI + CTA (75-100 từ): tóm tắt + CTA + link sản phẩm phù hợp
 
-QUAN TRỌNG:
-- Không viết paragraph hay câu hoàn chỉnh trong outline
-- Không viết "Answer block" hay nội dung thật — đó là bước 3 (viết content)
-- TITLE không được chứa năm (không dùng "2024", "2025", "2026")
-- Tiêu đề phải súc tích, hấp dẫn, tập trung vào lợi ích hoặc câu hỏi của người dùng
+QUAN TRỌNG: Không viết nội dung thật trong outline. TITLE không chứa năm.
 
-Trả về CHÍNH XÁC format sau (không thêm bất kỳ text nào khác):
-TITLE: [tiêu đề H1 ≤65 ký tự, có từ khóa, không có năm]
-META: [meta description 130-155 ký tự, chứa từ khóa nguyên văn, có CTA nhẹ]
+Trả về CHÍNH XÁC format sau — không thêm text nào khác:
+TITLE: [tiêu đề H1 ≤65 ký tự, có từ khóa]
+META: [130-155 ký tự, từ khóa nguyên văn, có CTA]
 SLUG: [slug-khong-dau-viet-thuong]
 KEYWORD: [từ khóa chính 2-5 từ tiếng Việt có dấu]
 OUTLINE:
-[outline text thuần, không markdown]`;
+[outline text thuần]`;
 
-    const completion = await openaiClient.chat.completions.create({
-      model: CMS_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userPrompt }
-      ],
-      max_tokens: 2500, temperature: 0.6
-    });
-    const raw = completion.choices?.[0]?.message?.content || '';
-    if (!raw) throw new Error('AI không trả về outline');
+    const raw = await runClaudeAgent(prompt);
+    if (!raw) throw new Error('Claude không trả về kết quả');
 
     // Parse delimiter-based (không dùng JSON — tránh lỗi multiline string)
     const titleM   = raw.match(/^TITLE:\s*(.+)$/m);
@@ -2059,11 +2069,10 @@ app.post('/api/cms/generate-from-outline', express.json({ limit: '2mb' }), async
   try {
     const { topic, keyword, outline } = req.body;
     if (!outline) throw new Error('Thiếu outline');
-    if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY chưa được cấu hình');
 
     const { title: outlineTitle, meta: outlineMeta, slug: outlineSlug } = req.body;
 
-    const systemPrompt2 = `${SKILL_CONTENT}
+    const prompt = `${SKILL_CONTENT}
 
 ---
 
@@ -2071,14 +2080,7 @@ ${KB_BRAND}
 
 ---
 
-QUY TẮC FORMAT OUTPUT BẮT BUỘC:
-- Viết TEXT THUẦN (plain text), KHÔNG dùng Markdown (#, ##, **, *, -)
-- Tiêu đề phần: IN HOA toàn bộ, đứng riêng một dòng
-- Mỗi đoạn văn cách nhau 1 dòng trắng
-- NGHIÊM CẤM tự thêm phần ngoài OUTLINE ĐÃ DUYỆT
-- Kết thúc bằng CHÍNH XÁC format được yêu cầu — không thêm lời giải thích`;
-
-    const userPrompt2 = `Viết bài blog hoàn chỉnh dựa trên outline đã duyệt.
+NHIỆM VỤ: Viết bài blog hoàn chỉnh từ outline đã được duyệt.
 
 Từ khóa: ${keyword || '(xem outline)'}
 ${topic ? `Chủ đề: ${topic}` : ''}
@@ -2087,31 +2089,31 @@ ${outlineTitle ? `Tiêu đề H1: ${outlineTitle}` : ''}
 OUTLINE ĐÃ DUYỆT:
 ${outline}
 
-SEO BẮT BUỘC (kiểm tra trước khi trả về):
+QUY TẮC FORMAT OUTPUT BẮT BUỘC:
+- Viết TEXT THUẦN (plain text), KHÔNG dùng Markdown (#, ##, **, *, -)
+- Tiêu đề phần: IN HOA toàn bộ, đứng riêng một dòng
+- Mỗi đoạn văn cách nhau 1 dòng trắng
+- KHÔNG tự thêm phần ngoài outline đã duyệt
+
+SEO BẮT BUỘC:
 - Từ khóa "${keyword || 'từ khóa chính'}" trong 100 từ đầu
 - Từ khóa trong ≥2 tiêu đề phần (IN HOA)
 - Mật độ ~1%: bài 1.000 từ → từ khóa ≥10 lần
-- Đề cập số liệu từ nguồn PCCC uy tín
+- Dùng ≥3 proof points từ brand
+- External link đến pccc.gov.vn
+- Internal links đến trang sản phẩm
 
-Độ dài: ~200-250 từ/phần, không cắt bớt
+Độ dài: ~200-250 từ/phần — không cắt bớt
 
-Trả về CHÍNH XÁC (không thêm bất kỳ text nào khác):
+Trả về CHÍNH XÁC format sau — không thêm text nào khác:
 TITLE: [tiêu đề H1, từ khóa ở đầu]
-META: [130-155 ký tự, chứa từ khóa nguyên văn, có CTA]
+META: [130-155 ký tự, từ khóa nguyên văn, có CTA]
 SLUG: [slug-khong-dau]
 CONTENT:
-[toàn bộ nội dung text thuần, bắt đầu ngay bằng đoạn mở đầu]`;
+[toàn bộ nội dung text thuần]`;
 
-    const completion = await openaiClient.chat.completions.create({
-      model: CMS_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt2 },
-        { role: 'user',   content: userPrompt2 }
-      ],
-      max_tokens: 4000, temperature: 0.7
-    });
-    const raw = completion.choices?.[0]?.message?.content || '';
-    if (!raw) throw new Error('AI không trả về nội dung');
+    const raw = await runClaudeAgent(prompt);
+    if (!raw) throw new Error('Claude không trả về nội dung');
 
     // Parse delimiter-based (tránh lỗi JSON với nội dung dài)
     const titleM   = raw.match(/^TITLE:\s*(.+)$/m);
