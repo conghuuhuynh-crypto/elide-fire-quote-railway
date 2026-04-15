@@ -1,7 +1,6 @@
 node_modules/
 .env
 outputs/
-server.log
-server-test.log
+*.log
 *.pdf
 *.docx.tmp
