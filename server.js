@@ -100,62 +100,17 @@ function loadSkill(filename) {
 
 const SKILL_SEO     = loadSkill('skill-seo.md');
 const SKILL_CONTENT = loadSkill('skill-content.md');
-// Products knowledge base — nguon chinh xac, khong duoc sang tac
-const PRODUCTS_MD = (() => {
-  try { return require('fs').readFileSync(
-    require('path').join(__dirname, '..', 'project', 'knowledge', 'company', 'products.md'),
-    'utf8').trim(); }
-  catch(e) { console.warn('products.md not found, using KB_BRAND fallback'); return ''; }
-})();
-const BRAND_GUIDELINES = (() => {
-  try { return require('fs').readFileSync(
-    require('path').join(__dirname, '..', 'project', 'knowledge', 'company', 'brand-guidelines.md'),
-    'utf8').trim(); }
-  catch(e) { return ''; }
-})();
-const TARGET_AUDIENCE = (() => {
-  try { return require('fs').readFileSync(
-    require('path').join(__dirname, '..', 'project', 'knowledge', 'company', 'target-audience.md'),
-    'utf8').trim(); }
-  catch(e) { return ''; }
-})();
-const COMPANY_CONTEXT = (PRODUCTS_MD ? PRODUCTS_MD + '\n\n---\n\n' : "") + (BRAND_GUIDELINES ? BRAND_GUIDELINES + '\n\n---\n\n' : "") + (TARGET_AUDIENCE || "")
+const KB_BRAND      = loadSkill('products.md');
 
 // Log để xác nhận skill files đã được đọc
 console.log(`[CMS] skill-seo.md: ${SKILL_SEO.length} ký tự`);
 console.log(`[CMS] skill-content.md: ${SKILL_CONTENT.length} ký tự`);
-
-// KB_BRAND: thông tin sản phẩm thực tế — dùng chung cho cả 2 route
-const KB_BRAND = `
-=== THÔNG TIN SẢN PHẨM ELIDE FIRE (NGUỒN DUY NHẤT — KHÔNG ĐƯỢC SÁNG TÁC) ===
-Thương hiệu: Elide Fire — bóng chữa cháy tự động số 1 thế giới
-Slogan: "Sự sống trong tầm tay"
-Sản xuất: Thái Lan | Patent 145 quốc gia | 40 triệu người dùng | 9 giải thưởng quốc tế
-Phân phối độc quyền VN: Công ty Cổ phần Kỹ thuật Môi trường Tinh Tuệ
-
-SẢN PHẨM:
-- Elide Fire TECHIDEAS 1.4kg: 2.500.000đ — nhà xưởng, kho, tủ điện công nghiệp, máy móc CNC
-- Elide Fire LOVINGCARE 0.4kg: 1.950.000đ — gia đình, xe ô tô, tủ điện, văn phòng, tủ server
-
-THÔNG SỐ KỸ THUẬT:
-- Kích hoạt: 3–30 giây tự động khi tiếp xúc lửa (bị động) HOẶC ném vào đám cháy (chủ động)
-- Bảo hành: 2 năm | 5 năm không bảo dưỡng | Miễn phí giao hàng toàn quốc | Đổi trả 30 ngày
-- Chứng nhận: CE · ISO 9001:2015 · EN615 · NIH · GOST-R · BSI
-- Giải thưởng: Huy chương Vàng WIPO, Eureka, Tokyo Cup, KIPA (9 giải thưởng quốc tế)
-- Dập được: vật liệu rắn, chất lỏng dễ cháy, khí gas, chập điện, hóa chất
-
-PROOF POINTS BẮT BUỘC (dùng ≥3 trong mỗi bài):
-145 quốc gia · 40 triệu người dùng · 9 giải thưởng quốc tế · tự kích hoạt 3–30 giây · 5 năm không bảo dưỡng · CE & ISO 9001:2015
-
-INTERNAL LINKS (phải có trong bài):
-LOVINGCARE: https://elidefire.com.vn/san-pham/bong-chua-chay-elide-fire-lovingcare
-TECHIDEAS:  https://elidefire.com.vn/san-pham/bong-chua-chay-elide-fire-techideas
-EXTERNAL:   https://www.pccc.gov.vn (Cục Cảnh sát Phòng cháy chữa cháy và Cứu nạn cứu hộ)
-`.trim();
+console.log(`[CMS] products.md: ${KB_BRAND.length} ký tự`);
 
 const KB_KEYWORDS = 'B2C: bong chua chay gia dinh/xe oto/gia/hieu qua | B2B: nha xuong/tu dien/tu server/pccc tu dong | Brand: bong chua chay elide fire';
 if (!SKILL_SEO)     console.warn('⚠️  skill-seo.md trống — SEO Agent sẽ thiếu context');
 if (!SKILL_CONTENT) console.warn('⚠️  skill-content.md trống — Content Agent sẽ thiếu context');
+if (!KB_BRAND)      console.warn('⚠️  products.md trống — AI sẽ thiếu thông tin sản phẩm');
 
 // Cảnh báo sớm nếu thiếu biến bắt buộc
 if (!NOCODB_TOKEN) console.warn('⚠️  NOCODB_TOKEN chưa được set — NocoDB calls sẽ thất bại');
@@ -2160,8 +2115,7 @@ app.post('/api/cms/generate-outline', express.json({ limit: '1mb' }), async (req
 
     // Prompt gửi thẳng cho Claude CLI — CLI tự load CLAUDE.md + memory + context đầy đủ
     // System prompt: full SEO skill + products.md (cached)
-    const outlineSystem = SKILL_SEO + '\n\n---\n\n' +
-      (COMPANY_CONTEXT || KB_BRAND);
+    const outlineSystem = SKILL_SEO + '\n\n---\n\n' + KB_BRAND;
 
     const prompt = `NHIỆM VỤ: Tạo OUTLINE (khung bài) SEO cho bài blog Elide Fire Vietnam.
 
@@ -2225,8 +2179,7 @@ app.post('/api/cms/generate-from-outline', express.json({ limit: '2mb' }), async
     const { title: outlineTitle, meta: outlineMeta, slug: outlineSlug } = req.body;
 
     // System prompt: full Content skill + products.md (cached)
-    const contentSystem = SKILL_CONTENT + '\n\n---\n\n' +
-      (COMPANY_CONTEXT || KB_BRAND);
+    const contentSystem = SKILL_CONTENT + '\n\n---\n\n' + KB_BRAND;
 
     const prompt = `NHIỆM VỤ: Viết bài blog hoàn chỉnh từ outline đã được duyệt.
 
