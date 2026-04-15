@@ -1645,8 +1645,10 @@ app.get('/api/chat/history/:sessionId', async (req, res) => {
 const CMS_ROOT    = path.join(__dirname, '..');
 const CMS_CONTENT = path.join(CMS_ROOT, 'outputs', 'content');
 const CMS_IMAGES  = path.join(CMS_ROOT, 'outputs', 'images');
-const WP_DOMAIN   = 'elidefire.com.vn';
-const WP_AUTH     = Buffer.from('admin.tech@tinhtue.vn:ovxA ptuO XFnn yfK5 ayd9 9WML').toString('base64');
+const WP_DOMAIN   = process.env.WP_DOMAIN || 'elidefire.com.vn';
+const WP_APP_PASS = process.env.WP_APP_PASS || '';
+const WP_AUTH     = Buffer.from('admin.tech@tinhtue.vn:' + WP_APP_PASS).toString('base64');
+if (!WP_APP_PASS) console.warn('⚠️  WP_APP_PASS chua duoc set -- CMS publish se khong hoat dong');
 
 // ── Anthropic SDK ── callClaude voi Prompt Caching ──
 const Anthropic = require('@anthropic-ai/sdk');
