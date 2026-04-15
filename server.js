@@ -33,9 +33,14 @@ with zipfile.ZipFile(dst,'w',zipfile.ZIP_DEFLATED) as zout:
         else: zout.writestr(info,data)
 `, 'utf8');
 
-// Prevent crash on unhandled errors
-process.on('uncaughtException',  e => console.error('[uncaughtException]',  e.message));
-process.on('unhandledRejection', e => console.error('[unhandledRejection]', e));
+// Graceful shutdown on unhandled errors
+process.on('uncaughtException', e => {
+  console.error('[uncaughtException]', e.message);
+  setTimeout(() => process.exit(1), 1000); // cho PM2 tự restart
+});
+process.on('unhandledRejection', e => {
+  console.error('[unhandledRejection]', e);
+});
 
 const TEMPLATE   = path.join(__dirname, 'templates', 'quote-template.docx');
 const QUOTES_DIR = path.join(__dirname, 'outputs', 'quotes');
@@ -162,9 +167,10 @@ const jobs = {};
 
 // In-memory chat histories: sessionId → [{role, content}]
 // Chỉ lưu user + assistant text (không lưu tool calls)
-// Reset khi Railway redeploy — tránh stale data từ session cũ
+// Persist sang NocoDB sau mỗi turn — load lại khi server restart
 const chatHistories = new Map();
-const CHAT_HISTORY_MAX = 20; // 10 lượt hội thoại
+const CHAT_HISTORY_MAX = 20;  // 10 lượt hội thoại
+const CHAT_SESSIONS_MAX = 500; // giới hạn số session in-memory tránh leak
 
 // ---- Helpers ----
 
@@ -1611,6 +1617,11 @@ app.post('/api/chat', async (req, res) => {
       sessionHistory.push({ role: 'assistant', content: fullResponse });
       const updated = sessionHistory.slice(-CHAT_HISTORY_MAX);
       chatHistories.set(sessionId, updated);
+      // Giới hạn số session in-memory (xóa entry cũ nhất khi vượt giới hạn)
+      if (chatHistories.size > CHAT_SESSIONS_MAX) {
+        const oldest = chatHistories.keys().next().value;
+        chatHistories.delete(oldest);
+      }
       // Lưu toàn bộ session vào 1 row NocoDB
       upsertChatSession(sessionId, updated, activeTab);
     }
@@ -2022,9 +2033,9 @@ app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) =
       : plainToHtml(processedContent);
 
     // ── SEO Post-Process — deterministic boost trước auto-inject ──────────────
-    // ── SEO: structural fix (sync) → refinement pass (async, Anthropic API) ────
+    // ── SEO: structural fix (sync) — áp dụng ngay trước publish ─────────────
     htmlContent = seoStructuralFix(htmlContent, keyword || '');
-    htmlContent = await seoRefinementPass(htmlContent, keyword || '');
+    // refinement pass (async) chạy background sau khi publish xong
 
     // ── Auto-inject SEO links nếu chưa có ────────────────────────────────────
     // Internal links — bắt buộc theo quy chuẩn SEO
@@ -2092,7 +2103,19 @@ app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) =
 
     const post = await cmsWpRequest('POST', '/wp-json/wp/v2/posts', postPayload);
     if (!post.id) throw new Error(JSON.stringify(post).slice(0, 300));
+
+    // Trả về ngay cho user — không chờ SEO refinement
     res.json({ postId: post.id, url: `https://${WP_DOMAIN}/?p=${post.id}`, slug: post.slug, status: post.status });
+
+    // Background: SEO refinement pass (Anthropic API ~10-20s)
+    seoRefinementPass(htmlContent, keyword || '').then(async refined => {
+      if (refined && refined !== htmlContent) {
+        try {
+          await cmsWpRequest('POST', `/wp-json/wp/v2/posts/${post.id}`, { content: refined });
+          console.log(`[CMS] SEO refinement applied to post ${post.id}`);
+        } catch(e) { console.error('[CMS] SEO refinement update failed:', e.message); }
+      }
+    }).catch(e => console.error('[CMS] SEO refinement bg error:', e.message));
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
