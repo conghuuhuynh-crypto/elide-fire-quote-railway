@@ -1,10 +1,11 @@
 {
   "name": "elide-fire-quote-railway",
   "version": "1.0.0",
-  "description": "Elide Fire Quote Server — Railway deployment",
+  "description": "Elide Fire Quote Server — DigitalOcean deployment",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.89.0",
