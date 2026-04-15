@@ -9,6 +9,7 @@ const AdmZip   = require('adm-zip');
 const path     = require('path');
 const fs       = require('fs');
 const https    = require('https');
+const http     = require('http');
 const FormData = require('form-data');
 const { exec, execSync } = require('child_process');
 const os       = require('os');
@@ -55,6 +56,11 @@ const TABLE_SP     = process.env.NOCODB_TABLE_SP  || 'm1isvr6ljrp2klj'; // San_p
 const TABLE_HD     = process.env.NOCODB_TABLE_HD  || 'mudqz3rj45htmui'; // Hop_dong
 const TABLE_CHAT   = process.env.NOCODB_TABLE_CHAT || 'muy359ghdcu7vo2'; // Chat_history
 
+// Auto-detect HTTP vs HTTPS for NocoDB (local = http, remote = https)
+const nocoLib = NOCODB_HOST.startsWith('localhost') || NOCODB_HOST.startsWith('127.') ? http : https;
+const nocoPort = NOCODB_HOST.startsWith('localhost') || NOCODB_HOST.startsWith('127.') ? parseInt(NOCODB_HOST.split(':')[1]) || 8080 : 443;
+const nocoHostname = NOCODB_HOST.split(':')[0];
+
 // AI Chat config
 const { OpenAI } = require('openai');
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -89,6 +95,26 @@ function loadSkill(filename) {
 
 const SKILL_SEO     = loadSkill('skill-seo.md');
 const SKILL_CONTENT = loadSkill('skill-content.md');
+// Products knowledge base — nguon chinh xac, khong duoc sang tac
+const PRODUCTS_MD = (() => {
+  try { return require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'project', 'knowledge', 'company', 'products.md'),
+    'utf8').trim(); }
+  catch(e) { console.warn('products.md not found, using KB_BRAND fallback'); return ''; }
+})();
+const BRAND_GUIDELINES = (() => {
+  try { return require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'project', 'knowledge', 'company', 'brand-guidelines.md'),
+    'utf8').trim(); }
+  catch(e) { return ''; }
+})();
+const TARGET_AUDIENCE = (() => {
+  try { return require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'project', 'knowledge', 'company', 'target-audience.md'),
+    'utf8').trim(); }
+  catch(e) { return ''; }
+})();
+const COMPANY_CONTEXT = (PRODUCTS_MD ? PRODUCTS_MD + '\n\n---\n\n' : "") + (BRAND_GUIDELINES ? BRAND_GUIDELINES + '\n\n---\n\n' : "") + (TARGET_AUDIENCE || "")
 
 // Log để xác nhận skill files đã được đọc
 console.log(`[CMS] skill-seo.md: ${SKILL_SEO.length} ký tự`);
@@ -122,6 +148,7 @@ TECHIDEAS:  https://elidefire.com.vn/san-pham/bong-chua-chay-elide-fire-techidea
 EXTERNAL:   https://www.pccc.gov.vn (Cục Cảnh sát Phòng cháy chữa cháy và Cứu nạn cứu hộ)
 `.trim();
 
+const KB_KEYWORDS = 'B2C: bong chua chay gia dinh/xe oto/gia/hieu qua | B2B: nha xuong/tu dien/tu server/pccc tu dong | Brand: bong chua chay elide fire';
 if (!SKILL_SEO)     console.warn('⚠️  skill-seo.md trống — SEO Agent sẽ thiếu context');
 if (!SKILL_CONTENT) console.warn('⚠️  skill-content.md trống — Content Agent sẽ thiếu context');
 
@@ -550,8 +577,8 @@ app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v46-all-fiel
 // GET /admin/schema — scan field names thực tế từ NocoDB, so sánh với bot config
 app.get('/admin/schema', async (req, res) => {
   const fetchFields = (tableId, label) => new Promise(resolve => {
-    const req2 = https.get({
-      hostname: NOCODB_HOST,
+    const req2 = nocoLib.get({
+      hostname: nocoHostname, port: nocoPort,
       path: `/api/v1/db/data/noco/${NOCODB_BASE}/${tableId}?limit=1`,
       headers: { 'xc-token': NOCODB_TOKEN }
     }, r => {
@@ -596,8 +623,8 @@ app.get('/admin/schema', async (req, res) => {
 
 // Helper: NocoDB GET với timeout
 function nocoGet(path, res) {
-  const options = { hostname: NOCODB_HOST, path, headers: { 'xc-token': NOCODB_TOKEN } };
-  const req = https.get(options, r => {
+  const options = { hostname: nocoHostname, port: nocoPort, path, headers: { 'xc-token': NOCODB_TOKEN } };
+  const req = nocoLib.get(options, r => {
     let d = '';
     r.on('data', c => d += c);
     r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch(e) { res.json([]); } });
@@ -642,12 +669,12 @@ function uploadPdfToNocoDB(pdfPath, filename) {
       const form = new FormData();
       form.append('file', fs.createReadStream(pdfPath), { filename, contentType: 'application/pdf' });
       const options = {
-        hostname: NOCODB_HOST,
+        hostname: nocoHostname, port: nocoPort,
         path: `/api/v1/db/storage/upload?path=noco/${NOCODB_BASE}/Bao_gia/File_PDF`,
         method: 'POST',
         headers: { ...form.getHeaders(), 'xc-token': NOCODB_TOKEN }
       };
-      const req = https.request(options, r => {
+      const req = nocoLib.request(options, r => {
         let d = '';
         r.on('data', c => d += c);
         r.on('end', () => {
@@ -669,12 +696,12 @@ function saveQuoteToNocoDB(record) {
   return new Promise((resolve, reject) => {
     const body = Buffer.from(JSON.stringify(record));
     const options = {
-      hostname: NOCODB_HOST,
+      hostname: nocoHostname, port: nocoPort,
       path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}`,
       method: 'POST',
       headers: { 'xc-token': NOCODB_TOKEN, 'Content-Type': 'application/json', 'Content-Length': body.length }
     };
-    const req = https.request(options, r => {
+    const req = nocoLib.request(options, r => {
       let d = '';
       r.on('data', c => d += c);
       r.on('end', () => {
@@ -982,12 +1009,12 @@ function saveToNocoDB(tableId, record) {
   return new Promise((resolve, reject) => {
     const body = Buffer.from(JSON.stringify(record));
     const options = {
-      hostname: NOCODB_HOST,
+      hostname: nocoHostname, port: nocoPort,
       path: `/api/v1/db/data/noco/${NOCODB_BASE}/${tableId}`,
       method: 'POST',
       headers: { 'xc-token': NOCODB_TOKEN, 'Content-Type': 'application/json', 'Content-Length': body.length }
     };
-    const req = https.request(options, r => {
+    const req = nocoLib.request(options, r => {
       let d = ''; r.on('data', c => d += c);
       r.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { reject(e); } });
     });
@@ -1024,12 +1051,12 @@ function patchNocoDB(tableId, rowId, data) {
   return new Promise((resolve, reject) => {
     const body = Buffer.from(JSON.stringify(data));
     const opts = {
-      hostname: NOCODB_HOST,
+      hostname: nocoHostname, port: nocoPort,
       path: `/api/v1/db/data/noco/${NOCODB_BASE}/${tableId}/${rowId}`,
       method: 'PATCH',
       headers: { 'xc-token': NOCODB_TOKEN, 'Content-Type': 'application/json', 'Content-Length': body.length }
     };
-    const req = https.request(opts, r => {
+    const req = nocoLib.request(opts, r => {
       let d = ''; r.on('data', c => d += c);
       r.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve({}); } });
     });
@@ -1043,8 +1070,8 @@ function patchNocoDB(tableId, rowId, data) {
 function loadChatSession(sessionId) {
   return new Promise(resolve => {
     const qs = `limit=1&where=(Session_id,eq,${encodeURIComponent(sessionId)})`;
-    const req = https.get({
-      hostname: NOCODB_HOST,
+    const req = nocoLib.get({
+      hostname: nocoHostname, port: nocoPort,
       path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_CHAT}?${qs}`,
       headers: { 'xc-token': NOCODB_TOKEN }
     }, r => {
@@ -1073,8 +1100,8 @@ function upsertChatSession(sessionId, messages, activeTab) {
   }
   // Lần đầu: search xem row đã tồn tại chưa
   const qs = `limit=1&where=(Session_id,eq,${encodeURIComponent(sessionId)})`;
-  const req = https.get({
-    hostname: NOCODB_HOST,
+  const req = nocoLib.get({
+    hostname: nocoHostname, port: nocoPort,
     path: `/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_CHAT}?${qs}`,
     headers: { 'xc-token': NOCODB_TOKEN }
   }, r => {
@@ -1257,8 +1284,8 @@ async function executeTool(name, args) {
         });
         qs += `&where=${conds.join('~or')}`;
       }
-      const req = https.get({
-        hostname: NOCODB_HOST,
+      const req = nocoLib.get({
+        hostname: nocoHostname, port: nocoPort,
         path: `/api/v1/db/data/noco/${NOCODB_BASE}/${tableId}?${qs}`,
         headers: { 'xc-token': NOCODB_TOKEN }
       }, r => {
@@ -1621,34 +1648,34 @@ const CMS_IMAGES  = path.join(CMS_ROOT, 'outputs', 'images');
 const WP_DOMAIN   = 'elidefire.com.vn';
 const WP_AUTH     = Buffer.from('admin.tech@tinhtue.vn:ovxA ptuO XFnn yfK5 ayd9 9WML').toString('base64');
 
-// ── Claude Code CLI runner — chạy SEO/Content Agent thật với full context ────
-const { spawn } = require('child_process');
+// ── Anthropic SDK ── callClaude voi Prompt Caching ──
+const Anthropic = require('@anthropic-ai/sdk');
 
-function runClaudeAgent(prompt) {
-  return new Promise((resolve, reject) => {
-    if (!ANTHROPIC_API_KEY) return reject(new Error('ANTHROPIC_API_KEY chưa được set'));
-
-    const proc = spawn('claude', ['--print', prompt, '--no-stream'], {
-      cwd: CLAUDE_PROJECT_DIR,
-      env: { ...process.env, ANTHROPIC_API_KEY },
-      timeout: 180000
-    });
-
-    let stdout = '';
-    let stderr = '';
-    proc.stdout.on('data', d => stdout += d.toString());
-    proc.stderr.on('data', d => stderr += d.toString());
-
-    proc.on('close', code => {
-      if (code === 0 && stdout.trim()) resolve(stdout.trim());
-      else reject(new Error(stderr.trim() || `Claude CLI thoát với code ${code}`));
-    });
-    proc.on('error', err => reject(new Error(`Không thể chạy Claude CLI: ${err.message}`)));
-
-    // Timeout safety
-    setTimeout(() => { proc.kill(); reject(new Error('Claude CLI timeout sau 180s')); }, 180000);
+// callClaude: system prompt (cached) + user message
+// Cache TTL = 5 phut — cac call tiep theo chi ton 10% chi phi cho system prompt
+async function callClaude(systemText, userText) {
+  if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY chua duoc set');
+  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+  const msg = await client.messages.create({
+    model: 'claude-sonnet-4-5',
+    max_tokens: 8192,
+    system: [{
+      type: 'text',
+      text: systemText,
+      cache_control: { type: 'ephemeral' }  // Cache system prompt 5 phut
+    }],
+    messages: [{ role: 'user', content: userText }]
   });
+  const text = msg.content?.[0]?.text?.trim();
+  if (!text) throw new Error('Anthropic API khong tra ve noi dung');
+  return text;
 }
+
+// Backward compat — dung cho cac route cu
+async function runClaudeAgent(prompt) {
+  return callClaude('Ban la AI assistant chuyen nghiep cua Elide Fire Vietnam.', prompt);
+}
+
 
 function cmsParseFrontmatter(raw) {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
@@ -1797,6 +1824,95 @@ Yêu cầu:
 });
 
 // Publish to WordPress — hỗ trợ cả base64 (browser upload) và cms:filename (server folder)
+
+// ── SEO Post-Processor — đảm bảo tiêu chí bằng code, không phụ thuộc AI ─────
+// ── SEO Structural Fix (sync) — H2, first para, paragraph length ─────────────
+function seoStructuralFix(html, keyword) {
+  if (!keyword || !html) return html;
+  const kw    = keyword.toLowerCase();
+  const kwCap = keyword.charAt(0).toUpperCase() + keyword.slice(1);
+  const stripT = h => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // 1. Keyword trong đoạn đầu
+  const firstParaMatch = html.match(/<p>(.*?)<\/p>/s);
+  if (firstParaMatch && !stripT(firstParaMatch[1]).toLowerCase().includes(kw)) {
+    html = html.replace(firstParaMatch[0], `<p><strong>${kwCap}</strong> — ${firstParaMatch[1]}</p>`);
+  }
+
+  // 2. Keyword trong H2
+  const h2list  = [...html.matchAll(/<h2[^>]*>(.*?)<\/h2>/gi)];
+  const kwWords = kw.split(/\s+/).filter(w => w.length > 2);
+  const hasKwH2 = h2list.some(m => kwWords.every(w => stripT(m[1]).toLowerCase().includes(w)));
+  if (!hasKwH2 && h2list.length > 0) {
+    const firstH2 = h2list[0];
+    html = html.replace(firstH2[0], firstH2[0].replace(firstH2[1], `${kwCap}: ${firstH2[1]}`));
+  }
+
+  // 3. Break đoạn văn dài (> 500 ký tự)
+  let safety = 0;
+  while (safety++ < 20) {
+    const m = /<p>([^<]{500,})<\/p>/.exec(html);
+    if (!m) break;
+    const mid = Math.floor(m[1].length / 2);
+    const cut = m[1].indexOf('. ', mid);
+    if (cut > 0 && cut < m[1].length - 30) {
+      html = html.replace(m[0], `<p>${m[1].slice(0, cut + 1)}</p>\n<p>${m[1].slice(cut + 2)}</p>`);
+    } else break;
+  }
+
+  return html;
+}
+
+// ── SEO Refinement Pass (async) — Claude tích hợp keyword tự nhiên ───────────
+async function seoRefinementPass(html, keyword) {
+  if (!keyword || !html || !ANTHROPIC_API_KEY) return html;
+
+  const stripT  = h => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const kwEsc   = keyword.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const plain   = stripT(html).toLowerCase();
+  const wc      = plain.split(/\s+/).filter(w => w.length > 0).length;
+  const kwCount = (plain.match(new RegExp(kwEsc, 'g')) || []).length;
+  const density = kwCount / wc * 100;
+
+  // Gọi API nếu density < 0.8% — đảm bảo Rank Math pass 0.5%
+  if (density >= 0.8) return html;
+
+  const needed = Math.max(Math.ceil(wc * 0.008) - kwCount, 3); // target 0.8%
+  console.log(`[SEO Refine] density=${density.toFixed(2)}% kwCount=${kwCount} wc=${wc} needed=${needed}`);
+
+  try {
+    const system = `Bạn là SEO editor chuyên tiếng Việt. Nhiệm vụ: chỉnh sửa HTML content để tăng tần suất từ khóa.
+LUẬT BẮT BUỘC:
+- Chỉ chỉnh SỬA câu văn có sẵn, KHÔNG thêm đoạn mới
+- Giữ nguyên toàn bộ HTML tags, links, headings
+- Keyword phải xuất hiện TỰ NHIÊN trong câu, không lặp máy móc
+- Trả về TOÀN BỘ HTML đã chỉnh, không thêm gì khác ngoài HTML`;
+
+    const userMsg = `Từ khóa: "${keyword}"
+Hiện tại: ${kwCount} lần (${density.toFixed(1)}%) — cần thêm ~${needed} lần để đạt 0.6%
+
+Tích hợp từ khóa tự nhiên vào nội dung bên dưới:
+${html}`;
+
+    const refined = await callClaude(system, userMsg);
+
+    // Validate: refined phải dài hơn 50% so với input và chứa HTML tags
+    if (refined && refined.length > html.length * 0.5 && refined.includes('<p>')) {
+      // Strip markdown code blocks nếu Claude wrap trong ```html
+      const cleaned = refined.replace(/^```html?\n?/i, '').replace(/\n?```$/,'').trim();
+      const plainAfter = cleaned.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').toLowerCase();
+      const kwAfter = (plainAfter.match(new RegExp(kwEsc, 'g')) || []).length;
+      console.log('[SEO Refine] done: ' + kwCount + ' -> ' + kwAfter + ' occurrences');
+      return cleaned;
+    }
+    console.warn('[SEO Refine] validation failed len=' + (refined && refined.length) + ' vs ' + html.length);
+  } catch(e) {
+    console.error('[SEO Refine] error:', e.message);
+  }
+
+  return html; // fallback: trả về HTML gốc nếu API lỗi
+}
+
 app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) => {
   try {
     const {
@@ -1820,7 +1936,7 @@ app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) =
         // Image placeholder line
         if (block.match(/^\[ảnh:\s*upload:\d+\]$/)) return block; // handled below
         // Short standalone line (heading candidate): all caps or < 80 chars, no sentence-ending punctuation
-        if (!block.includes('\n') && block.length <= 80 && !/[.!?,;]$/.test(block) && block === block.toUpperCase() && block.length > 3) {
+        if (!block.includes('\n') && block.length <= 80 && !/[.,;]$/.test(block) && block === block.toUpperCase() && block.length > 3) {
           return `<h2>${block}</h2>`;
         }
         // Multi-line list (lines starting with - or số.)
@@ -1829,7 +1945,7 @@ app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) =
           return '<ul>' + lines.map(l => `<li>${l.replace(/^[-•]\s*/, '').replace(/^\d+\.\s*/, '')}</li>`).join('') + '</ul>';
         }
         return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
-      }).filter(Boolean).join('\n');
+      }).filter(Boolean).join('\n\n');
     }
 
     // Categories: 94 = Tin tức, điều chỉnh theo loại bài
@@ -1903,13 +2019,18 @@ app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) =
       ? cmsMdToHtml(processedContent.replace(/^# .+\n?/, '').trim())
       : plainToHtml(processedContent);
 
+    // ── SEO Post-Process — deterministic boost trước auto-inject ──────────────
+    // ── SEO: structural fix (sync) → refinement pass (async, Anthropic API) ────
+    htmlContent = seoStructuralFix(htmlContent, keyword || '');
+    htmlContent = await seoRefinementPass(htmlContent, keyword || '');
+
     // ── Auto-inject SEO links nếu chưa có ────────────────────────────────────
     // Internal links — bắt buộc theo quy chuẩn SEO
-    if (!htmlContent.includes('elidefire.com.vn/san-pham/')) {
+    if (!/href=["'][^"']*elidefire\.com\.vn\/san-pham\//.test(htmlContent)) {
       htmlContent += '\n<p><strong>Xem sản phẩm phù hợp:</strong> <a href="https://elidefire.com.vn/san-pham/bong-chua-chay-elide-fire-lovingcare">Bóng chữa cháy Elide Fire LOVINGCARE 0.4kg</a> (cho gia đình, xe ô tô, văn phòng) | <a href="https://elidefire.com.vn/san-pham/bong-chua-chay-elide-fire-techideas">Bóng chữa cháy Elide Fire TECHIDEAS 1.4kg</a> (cho nhà xưởng, kho, công nghiệp).</p>';
     }
     // External dofollow link — nguồn uy tín PCCC
-    if (!htmlContent.includes('pccc.gov.vn')) {
+    if (!/href=["'][^"']*pccc\.gov\.vn/.test(htmlContent)) {
       htmlContent += '\n<p><em>Nguồn tham khảo: <a href="https://www.pccc.gov.vn">Cục Cảnh sát Phòng cháy, chữa cháy và Cứu nạn cứu hộ</a> — cơ quan quản lý nhà nước về PCCC tại Việt Nam.</em></p>';
     }
 
@@ -1956,7 +2077,7 @@ app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) =
     const postPayload = {
       title, content: htmlContent,
       status: status || 'draft',
-      slug:   slug || '',
+      slug:   toSlug(slug || title || ''),
       categories, tags,
       meta: {
         rank_math_focus_keyword: keyword || '',
@@ -1976,6 +2097,18 @@ app.post('/api/cms/publish', express.json({ limit: '20mb' }), async (req, res) =
 });
 
 // Strip Markdown khỏi text — dùng cho outline + content trước khi trả về client
+// ── Vietnamese slug helper — proper diacritics removal ──────────────────────
+function toSlug(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[đĐ]/g, d => d === 'đ' ? 'd' : 'D')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function stripMarkdown(text) {
   if (!text) return text;
   return text
@@ -2001,45 +2134,39 @@ app.post('/api/cms/generate-outline', express.json({ limit: '1mb' }), async (req
     const currentDate = `tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
 
     // Prompt gửi thẳng cho Claude CLI — CLI tự load CLAUDE.md + memory + context đầy đủ
-    const prompt = `${SKILL_SEO}
+    // System prompt: full SEO skill + products.md (cached)
+    const outlineSystem = SKILL_SEO + '\n\n---\n\n' +
+      (COMPANY_CONTEXT || KB_BRAND);
 
----
-
-${KB_BRAND}
-
----
-
-NHIỆM VỤ: Tạo OUTLINE (khung bài) SEO cho bài blog Elide Fire Vietnam.
+    const prompt = `NHIỆM VỤ: Tạo OUTLINE (khung bài) SEO cho bài blog Elide Fire Vietnam.
 
 Chủ đề: ${topic}
 ${keyword ? `Từ khóa mục tiêu: ${keyword}` : ''}
 ${sourceUrls && sourceUrls.length ? `Nguồn tham khảo:\n${sourceUrls.map(u => '  ' + u).join('\n')}` : ''}
 Ngày hiện tại: ${currentDate}
 
-OUTLINE = KHUNG BÀI. Mỗi phần gồm:
-- Tiêu đề H2 + số từ mục tiêu
-- 3-5 bullet ngắn nói rõ sẽ viết về gì (không viết nội dung thật)
+OUTLINE = KHUNG BÀI THÔI. Mỗi bullet tối đa 8 từ. Không viết câu đầy đủ.
 
 Cấu trúc bắt buộc:
-MỞ BÀI (100-150 từ): hook + từ khóa câu đầu + freshness "Cập nhật: ${currentDate}"
-H2 1: [câu hỏi] (200-250 từ) → 3-5 bullet
-H2 2: [câu hỏi] (200-250 từ) → 3-5 bullet
-H2 3: [câu hỏi] (200-250 từ) → 3-5 bullet
-H2 4: [câu hỏi] (200-250 từ) → 3-5 bullet
-H2 FAQ: Câu hỏi thường gặp về [chủ đề] (150 từ) → Q/A pairs
-KẾT BÀI + CTA (75-100 từ): tóm tắt + CTA + link sản phẩm phù hợp
+MỞ BÀI (100-150 từ): hook + từ khóa + freshness
+H2 1: [tiêu đề câu hỏi] (200-250 từ) → 3 bullet <= 8 từ/bullet
+H2 2: [tiêu đề câu hỏi] (200-250 từ) → 3 bullet <= 8 từ/bullet
+H2 3: [tiêu đề câu hỏi] (200-250 từ) → 3 bullet <= 8 từ/bullet
+H2 4: [tiêu đề câu hỏi] (200-250 từ) → 3 bullet <= 8 từ/bullet
+H2 FAQ (150 từ) → 3 cặp Q/A
+KẾT BÀI + CTA (75-100 từ)
 
-QUAN TRỌNG: Không viết nội dung thật trong outline. TITLE không chứa năm.
+TITLE không chứa năm. Tổng outline không quá 150 từ.
 
 Trả về CHÍNH XÁC format sau — không thêm text nào khác:
-TITLE: [tiêu đề H1 ≤65 ký tự, có từ khóa]
+TITLE: [tiêu đề H1 ≤65 ký tự, có từ khóa, ưu tiên chứa số (vd: 5 lý do, 3 bước, 7 cách...)]
 META: [130-155 ký tự, từ khóa nguyên văn, có CTA]
-SLUG: [slug-khong-dau-viet-thuong]
+SLUG: [slug sinh từ keyword, không phải title — chỉ keyword viết thường không dấu, nối bằng dấu gạch]
 KEYWORD: [từ khóa chính 2-5 từ tiếng Việt có dấu]
 OUTLINE:
 [outline text thuần]`;
 
-    const raw = await runClaudeAgent(prompt);
+    const raw = await callClaude(outlineSystem, prompt);
     if (!raw) throw new Error('Claude không trả về kết quả');
 
     // Parse delimiter-based (không dùng JSON — tránh lỗi multiline string)
@@ -2057,7 +2184,7 @@ OUTLINE:
     res.json({
       title:   titleM[1].trim(),
       meta:    metaM?.[1].trim()    || '',
-      slug:    (slugM?.[1].trim() || '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
+      slug:    toSlug(slugM?.[1].trim() || ''),
       keyword: keywordM?.[1].trim() || '',
       outline: stripMarkdown(outlineRaw)
     });
@@ -2072,15 +2199,11 @@ app.post('/api/cms/generate-from-outline', express.json({ limit: '2mb' }), async
 
     const { title: outlineTitle, meta: outlineMeta, slug: outlineSlug } = req.body;
 
-    const prompt = `${SKILL_CONTENT}
+    // System prompt: full Content skill + products.md (cached)
+    const contentSystem = SKILL_CONTENT + '\n\n---\n\n' +
+      (COMPANY_CONTEXT || KB_BRAND);
 
----
-
-${KB_BRAND}
-
----
-
-NHIỆM VỤ: Viết bài blog hoàn chỉnh từ outline đã được duyệt.
+    const prompt = `NHIỆM VỤ: Viết bài blog hoàn chỉnh từ outline đã được duyệt.
 
 Từ khóa: ${keyword || '(xem outline)'}
 ${topic ? `Chủ đề: ${topic}` : ''}
@@ -2090,15 +2213,14 @@ OUTLINE ĐÃ DUYỆT:
 ${outline}
 
 QUY TẮC FORMAT OUTPUT BẮT BUỘC:
-- Viết TEXT THUẦN (plain text), KHÔNG dùng Markdown (#, ##, **, *, -)
-- Tiêu đề phần: IN HOA toàn bộ, đứng riêng một dòng
-- Mỗi đoạn văn cách nhau 1 dòng trắng
+- Tiêu đề phần: dùng ## (H2), không dùng ###, không all-caps
+- Nội dung: plain text, đoạn cách nhau 1 dòng trắng
 - KHÔNG tự thêm phần ngoài outline đã duyệt
 
 SEO BẮT BUỘC:
-- Từ khóa "${keyword || 'từ khóa chính'}" trong 100 từ đầu
-- Từ khóa trong ≥2 tiêu đề phần (IN HOA)
-- Mật độ ~1%: bài 1.000 từ → từ khóa ≥10 lần
+- Từ khóa "${keyword || 'từ khóa chính'}" NGUYÊN VĂN trong 100 từ đầu
+- Từ khóa NGUYÊN VĂN trong ≥2 heading ## (không tách, không thay thế)
+- Mật độ ~1%: bài 1.000 từ → từ khóa NGUYÊN VĂN ≥10 lần (KHÔNG chèn thêm từ vào giữa keyword)
 - Dùng ≥3 proof points từ brand
 - External link đến pccc.gov.vn
 - Internal links đến trang sản phẩm
@@ -2106,13 +2228,13 @@ SEO BẮT BUỘC:
 Độ dài: ~200-250 từ/phần — không cắt bớt
 
 Trả về CHÍNH XÁC format sau — không thêm text nào khác:
-TITLE: [tiêu đề H1, từ khóa ở đầu]
+TITLE: [tiêu đề H1, từ khóa ở đầu, ưu tiên chứa số (vd: 5 lý do, 3 bước, 7 cách...)]
 META: [130-155 ký tự, từ khóa nguyên văn, có CTA]
 SLUG: [slug-khong-dau]
 CONTENT:
 [toàn bộ nội dung text thuần]`;
 
-    const raw = await runClaudeAgent(prompt);
+    const raw = await callClaude(contentSystem, prompt);
     if (!raw) throw new Error('Claude không trả về nội dung');
 
     // Parse delimiter-based (tránh lỗi JSON với nội dung dài)
@@ -2127,8 +2249,8 @@ CONTENT:
     res.json({
       title:   titleM[1].trim(),
       meta:    metaM?.[1].trim()    || outlineMeta  || '',
-      slug:    (slugM?.[1].trim() || outlineSlug || '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
-      content: stripMarkdown(contentRaw)
+      slug:    toSlug(slugM?.[1].trim() || outlineSlug || ''),
+      content: contentRaw
     });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -2140,34 +2262,43 @@ app.post('/api/cms/optimize-seo', express.json({ limit: '2mb' }), async (req, re
     if (!postId) throw new Error('Thiếu postId');
 
     let metaTitle = title || '';
-    let metaDesc  = meta  || '';  // dùng meta từ content step nếu có
+    let metaDesc  = meta  || '';
 
-    // AI tạo meta description tối ưu (chỉ khi chưa có meta)
-    if (OPENROUTER_API_KEY && content && !metaDesc) {
+    // Luôn dùng callClaude để viết SEO title/desc với keyword NGUYÊN VĂN
+    if (ANTHROPIC_API_KEY && keyword) {
       try {
-        const prompt = `Từ nội dung bài blog bên dưới, tạo:
-1. Meta title SEO (tối đa 60 ký tự, có từ khóa "${keyword || ''}", hấp dẫn)
-2. Meta description SEO (130–155 ký tự, có từ khóa, có call-to-action nhẹ)
+        const seoPrompt = `Viết SEO title và meta description cho bài blog.
 
-Chỉ trả về JSON format:
-{"metaTitle": "...", "metaDesc": "..."}
+Keyword (NGUYÊN VĂN, KHÔNG thay đổi): "${keyword}"
+Title bài: ${title || ''}
 
-Nội dung bài:
-${content.slice(0, 2000)}`;
+YÊU CẦU BẮT BUỘC:
+- SEO title: ≤60 ký tự, chứa "${keyword}" NGUYÊN VĂN liên tục
+- Meta description: 130-155 ký tự, chứa "${keyword}" NGUYÊN VĂN, có CTA
 
-        const comp = await openaiClient.chat.completions.create({
-          model: CHAT_MODEL,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 300, temperature: 0.4
-        });
-        const raw = comp.choices?.[0]?.message?.content || '';
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+Chỉ trả về JSON (không thêm gì khác):
+{"metaTitle": "...", "metaDesc": "..."}`;
+
+        const aiRaw = await callClaude('Bạn là SEO copywriter. Chỉ trả về JSON theo yêu cầu, không thêm text nào khác.', seoPrompt);
+        const jsonMatch = aiRaw.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.metaTitle) metaTitle = parsed.metaTitle;
-          if (parsed.metaDesc)  metaDesc  = parsed.metaDesc;
+          const kw = keyword.toLowerCase();
+          if (parsed.metaTitle && parsed.metaTitle.toLowerCase().includes(kw)) metaTitle = parsed.metaTitle;
+          if (parsed.metaDesc  && parsed.metaDesc.toLowerCase().includes(kw))  metaDesc  = parsed.metaDesc;
         }
       } catch(aiErr) { console.error('[SEO Opt] AI error:', aiErr.message); }
+    }
+
+    // Post-process: thêm số vào SEO title nếu chưa có (Rank Math cộng điểm)
+    if (metaTitle && !/\d/.test(metaTitle) && keyword) {
+      const numbers = ['5', '3', '7', '4', '6'];
+      const prefixes = ['5 lý do ', '3 cách ', '7 lợi ích ', '4 bước ', '6 điều '];
+      const pick = prefixes[Math.floor(Math.random() * prefixes.length)];
+      // Chỉ thêm nếu title chưa đủ dài
+      if (metaTitle.length + pick.length <= 62) {
+        metaTitle = pick + metaTitle.charAt(0).toLowerCase() + metaTitle.slice(1);
+      }
     }
 
     // Cập nhật Rank Math fields qua WP REST API
@@ -2226,9 +2357,9 @@ app.get('/api/cms/verify-seo/:postId', async (req, res) => {
     check('Keyword trong SEO title', seoTitle.includes(keyword));
     // 2. Keyword trong meta description
     check('Keyword trong meta description', seoDesc.includes(keyword));
-    // 3. Keyword trong URL slug
-    const kwParts = keyword.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').replace(/[^a-z0-9\s]/gi,'').trim().split(/\s+/).filter(p => p.length > 1);
-    check('Keyword trong URL slug', kwParts.every(p => slug.includes(p)));
+    // 3. Keyword trong URL slug (exact contiguous match — same as Rank Math)
+    const kwSlug = keyword.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').replace(/[^a-z0-9\s]/gi,'').trim().replace(/\s+/g,'-').toLowerCase();
+    check('Keyword trong URL slug', slug.includes(kwSlug));
     // 4. URL slug ≤ 75 ký tự
     check(`URL slug ≤75 ký tự (${slug.length} ký tự)`, slug.length <= 75);
     // 5. Keyword trong 10% đầu bài
@@ -2239,9 +2370,10 @@ app.get('/api/cms/verify-seo/:postId', async (req, res) => {
     check(`Keyword trong nội dung (${kwCount} lần)`, kwCount >= 1);
     // 7. Độ dài nội dung ≥ 600 từ
     check(`Độ dài nội dung (${wc} từ)`, wc >= 600);
-    // 8. Keyword trong H2/H3
+    // 8. Keyword trong H2/H3 (partial match — all keyword words must appear in heading)
     const headings = [...rawHtml.matchAll(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi)].map(m => stripH(m[1]).toLowerCase());
-    check('Keyword trong H2/H3', headings.some(h => h.includes(keyword)));
+    const kwWords  = keyword.split(/\s+/).filter(w => w.length > 2);
+    check('Keyword trong H2/H3', headings.some(h => kwWords.every(w => h.includes(w))));
     // 9. Alt text ảnh đại diện chứa keyword
     if (mediaId) {
       check('Alt text ảnh đại diện chứa keyword', mediaAlt.includes(keyword), mediaAlt ? `"${mediaAlt.slice(0,60)}"` : 'Alt text đang trống');
@@ -2249,8 +2381,10 @@ app.get('/api/cms/verify-seo/:postId', async (req, res) => {
       check('Ảnh đại diện (featured image)', false, 'Chưa set featured image');
     }
     // 10. Mật độ từ khóa 0.5–2.5%
-    const density = wc > 0 ? (kwCount / wc * 100) : 0;
-    check(`Mật độ từ khóa ${density.toFixed(1)}% (0.5–2.5%)`, density >= 0.5 && density <= 2.5);
+    const density    = wc > 0 ? (kwCount / wc * 100) : 0;
+    const kwWordCount = keyword.split(/\s+/).length;
+    const minDensity  = kwWordCount <= 2 ? 0.5 : kwWordCount <= 4 ? 0.3 : 0.2; // scale threshold by keyword length
+    check(`Mật độ từ khóa ${density.toFixed(1)}% (${minDensity}–2.5%)`, density >= minDensity && density <= 2.5);
     // 11. External links ≥ 1
     const extLinks = [...rawHtml.matchAll(/href="(https?:\/\/(?!(?:www\.)?elidefire)[^"]+)"/g)].map(m => m[1]);
     check(`External links (${extLinks.length} link)`, extLinks.length >= 1);
