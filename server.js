@@ -115,7 +115,7 @@ if (!KB_BRAND)      console.warn('⚠️  products.md trống — AI sẽ thiế
 // Cảnh báo sớm nếu thiếu biến bắt buộc
 if (!NOCODB_TOKEN) console.warn('⚠️  NOCODB_TOKEN chưa được set — NocoDB calls sẽ thất bại');
 
-const CONTRACT_TEMPLATE = path.join(__dirname, 'templates', 'contract-template.docx');
+const CONTRACT_TEMPLATE = path.join(__dirname, 'templates', 'contract-template-v2.docx');
 
 // Job queue
 const jobs = {};
