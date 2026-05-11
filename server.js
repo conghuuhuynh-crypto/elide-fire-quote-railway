@@ -601,14 +601,14 @@ app.get('/api/employees', (req, res) => {
 
 // API sản phẩm
 app.get('/api/products', (req, res) => {
-  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_SP}?limit=200&sort=Id`, res);
+  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_SP}?limit=200`, res);
 });
 
 // API danh sách báo giá cũ (để nạp lại form)
 app.get('/api/quotes', (req, res) => {
   const search = (req.query.search || '').trim();
   const limit  = Math.min(parseInt(req.query.limit) || 30, 50);
-  let qs = `limit=${limit}&sort=-Id`;
+  let qs = `limit=${limit}&sort=-so_bao_gia`;
   if (search) {
     const s = encodeURIComponent(search);
     qs += `&where=(Ten_cong_ty,like,%25${s}%25)~or(So_bao_gia,like,%25${s}%25)`;
@@ -828,7 +828,7 @@ app.get('/api/contracts', (req, res) => {
   if (!TABLE_HD) return res.json([]);
   const search = (req.query.search || '').trim();
   const limit  = Math.min(parseInt(req.query.limit) || 30, 50);
-  let qs = `limit=${limit}&sort=-Id`;
+  let qs = `limit=${limit}&sort=-so_hop_dong`;
   if (search) {
     const s = encodeURIComponent(search);
     qs += `&where=(Ten_cong_ty,like,%25${s}%25)~or(So_hop_dong,like,%25${s}%25)`;
@@ -1236,7 +1236,7 @@ async function executeTool(name, args) {
   const queryNoco = (tableId, search, searchFields, exactFields, limit) => new Promise(resolve => {
     try {
       const lim = Math.min(limit || 20, 50);
-      let qs = `limit=${lim}&sort=-Id`;
+      let qs = `limit=${lim}&sort=-so_bao_gia`;
       if (search) {
         const s = encodeURIComponent(search.trim()); // encode mọi ký tự kể cả tiếng Việt
         const conds = searchFields.map(f => {
