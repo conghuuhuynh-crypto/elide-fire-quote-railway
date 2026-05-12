@@ -564,9 +564,9 @@ app.get('/admin/schema', async (req, res) => {
 
   // Field names bot đang dùng (hardcoded trong formatToolResult + system prompt)
   const botConfig = {
-    Bao_gia:   ['So_bao_gia','Ngay_bao_gia','Phien_ban','Ten_cong_ty','Ten_du_an','Nguoi_lien_he','SDT_khach_hang','Email_khach_hang','Phong_ban_KH','SL_Techideas','DonGia_Techideas','ThanhTien_Techideas','SL_Lovingcare','DonGia_Lovingcare','ThanhTien_Lovingcare','CK_Tong_don','Tong_thanh_toan','NV_ten','NV_bo_phan','NV_sdt','NV_email'],
-    Hop_dong:  ['So_hop_dong','Ten_cong_ty','Ngay_ky','Nguoi_dai_dien','Chuc_vu','Dia_chi','Ma_so_thue','So_tai_khoan','Mo_ta_san_pham','So_luong','Don_gia','Tong_gia_tri','Thoi_gian_giao_hang','Dia_diem_giao_hang','NV_ten','NV_bo_phan','NV_sdt','NV_email'],
-    Nhan_vien: ['Ten_nhan_vien','Bo_phan','So_dien_thoai','Email'],
+    Bao_gia:   ['so_bao_gia','ngay_bao_gia','phien_ban','ten_cong_ty','ten_du_an','nguoi_lien_he','sdt_khach_hang','email_khach_hang','phong_ban_kh','sl_techideas','dongia_techideas','thanhtien_techideas','sl_lovingcare','dongia_lovingcare','thanhtien_lovingcare','ck_tong_don','tong_thanh_toan','nv_ten','nv_bo_phan','nv_sdt','nv_email'],
+    Hop_dong:  ['so_hop_dong','ten_cong_ty','ngay_ky','nguoi_dai_dien','chuc_vu','dia_chi','ma_so_thue','so_tai_khoan','mo_ta_san_pham','so_luong','don_gia','tong_gia_tri','thoi_gian_giao_hang','dia_diem_giao_hang','nv_ten','nv_bo_phan','nv_sdt','nv_email'],
+    Nhan_vien: ['ten_nhan_vien','bo_phan','so_dien_thoai','email'],
   };
 
   const diff = (actual, expected) => ({
@@ -611,7 +611,7 @@ app.get('/api/quotes', (req, res) => {
   let qs = `limit=${limit}&sort=-so_bao_gia`;
   if (search) {
     const s = encodeURIComponent(search);
-    qs += `&where=(Ten_cong_ty,like,%25${s}%25)~or(So_bao_gia,like,%25${s}%25)`;
+    qs += `&where=(ten_cong_ty,like,%25${s}%25)~or(so_bao_gia,like,%25${s}%25)`;
   }
   nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}?${qs}`, res);
 });
@@ -784,22 +784,22 @@ async function runJob(jobId, b) {
       (parseFloat(it.so_luong)||0) * (parseFloat(it.don_gia)||0) * (1 - (parseFloat(it.chiet_khau)||0)/100);
 
     const record = {
-      So_bao_gia: b.so_bao_gia || '', Ngay_bao_gia: b.ngay_bao_gia || '',
-      Phien_ban: b.phien_ban || '', Ten_du_an: b.ten_du_an || '',
-      Ten_cong_ty: b.ten_cong_ty || '', Phong_ban_KH: b.ten_phong_ban || '',
-      Nguoi_lien_he: b.ten_nguoi_lien_he || '', SDT_khach_hang: b.sdt_khach_hang || '',
-      Email_khach_hang: b.email_khach_hang || '', NV_bo_phan: b.nv_bo_phan || '',
-      NV_ten: b.nv_ten || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
-      CK_Tong_don: ckTong, Tong_thanh_toan: total,
+      so_bao_gia: b.so_bao_gia || '', ngay_bao_gia: b.ngay_bao_gia || '',
+      phien_ban: b.phien_ban || '', ten_du_an: b.ten_du_an || '',
+      ten_cong_ty: b.ten_cong_ty || '', phong_ban_kh: b.ten_phong_ban || '',
+      nguoi_lien_he: b.ten_nguoi_lien_he || '', sdt_khach_hang: b.sdt_khach_hang || '',
+      email_khach_hang: b.email_khach_hang || '', nv_bo_phan: b.nv_bo_phan || '',
+      nv_ten: b.nv_ten || '', nv_email: b.nv_email || '', nv_sdt: b.nv_sdt || '',
+      ck_tong_don: ckTong, tong_thanh_toan: total,
       Items: JSON.stringify(validItems),
-      SL_Techideas:        itTech ? parseFloat(itTech.so_luong)    || 0 : 0,
-      DonGia_Techideas:    itTech ? parseFloat(itTech.don_gia)     || 0 : 0,
-      CK_Techideas:        itTech ? parseFloat(itTech.chiet_khau)  || 0 : 0,
-      ThanhTien_Techideas: itTech ? calcTT(itTech) : 0,
-      SL_Lovingcare:        itLove ? parseFloat(itLove.so_luong)   || 0 : 0,
-      DonGia_Lovingcare:    itLove ? parseFloat(itLove.don_gia)    || 0 : 0,
-      CK_Lovingcare:        itLove ? parseFloat(itLove.chiet_khau) || 0 : 0,
-      ThanhTien_Lovingcare: itLove ? calcTT(itLove) : 0,
+      sl_techideas:        itTech ? parseFloat(itTech.so_luong)    || 0 : 0,
+      dongia_techideas:    itTech ? parseFloat(itTech.don_gia)     || 0 : 0,
+      ck_techideas:        itTech ? parseFloat(itTech.chiet_khau)  || 0 : 0,
+      thanhtien_techideas: itTech ? calcTT(itTech) : 0,
+      sl_lovingcare:        itLove ? parseFloat(itLove.so_luong)   || 0 : 0,
+      dongia_lovingcare:    itLove ? parseFloat(itLove.don_gia)    || 0 : 0,
+      ck_lovingcare:        itLove ? parseFloat(itLove.chiet_khau) || 0 : 0,
+      thanhtien_lovingcare: itLove ? calcTT(itLove) : 0,
     };
     Promise.resolve()
       .then(() => uploadPdfToNocoDB(finalPath, finalName))
@@ -831,7 +831,7 @@ app.get('/api/contracts', (req, res) => {
   let qs = `limit=${limit}&sort=-so_hop_dong`;
   if (search) {
     const s = encodeURIComponent(search);
-    qs += `&where=(Ten_cong_ty,like,%25${s}%25)~or(So_hop_dong,like,%25${s}%25)`;
+    qs += `&where=(ten_cong_ty,like,%25${s}%25)~or(so_hop_dong,like,%25${s}%25)`;
   }
   nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_HD}?${qs}`, res);
 });
@@ -946,17 +946,17 @@ async function runContractJob(jobId, b) {
     // Lưu NocoDB nếu có table ID
     if (TABLE_HD) {
       const record = {
-        So_hop_dong: b.so_hop_dong || '', Ngay_ky: b.ngay_ky_hop_dong || '',
-        Ten_cong_ty: b.ten_cong_ty || '', Dia_chi: b.dia_chi || '',
-        Ma_so_thue: b.ma_so_thue || '', So_tai_khoan: b.so_tai_khoan_ngan_hang || '',
-        Nguoi_dai_dien: b.ten_nguoi_dai_dien || '', Chuc_vu: b.chuc_vu || '',
-        NV_ten: b.nv_ten || '', NV_bo_phan: b.nv_bo_phan || '', NV_email: b.nv_email || '', NV_sdt: b.nv_sdt || '',
-        Mo_ta_san_pham: moTa, So_luong: soLuongSum,
-        Don_gia: items.length === 1 ? (parseFloat((firstItem.don_gia||'').toString().replace(/\./g,'').replace(/,/g,'.')) || 0) : 0,
+        so_hop_dong: b.so_hop_dong || '', ngay_ky: b.ngay_ky_hop_dong || '',
+        ten_cong_ty: b.ten_cong_ty || '', dia_chi: b.dia_chi || '',
+        ma_so_thue: b.ma_so_thue || '', so_tai_khoan: b.so_tai_khoan_ngan_hang || '',
+        nguoi_dai_dien: b.ten_nguoi_dai_dien || '', chuc_vu: b.chuc_vu || '',
+        nv_ten: b.nv_ten || '', nv_bo_phan: b.nv_bo_phan || '', nv_email: b.nv_email || '', nv_sdt: b.nv_sdt || '',
+        mo_ta_san_pham: moTa, so_luong: soLuongSum,
+        don_gia: items.length === 1 ? (parseFloat((firstItem.don_gia||'').toString().replace(/\./g,'').replace(/,/g,'.')) || 0) : 0,
         Items: JSON.stringify(items),
-        Tong_gia_tri: tongHD,
-        Thoi_gian_giao_hang: b.thoi_gian_giao_hang || '',
-        Dia_diem_giao_hang: b.dia_diem_giao_hang || '',
+        tong_gia_tri: tongHD,
+        thoi_gian_giao_hang: b.thoi_gian_giao_hang || '',
+        dia_diem_giao_hang: b.dia_diem_giao_hang || '',
       };
       Promise.resolve()
         .then(() => uploadPdfToNocoDB(outPdf, `${soSlug}.pdf`))
@@ -1261,8 +1261,8 @@ async function executeTool(name, args) {
     }
   });
 
-  if (name === 'query_quotes')    return queryNoco(TABLE_BG, args.search, ['Ten_cong_ty','So_bao_gia'], ['So_bao_gia'], args.limit);
-  if (name === 'query_contracts') return queryNoco(TABLE_HD, args.search, ['Ten_cong_ty','So_hop_dong'], ['So_hop_dong'], args.limit);
+  if (name === 'query_quotes')    return queryNoco(TABLE_BG, args.search, ['ten_cong_ty','so_bao_gia'], ['so_bao_gia'], args.limit);
+  if (name === 'query_contracts') return queryNoco(TABLE_HD, args.search, ['ten_cong_ty','so_hop_dong'], ['so_hop_dong'], args.limit);
   if (name === 'query_employees') return queryNoco(TABLE_NV, '', [], [], 50);
   // Client-side actions: chỉ cần acknowledge
   if (['prefill_quote_form','prefill_contract_form','switch_tab'].includes(name)) return { success: true };
@@ -1287,10 +1287,10 @@ function formatToolResult(toolName, result) {
   if (toolName === 'query_employees') {
     const clean = (Array.isArray(result) ? result : [result]).map(r => ({
       Id:             r.Id,
-      Ten_nhan_vien:  r.Ten_nhan_vien || null,
-      Bo_phan:        r.Bo_phan       || null,
-      Email:          r.Email         || null,
-      SDT:            r.So_dien_thoai || r.SDT || null  // So_dien_thoai là field thực tế trong NocoDB
+      Ten_nhan_vien:  r.ten_nhan_vien || null,
+      Bo_phan:        r.bo_phan       || null,
+      Email:          r.email         || null,
+      SDT:            r.so_dien_thoai || null,
     }));
     return `DANH SÁCH NHÂN VIÊN (${clean.length} người):\n` +
       clean.map(r => `- Id=${r.Id} | Tên: ${r.Ten_nhan_vien || 'N/A'} | Bộ phận: ${r.Bo_phan || 'N/A'} | SDT: ${r.SDT || 'không có'} | Email: ${r.Email || 'không có'}`).join('\n') +
@@ -1301,27 +1301,27 @@ function formatToolResult(toolName, result) {
   if (toolName === 'query_quotes') {
     const list = Array.isArray(result) ? result : [result];
     const clean = list.map(r => ({
-      So_bao_gia:          r.So_bao_gia          || null,
-      Ngay_bao_gia:        r.Ngay_bao_gia        || null,
-      Phien_ban:           r.Phien_ban           || null,
-      Ten_cong_ty:         r.Ten_cong_ty         || null,
-      Ten_du_an:           r.Ten_du_an           || null,
-      Nguoi_lien_he:       r.Nguoi_lien_he       || null,
-      SDT_khach_hang:      r.SDT_khach_hang      || null,
-      Email_khach_hang:    r.Email_khach_hang    || null,
-      Phong_ban_KH:        r.Phong_ban_KH        || null,
-      SL_Techideas:        r.SL_Techideas        || null,
-      DonGia_Techideas:    r.DonGia_Techideas    || null,
-      ThanhTien_Techideas: r.ThanhTien_Techideas || null,
-      SL_Lovingcare:       r.SL_Lovingcare       || null,
-      DonGia_Lovingcare:   r.DonGia_Lovingcare   || null,
-      ThanhTien_Lovingcare:r.ThanhTien_Lovingcare|| null,
-      CK_Tong_don:         r.CK_Tong_don         || null,
-      Tong_thanh_toan:     r.Tong_thanh_toan     || null,
-      NV_ten:              r.NV_ten              || null,
-      NV_bo_phan:          r.NV_bo_phan          || null,
-      NV_sdt:              r.NV_sdt              || null,
-      NV_email:            r.NV_email            || null,
+      So_bao_gia:          r.so_bao_gia          || null,
+      Ngay_bao_gia:        r.ngay_bao_gia        || null,
+      Phien_ban:           r.phien_ban           || null,
+      Ten_cong_ty:         r.ten_cong_ty         || null,
+      Ten_du_an:           r.ten_du_an           || null,
+      Nguoi_lien_he:       r.nguoi_lien_he       || null,
+      SDT_khach_hang:      r.sdt_khach_hang      || null,
+      Email_khach_hang:    r.email_khach_hang    || null,
+      Phong_ban_KH:        r.phong_ban_kh        || null,
+      SL_Techideas:        r.sl_techideas        || null,
+      DonGia_Techideas:    r.dongia_techideas    || null,
+      ThanhTien_Techideas: r.thanhtien_techideas || null,
+      SL_Lovingcare:       r.sl_lovingcare       || null,
+      DonGia_Lovingcare:   r.dongia_lovingcare   || null,
+      ThanhTien_Lovingcare:r.thanhtien_lovingcare|| null,
+      CK_Tong_don:         r.ck_tong_don         || null,
+      Tong_thanh_toan:     r.tong_thanh_toan     || null,
+      NV_ten:              r.nv_ten              || null,
+      NV_bo_phan:          r.nv_bo_phan          || null,
+      NV_sdt:              r.nv_sdt              || null,
+      NV_email:            r.nv_email            || null,
     }));
     return `KẾT QUẢ BÁO GIÁ (${clean.length} bản ghi):\n` +
       JSON.stringify(clean, null, 2) + STRICT;
@@ -1331,24 +1331,24 @@ function formatToolResult(toolName, result) {
   if (toolName === 'query_contracts') {
     const list = Array.isArray(result) ? result : [result];
     const clean = list.map(r => ({
-      So_hop_dong:         r.So_hop_dong         || null,
-      Ten_cong_ty:         r.Ten_cong_ty         || null,
-      Ngay_ky:             r.Ngay_ky             || null,
-      Nguoi_dai_dien:      r.Nguoi_dai_dien      || null,
-      Chuc_vu:             r.Chuc_vu             || null,
-      Dia_chi:             r.Dia_chi             || null,
-      Ma_so_thue:          r.Ma_so_thue          || null,
-      So_tai_khoan:        r.So_tai_khoan        || null,
-      Mo_ta_san_pham:      r.Mo_ta_san_pham      || null,
-      So_luong:            r.So_luong            || null,
-      Don_gia:             r.Don_gia             || null,
-      Tong_gia_tri:        r.Tong_gia_tri        || null,
-      Thoi_gian_giao_hang: r.Thoi_gian_giao_hang || null,
-      Dia_diem_giao_hang:  r.Dia_diem_giao_hang  || null,
-      NV_ten:              r.NV_ten              || null,
-      NV_bo_phan:          r.NV_bo_phan          || null,
-      NV_sdt:              r.NV_sdt              || null,
-      NV_email:            r.NV_email            || null,
+      So_hop_dong:         r.so_hop_dong         || null,
+      Ten_cong_ty:         r.ten_cong_ty         || null,
+      Ngay_ky:             r.ngay_ky             || null,
+      Nguoi_dai_dien:      r.nguoi_dai_dien      || null,
+      Chuc_vu:             r.chuc_vu             || null,
+      Dia_chi:             r.dia_chi             || null,
+      Ma_so_thue:          r.ma_so_thue          || null,
+      So_tai_khoan:        r.so_tai_khoan        || null,
+      Mo_ta_san_pham:      r.mo_ta_san_pham      || null,
+      So_luong:            r.so_luong            || null,
+      Don_gia:             r.don_gia             || null,
+      Tong_gia_tri:        r.tong_gia_tri        || null,
+      Thoi_gian_giao_hang: r.thoi_gian_giao_hang || null,
+      Dia_diem_giao_hang:  r.dia_diem_giao_hang  || null,
+      NV_ten:              r.nv_ten              || null,
+      NV_bo_phan:          r.nv_bo_phan          || null,
+      NV_sdt:              r.nv_sdt              || null,
+      NV_email:            r.nv_email            || null,
     }));
     return `KẾT QUẢ HỢP ĐỒNG (${clean.length} bản ghi):\n` +
       JSON.stringify(clean, null, 2) + STRICT;
@@ -1390,16 +1390,16 @@ QUY TẮC TOOL — BẮT BUỘC:
 - Mọi thông tin (SĐT, email, số tiền, tên...) CHỈ lấy từ kết quả tool. KHÔNG TỰ NGHĨ RA.
 - Hỏi SĐT/email/bộ phận nhân viên → gọi query_employees trước, so tên → trả đúng giá trị
 - Hỏi về báo giá/hợp đồng cụ thể → gọi query_quotes/query_contracts trước
-- Form có So_bao_gia hoặc So_hop_dong → CÓ THỂ đã lưu → gọi query để xác nhận, không tự kết luận
+- Form có so_bao_gia hoặc so_hop_dong → CÓ THỂ đã lưu → gọi query để xác nhận, không tự kết luận
 - Tool trả null → "không có dữ liệu". Tool trả rỗng → "Không tìm thấy trong hệ thống". KHÔNG suy diễn.
 
 == VÍ DỤ ĐÚNG / SAI ==
 
 [1] User hỏi SĐT nhân viên Huỳnh Công Hữu:
   ❌ SAI: Trả ngay "Số điện thoại là 0987654321"
-  ✅ ĐÚNG: Gọi query_employees → tìm Ten_nhan_vien = "Huỳnh Công Hữu" → đọc SDT → trả đúng
+  ✅ ĐÚNG: Gọi query_employees → tìm ten_nhan_vien = "Huỳnh Công Hữu" → đọc SDT → trả đúng
 
-[2] Form có So_bao_gia = "EF-2026-03-001", user hỏi "đã lưu chưa?":
+[2] Form có so_bao_gia = "EF-2026-03-001", user hỏi "đã lưu chưa?":
   ❌ SAI: Kết luận "Báo giá chưa được lưu" từ form context
   ✅ ĐÚNG: Gọi query_quotes search="EF-2026-03-001" → có kết quả → "Đã lưu", rỗng → "Không tìm thấy"
 
@@ -1413,7 +1413,7 @@ QUY TẮC TOOL — BẮT BUỘC:
 
 [5] User hỏi "báo giá của Công ty ABC giá trị bao nhiêu?":
   ❌ SAI: Bịa số tiền
-  ✅ ĐÚNG: Gọi query_quotes search="Công ty ABC" → đọc Tong_thanh_toan từ kết quả → trả lời
+  ✅ ĐÚNG: Gọi query_quotes search="Công ty ABC" → đọc tong_thanh_toan từ kết quả → trả lời
 
 == PREFILL FORM ==
 
@@ -1429,7 +1429,7 @@ Mapping params:
   Hợp đồng: ten_cong_ty | dia_chi | ma_so_thue | ten_nguoi_dai_dien | chuc_vu | so_hop_dong | nv_ten | items[]
   items[]: { model: "TECHIDEAS"|"LOVINGCARE", so_luong, don_gia }
 
-Nhân viên: BẮT BUỘC gọi query_employees trước → lấy Ten_nhan_vien chính xác → truyền vào nv_ten
+Nhân viên: BẮT BUỘC gọi query_employees trước → lấy ten_nhan_vien chính xác → truyền vào nv_ten
 
 == SẢN PHẨM ==
 - TECHIDEAS 1.4kg — 2.500.000đ — nhà xưởng, kho, nhà máy, tủ điện công nghiệp
@@ -1438,10 +1438,10 @@ Nhân viên: BẮT BUỘC gọi query_employees trước → lấy Ten_nhan_vien
 - Chứng nhận ISO 9001, CE, EN615. Eureka Gold, WIPO Gold.
 
 == SCHEMA ==
-BÁO GIÁ: So_bao_gia | Ngay_bao_gia | Phien_ban | Ten_cong_ty | Ten_du_an | Nguoi_lien_he | SDT_khach_hang | Email_khach_hang | Phong_ban_KH | SL_Techideas | DonGia_Techideas | ThanhTien_Techideas | SL_Lovingcare | DonGia_Lovingcare | ThanhTien_Lovingcare | CK_Tong_don | Tong_thanh_toan | NV_ten | NV_bo_phan | NV_sdt | NV_email
-HỢP ĐỒNG: So_hop_dong | Ten_cong_ty | Ngay_ky | Nguoi_dai_dien | Chuc_vu | Dia_chi | Ma_so_thue | So_tai_khoan | Mo_ta_san_pham | So_luong | Don_gia | Tong_gia_tri | Thoi_gian_giao_hang | Dia_diem_giao_hang | NV_ten | NV_bo_phan | NV_sdt | NV_email
-NHÂN VIÊN: Id | Ten_nhan_vien | Bo_phan | So_dien_thoai | Email
-  → NV_ten (báo giá/hợp đồng) = Ten_nhan_vien (nhân viên) — là cùng 1 người
+BÁO GIÁ: so_bao_gia | ngay_bao_gia | phien_ban | ten_cong_ty | ten_du_an | nguoi_lien_he | sdt_khach_hang | email_khach_hang | phong_ban_kh | sl_techideas | dongia_techideas | thanhtien_techideas | sl_lovingcare | dongia_lovingcare | thanhtien_lovingcare | ck_tong_don | tong_thanh_toan | nv_ten | nv_bo_phan | nv_sdt | nv_email
+HỢP ĐỒNG: so_hop_dong | ten_cong_ty | ngay_ky | nguoi_dai_dien | chuc_vu | dia_chi | ma_so_thue | so_tai_khoan | mo_ta_san_pham | so_luong | don_gia | tong_gia_tri | thoi_gian_giao_hang | dia_diem_giao_hang | nv_ten | nv_bo_phan | nv_sdt | nv_email
+NHÂN VIÊN: Id | ten_nhan_vien | bo_phan | so_dien_thoai | email
+  → nv_ten (báo giá/hợp đồng) = ten_nhan_vien (nhân viên) — là cùng 1 người
 
 == QUY TẮC TRẢ LỜI ==
 - Ngắn gọn — chỉ trả lời đúng điều được hỏi
