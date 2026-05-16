@@ -830,7 +830,7 @@ async function runJob(jobId, b) {
     };
     Promise.resolve()
       .then(() => uploadPdfToNocoDB(finalPath, finalName))
-      .then(att => { if (att) record.File_PDF = [att]; return saveQuoteToNocoDB(record); })
+      .then(att => { if (att) record.file_pdf = [att]; return saveQuoteToNocoDB(record); })
       .then(() => console.log('✅ NocoDB saved'))
       .catch(e => console.error('NocoDB error:', e.message));
   });
@@ -987,7 +987,7 @@ async function runContractJob(jobId, b) {
       };
       Promise.resolve()
         .then(() => uploadPdfToNocoDB(outPdf, `${soSlug}.pdf`))
-        .then(att => { if (att) record.File_PDF = [att]; return saveToNocoDB(TABLE_HD, record); })
+        .then(att => { if (att) record.file_pdf = [att]; return saveToNocoDB(TABLE_HD, record); })
         .catch(e => console.error('NocoDB contract error:', e.message));
     }
   });
