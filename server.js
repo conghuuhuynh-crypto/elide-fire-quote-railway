@@ -583,25 +583,36 @@ app.get('/admin/schema', async (req, res) => {
 });
 
 // Helper: NocoDB GET với timeout
-function nocoGet(path, res) {
+function nocoGet(path, res, transform) {
   const options = { hostname: nocoHostname, port: nocoPort, path, headers: { 'xc-token': NOCODB_TOKEN } };
   const req = nocoLib.get(options, r => {
     let d = '';
     r.on('data', c => d += c);
-    r.on('end', () => { try { res.json(JSON.parse(d).list || []); } catch(e) { res.json([]); } });
+    r.on('end', () => {
+      try {
+        let list = JSON.parse(d).list || [];
+        if (transform) list = list.map(transform);
+        res.json(list);
+      } catch(e) { res.json([]); }
+    });
   });
   req.on('error', () => { if (!res.headersSent) res.json([]); });
   req.setTimeout(25000, () => { req.destroy(); if (!res.headersSent) res.json([]); });
 }
 
+// NocoDB mới trả lowercase keys — frontend dùng PascalCase (Model, Ten_hang_hoa...)
+const capitalizeKeys = obj => Object.fromEntries(
+  Object.entries(obj).map(([k, v]) => [k.charAt(0).toUpperCase() + k.slice(1), v])
+);
+
 // API nhân viên
 app.get('/api/employees', (req, res) => {
-  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_NV}?limit=100`, res);
+  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_NV}?limit=100`, res, capitalizeKeys);
 });
 
 // API sản phẩm
 app.get('/api/products', (req, res) => {
-  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_SP}?limit=200`, res);
+  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_SP}?limit=200`, res, capitalizeKeys);
 });
 
 // API danh sách báo giá cũ (để nạp lại form)
