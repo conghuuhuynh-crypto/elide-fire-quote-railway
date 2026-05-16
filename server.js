@@ -605,6 +605,22 @@ const capitalizeKeys = obj => Object.fromEntries(
   Object.entries(obj).map(([k, v]) => [k.charAt(0).toUpperCase() + k.slice(1), v])
 );
 
+// BG table: explicit mapping từ lowercase NocoDB → mixed-case mà frontend dùng
+const BG_FIELD_MAP = {
+  so_bao_gia: 'So_bao_gia', ngay_bao_gia: 'Ngay_bao_gia', phien_ban: 'Phien_ban',
+  ten_du_an: 'Ten_du_an', ten_cong_ty: 'Ten_cong_ty', phong_ban_kh: 'Phong_ban_KH',
+  nguoi_lien_he: 'Nguoi_lien_he', sdt_khach_hang: 'SDT_khach_hang',
+  email_khach_hang: 'Email_khach_hang', nv_bo_phan: 'Nv_bo_phan', nv_ten: 'NV_ten',
+  nv_email: 'Nv_email', nv_sdt: 'Nv_sdt',
+  sl_techideas: 'SL_Techideas', dongia_techideas: 'DonGia_Techideas', ck_techideas: 'CK_Techideas', thanhtien_techideas: 'Thanhtien_techideas',
+  sl_lovingcare: 'SL_Lovingcare', dongia_lovingcare: 'DonGia_Lovingcare', ck_lovingcare: 'CK_Lovingcare', thanhtien_lovingcare: 'Thanhtien_lovingcare',
+  ck_tong_don: 'CK_Tong_don', tong_thanh_toan: 'Tong_thanh_toan',
+  file_pdf: 'File_pdf', items: 'Items',
+};
+const normalizeQuote = obj => Object.fromEntries(
+  Object.entries(obj).map(([k, v]) => [BG_FIELD_MAP[k] || k.charAt(0).toUpperCase() + k.slice(1), v])
+);
+
 // API nhân viên
 app.get('/api/employees', (req, res) => {
   nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_NV}?limit=100`, res, capitalizeKeys);
@@ -624,7 +640,7 @@ app.get('/api/quotes', (req, res) => {
     const s = encodeURIComponent(search);
     qs += `&where=(ten_cong_ty,like,%25${s}%25)~or(so_bao_gia,like,%25${s}%25)`;
   }
-  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}?${qs}`, res);
+  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_BG}?${qs}`, res, normalizeQuote);
 });
 
 // API job status
@@ -844,7 +860,7 @@ app.get('/api/contracts', (req, res) => {
     const s = encodeURIComponent(search);
     qs += `&where=(ten_cong_ty,like,%25${s}%25)~or(so_hop_dong,like,%25${s}%25)`;
   }
-  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_HD}?${qs}`, res);
+  nocoGet(`/api/v1/db/data/noco/${NOCODB_BASE}/${TABLE_HD}?${qs}`, res, capitalizeKeys);
 });
 
 // Tạo hợp đồng mới
