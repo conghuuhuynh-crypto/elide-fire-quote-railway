@@ -528,11 +528,18 @@ function renderDocxTemplate(templatePath, data, items) {
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  }
+}));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/download', express.static(QUOTES_DIR));
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v46-all-fields-verified' }));
 
 // GET /admin/schema — scan field names thực tế từ NocoDB, so sánh với bot config
