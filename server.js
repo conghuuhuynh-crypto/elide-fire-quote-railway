@@ -980,7 +980,7 @@ async function runContractJob(jobId, b) {
         nv_ten: b.nv_ten || '', nv_bo_phan: b.nv_bo_phan || '', nv_email: b.nv_email || '', nv_sdt: b.nv_sdt || '',
         mo_ta_san_pham: moTa, so_luong: soLuongSum,
         don_gia: items.length === 1 ? (parseFloat((firstItem.don_gia||'').toString().replace(/\./g,'').replace(/,/g,'.')) || 0) : 0,
-        Items: JSON.stringify(items),
+        items: JSON.stringify(items),
         tong_gia_tri: tongHD,
         thoi_gian_giao_hang: b.thoi_gian_giao_hang || '',
         dia_diem_giao_hang: b.dia_diem_giao_hang || '',

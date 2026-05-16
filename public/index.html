@@ -1438,7 +1438,7 @@
     list.innerHTML = hdOldContractsList.map((c, i) => `
       <div class="modal-item" onclick="hdLoadOld(${i})">
         <div class="item-title">${c.Ten_cong_ty || '—'}</div>
-        <div class="item-sub">${c.So_hop_dong || ''} · ${c.Ngay_ky || ''} · ${(c.Tong_gia_tri||0).toLocaleString('vi-VN')} VNĐ</div>
+        <div class="item-sub">${c.So_hop_dong || ''} · ${c.Ngay_ky || ''}${typeof c.Tong_gia_tri === 'number' ? ' · ' + c.Tong_gia_tri.toLocaleString('vi-VN') + ' VNĐ' : ''}</div>
       </div>`).join('');
   }
   function hdLoadOld(idx) {
@@ -1452,11 +1452,11 @@
     document.getElementById('hd_so_tai_khoan_ngan_hang').value = c.So_tai_khoan || '';
     document.getElementById('hd_ten_nguoi_dai_dien').value     = c.Nguoi_dai_dien || '';
     document.getElementById('hd_chuc_vu').value                = c.Chuc_vu || '';
-    document.getElementById('hd_thoi_gian_giao_hang').value    = c.Thoi_gian_giao_hang || '';
-    document.getElementById('hd_dia_diem_giao_hang').value     = c.Dia_diem_giao_hang || '';
+    document.getElementById('hd_thoi_gian_giao_hang').value    = typeof c.Thoi_gian_giao_hang === 'string' && c.Thoi_gian_giao_hang.length < 200 ? c.Thoi_gian_giao_hang : '';
+    document.getElementById('hd_dia_diem_giao_hang').value     = typeof c.Dia_diem_giao_hang === 'string' && c.Dia_diem_giao_hang.length < 200 ? c.Dia_diem_giao_hang : '';
     // Nhân viên
-    if (c.NV_ten) {
-      const nv = employeeList.find(e => e.Ten_nhan_vien === c.NV_ten);
+    if (c.Nv_ten) {
+      const nv = employeeList.find(e => e.Ten_nhan_vien === c.Nv_ten);
       if (nv) {
         document.getElementById('hd_nv_select').value = nv.Id;
         document.getElementById('hd_nv_select').dispatchEvent(new Event('change'));
@@ -1476,10 +1476,10 @@
         // Nhiều sản phẩm — thêm từng dòng riêng, qty=1 (user tự điều chỉnh)
         foundModels.forEach(p => hdAddItem(p.Model, 1));
       } else if (foundModels.length === 1) {
-        // 1 sản phẩm — dùng So_luong gốc
-        hdAddItem(foundModels[0].Model, c.So_luong || 1);
+        // 1 sản phẩm — dùng So_luong gốc (chỉ dùng nếu là số hợp lệ)
+        hdAddItem(foundModels[0].Model, parseInt(c.So_luong) || 1);
       } else {
-        hdAddItem('', c.So_luong || 1);
+        hdAddItem('', 1);
       }
     }
     hdCalc();
