@@ -642,7 +642,7 @@ app.get('/api/products', (req, res) => {
 app.get('/api/quotes', (req, res) => {
   const search = (req.query.search || '').trim();
   const limit  = Math.min(parseInt(req.query.limit) || 30, 50);
-  let qs = `limit=${limit}&sort=-created_at`;
+  let qs = `limit=${limit}&sort=-CreatedAt`;
   if (search) {
     const s = encodeURIComponent(search);
     qs += `&where=(ten_cong_ty,like,%25${s}%25)~or(so_bao_gia,like,%25${s}%25)`;
@@ -862,7 +862,7 @@ app.get('/api/contracts', (req, res) => {
   if (!TABLE_HD) return res.json([]);
   const search = (req.query.search || '').trim();
   const limit  = Math.min(parseInt(req.query.limit) || 30, 50);
-  let qs = `limit=${limit}&sort=-so_hop_dong`;
+  let qs = `limit=${limit}&sort=-CreatedAt`;
   if (search) {
     const s = encodeURIComponent(search);
     qs += `&where=(ten_cong_ty,like,%25${s}%25)~or(so_hop_dong,like,%25${s}%25)`;
