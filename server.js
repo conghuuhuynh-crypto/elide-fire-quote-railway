@@ -642,7 +642,7 @@ app.get('/api/products', (req, res) => {
 app.get('/api/quotes', (req, res) => {
   const search = (req.query.search || '').trim();
   const limit  = Math.min(parseInt(req.query.limit) || 30, 50);
-  let qs = `limit=${limit}&sort=-so_bao_gia`;
+  let qs = `limit=${limit}&sort=-created_at`;
   if (search) {
     const s = encodeURIComponent(search);
     qs += `&where=(ten_cong_ty,like,%25${s}%25)~or(so_bao_gia,like,%25${s}%25)`;
@@ -825,7 +825,7 @@ async function runJob(jobId, b) {
       email_khach_hang: b.email_khach_hang || '', nv_bo_phan: b.nv_bo_phan || '',
       nv_ten: b.nv_ten || '', nv_email: b.nv_email || '', nv_sdt: b.nv_sdt || '',
       ck_tong_don: ckTong, tong_thanh_toan: total,
-      Items: JSON.stringify(validItems),
+      items: JSON.stringify(validItems),
       sl_techideas:        itTech ? parseFloat(itTech.so_luong)    || 0 : 0,
       dongia_techideas:    itTech ? parseFloat(itTech.don_gia)     || 0 : 0,
       ck_techideas:        itTech ? parseFloat(itTech.chiet_khau)  || 0 : 0,
